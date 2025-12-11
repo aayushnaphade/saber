@@ -28,11 +28,11 @@ void main() {
             .android,
           );
           final router = GoRouter(
-            initialLocation: App.initialLocation,
+            initialLocation: App.getInitialLocation(),
             routes: <GoRoute>[
               GoRoute(
                 path: '/',
-                redirect: (context, state) => App.initialLocation,
+                redirect: (context, state) => App.getInitialLocation(),
               ),
               GoRoute(
                 path: RoutePaths.home,

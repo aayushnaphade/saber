@@ -52,6 +52,9 @@ dependencies:
 
   url_launcher: ^6.1.8
 
+  # Supabase for backend authentication and database
+  supabase_flutter: ^2.5.0
+
   nextcloud: ^8.1.0
 
   collapsible: ^1.0.0

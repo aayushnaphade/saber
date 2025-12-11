@@ -25,5 +25,6 @@
     "explorer.fileNesting.patterns": {
         "en.i18n.yaml": "*.i18n.yaml",
         "strings_en.g.dart": "strings_*.g.dart"
-    }
+    },
+    "cmake.sourceDirectory": "D:/projects/saber/windows"
 }

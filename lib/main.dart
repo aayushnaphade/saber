@@ -21,12 +21,14 @@ import 'package:saber/data/nextcloud/saber_syncer.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/sentry/sentry_init.dart';
+import 'package:saber/data/supabase/supabase_auth_service.dart';
+import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/tools/stroke_properties.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/editor/editor.dart';
 import 'package:saber/pages/home/home.dart';
 import 'package:saber/pages/logs.dart';
-import 'package:saber/pages/user/login.dart';
+import 'package:saber/pages/user/supabase_login.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
 import 'package:workmanager/workmanager.dart';
@@ -81,6 +83,9 @@ Future<void> appRunner(List<String> args) async {
   StrokeOptionsExtension.setDefaults();
   Stows.markAsOnMainIsolate();
 
+  // Initialize Supabase client
+  await SupabaseClientConfig.initialize();
+
   await Future.wait([
     stows.customDataDir.waitUntilRead().then((_) => FileManager.init()),
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS)
@@ -89,12 +94,20 @@ Future<void> appRunner(List<String> args) async {
     stows.locale.waitUntilRead(),
     stows.url.waitUntilRead(),
     stows.allowInsecureConnections.waitUntilRead(),
+    // Load Supabase auth preferences
+    stows.supabaseUserId.waitUntilRead(),
+    stows.supabaseAccessToken.waitUntilRead(),
+    stows.supabaseRefreshToken.waitUntilRead(),
+    stows.supabaseUserEmail.waitUntilRead(),
     PencilShader.init(),
     Printing.info().then((info) {
       Editor.canRasterPdf = info.canRaster;
     }),
     OnyxSdkPenArea.init(),
   ]);
+
+  // Try to restore Supabase session
+  await SupabaseAuthService.tryRestoreSession();
 
   setLocale();
   stows.locale.addListener(setLocale);
@@ -120,24 +133,25 @@ Future<void> appRunner(List<String> args) async {
 }
 
 void startSyncAfterLoaded() async {
-  await stows.username.waitUntilRead();
-  await stows.encPassword.waitUntilRead();
+  await stows.supabaseUserId.waitUntilRead();
+  await stows.supabaseAccessToken.waitUntilRead();
 
-  stows.username.removeListener(startSyncAfterLoaded);
-  stows.encPassword.removeListener(startSyncAfterLoaded);
+  stows.supabaseUserId.removeListener(startSyncAfterLoaded);
+  stows.supabaseAccessToken.removeListener(startSyncAfterLoaded);
   if (!stows.loggedIn) {
     // try again when logged in
-    stows.username.addListener(startSyncAfterLoaded);
-    stows.encPassword.addListener(startSyncAfterLoaded);
+    stows.supabaseUserId.addListener(startSyncAfterLoaded);
+    stows.supabaseAccessToken.addListener(startSyncAfterLoaded);
     return;
   }
 
   // wait for other prefs to load
   await Future.delayed(const Duration(milliseconds: 100));
 
-  // start syncing
-  syncer.downloader.refresh();
-  syncer.uploader.refresh();
+  // TODO: Implement Supabase-based sync instead of Nextcloud
+  // For now, disable automatic sync
+  // syncer.downloader.refresh();
+  // syncer.uploader.refresh();
 }
 
 void setLocale() {
@@ -227,13 +241,48 @@ class App extends StatefulWidget {
 
   static final log = Logger('App');
 
-  static String initialLocation = pathToFunction(RoutePaths.home)({
-    'subpage': HomePage.recentSubpage,
-  });
+  static String getInitialLocation() {
+    // Check if user is authenticated
+    if (SupabaseAuthService.isAuthenticated) {
+      return pathToFunction(RoutePaths.home)({
+        'subpage': HomePage.recentSubpage,
+      });
+    }
+    return RoutePaths.login;
+  }
+
   static final _router = GoRouter(
-    initialLocation: initialLocation,
+    initialLocation: getInitialLocation(),
+    redirect: (context, state) {
+      final isAuthenticated = SupabaseAuthService.isAuthenticated;
+      final isLoginRoute = state.matchedLocation == RoutePaths.login;
+
+      // If not authenticated and not on login page, redirect to login
+      if (!isAuthenticated && !isLoginRoute) {
+        return RoutePaths.login;
+      }
+
+      // If authenticated and on login page, redirect to home
+      if (isAuthenticated && isLoginRoute) {
+        return pathToFunction(RoutePaths.home)({
+          'subpage': HomePage.recentSubpage,
+        });
+      }
+
+      // No redirect needed
+      return null;
+    },
     routes: <GoRoute>[
-      GoRoute(path: '/', redirect: (context, state) => initialLocation),
+      GoRoute(
+        path: '/',
+        redirect: (context, state) {
+          return SupabaseAuthService.isAuthenticated
+              ? pathToFunction(RoutePaths.home)({
+                  'subpage': HomePage.recentSubpage,
+                })
+              : RoutePaths.login;
+        },
+      ),
       GoRoute(
         path: RoutePaths.home,
         builder: (context, state) => HomePage(
@@ -250,7 +299,7 @@ class App extends StatefulWidget {
       ),
       GoRoute(
         path: RoutePaths.login,
-        builder: (context, state) => const NcLoginPage(),
+        builder: (context, state) => const SupabaseLoginPage(),
       ),
       GoRoute(path: '/profile', redirect: (context, state) => RoutePaths.login),
       GoRoute(
@@ -304,11 +353,23 @@ class App extends StatefulWidget {
 
 class _AppState extends State<App> {
   StreamSubscription? _intentDataStreamSubscription;
+  StreamSubscription? _authStateSubscription;
 
   @override
   void initState() {
     setupSharingIntent();
+    setupAuthListener();
     super.initState();
+  }
+
+  void setupAuthListener() {
+    // Listen to auth state changes and refresh router
+    _authStateSubscription = SupabaseAuthService.onAuthStateChange.listen((
+      data,
+    ) {
+      // Refresh the router to trigger redirect logic
+      App._router.refresh();
+    });
   }
 
   void setupSharingIntent() {
@@ -342,6 +403,7 @@ class _AppState extends State<App> {
   @override
   void dispose() {
     _intentDataStreamSubscription?.cancel();
+    _authStateSubscription?.cancel();
     super.dispose();
   }
 }

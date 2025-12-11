@@ -55,11 +55,33 @@ class Stows {
     false,
     volatile: !_isOnMainIsolate,
   );
+
+  // Legacy Nextcloud credentials (kept for migration)
   final url = SecureStow('url', '', volatile: !_isOnMainIsolate);
   final username = SecureStow('username', '', volatile: !_isOnMainIsolate);
-
-  /// the password used to login to Nextcloud
   final ncPassword = SecureStow('ncPassword', '', volatile: !_isOnMainIsolate);
+
+  // Supabase authentication credentials
+  final supabaseUserId = SecureStow(
+    'supabaseUserId',
+    '',
+    volatile: !_isOnMainIsolate,
+  );
+  final supabaseAccessToken = SecureStow(
+    'supabaseAccessToken',
+    '',
+    volatile: !_isOnMainIsolate,
+  );
+  final supabaseRefreshToken = SecureStow(
+    'supabaseRefreshToken',
+    '',
+    volatile: !_isOnMainIsolate,
+  );
+  final supabaseUserEmail = SecureStow(
+    'supabaseUserEmail',
+    '',
+    volatile: !_isOnMainIsolate,
+  );
 
   /// the password used to encrypt/decrypt notes
   final encPassword = SecureStow(
@@ -68,9 +90,14 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
-  /// Whether the user is logged in and has provided both passwords.
+  /// Whether the user is logged in with Supabase.
   /// Please ensure that the relevant Prefs are loaded before using this.
   bool get loggedIn =>
+      supabaseUserId.value.isNotEmpty && supabaseAccessToken.value.isNotEmpty;
+
+  /// Legacy Nextcloud login check (deprecated)
+  @Deprecated('Use loggedIn instead')
+  bool get loggedInNextcloud =>
       username.value.isNotEmpty &&
       ncPassword.value.isNotEmpty &&
       encPassword.value.isNotEmpty;
