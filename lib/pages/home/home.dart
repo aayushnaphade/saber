@@ -4,7 +4,7 @@ import 'package:saber/components/home/sentry_consent_dialog.dart';
 import 'package:saber/components/navbar/responsive_navbar.dart';
 import 'package:saber/components/settings/update_manager.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
-import 'package:saber/pages/home/browse.dart';
+import 'package:saber/pages/home/patient_browse.dart';
 import 'package:saber/pages/home/recent_notes.dart';
 import 'package:saber/pages/home/settings.dart';
 import 'package:saber/pages/home/whiteboard.dart';
@@ -55,7 +55,7 @@ class _HomePageState extends State<HomePage> {
       child: KeyedSubtree(
         key: ValueKey(widget.subpage),
         child: switch (widget.subpage) {
-          HomePage.browseSubpage => BrowsePage(path: widget.path),
+          HomePage.browseSubpage => const PatientBrowsePage(),
           HomePage.whiteboardSubpage => const Whiteboard(),
           HomePage.settingsSubpage => const SettingsPage(),
           _ => const RecentPage(),

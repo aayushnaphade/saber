@@ -7,7 +7,6 @@ import 'package:golden_screenshot/golden_screenshot.dart';
 import 'package:saber/components/canvas/pencil_shader.dart';
 import 'package:saber/components/home/syncing_button.dart';
 import 'package:saber/components/settings/app_info.dart';
-import 'package:saber/components/settings/nextcloud_profile.dart';
 import 'package:saber/components/theming/font_fallbacks.dart';
 import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
@@ -18,11 +17,9 @@ import 'package:saber/data/sentry/sentry_init.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/editor/editor.dart';
 import 'package:saber/pages/home/home.dart';
-import 'package:saber/pages/user/login.dart';
 import 'package:yaru/yaru.dart';
 
 import 'utils/test_mock_channel_handlers.dart';
-import 'utils/test_user.dart';
 
 void main() {
   group('Screenshots:', () {
@@ -39,7 +36,7 @@ void main() {
     SyncingButton.forceButtonActive = true;
     AppInfo.showDebugMessage = false;
 
-    stows.lastStorageQuota.value = TestUser.getQuota();
+    // stows.lastStorageQuota.value = TestUser.getQuota(); // Removed Nextcloud legacy
     stows.username.value = 'myusername';
     stows.sentryConsent.value = .granted;
 
@@ -105,13 +102,14 @@ void main() {
       goldenFileName: '2_editor',
       child: Editor(path: '/Metric Spaces Week 1'),
     );
-    _screenshot(
-      materialTheme: materialTheme,
-      cupertinoTheme: cupertinoTheme,
-      yaruTheme: yaruTheme,
-      goldenFileName: '3_login',
-      child: const NcLoginPage(forceAppBarLeading: true),
-    );
+    // Login screenshot removed - NcLoginPage replaced with SupabaseLoginPage
+    // _screenshot(
+    //   materialTheme: materialTheme,
+    //   cupertinoTheme: cupertinoTheme,
+    //   yaruTheme: yaruTheme,
+    //   goldenFileName: '3_login',
+    //   child: const SupabaseLoginPage(),
+    // );
     _screenshot(
       materialTheme: materialTheme,
       cupertinoTheme: cupertinoTheme,
@@ -169,10 +167,11 @@ void _screenshot({
         stows.platform.value = device.platform;
         await tester.runAsync(() => LocaleSettings.setLocaleRaw(localeCode));
 
-        if (goldenFileName == '4_settings') {
-          NextcloudProfile.forceLoginStep = .done;
-          addTearDown(() => NextcloudProfile.forceLoginStep = null);
-        }
+        // Nextcloud login step removed
+        // if (goldenFileName == '4_settings') {
+        //   NextcloudProfile.forceLoginStep = .done;
+        //   addTearDown(() => NextcloudProfile.forceLoginStep = null);
+        // }
 
         final widget = ScreenshotApp.withConditionalTitlebar(
           theme: switch (device.platform) {

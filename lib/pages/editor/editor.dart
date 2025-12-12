@@ -37,7 +37,6 @@ import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/extensions/change_notifier_extensions.dart';
 import 'package:saber/data/extensions/matrix4_extensions.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
-import 'package:saber/data/nextcloud/saber_syncer.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
@@ -846,32 +845,11 @@ class EditorState extends State<Editor> {
     );
   }
 
+  // Note refresh removed - will be reimplemented with Supabase sync
+  // See SYNAPSEAI_ROADMAP.md Phase 4
   void _refreshCurrentNote() async {
-    if (coreInfo.readOnly) return;
-    if (!stows.loggedIn) return;
-
-    final syncFile = await SaberSyncFile.relative(
-      coreInfo.filePath + Editor.extension,
-    );
-
-    final bestFile = await SaberSyncInterface.getBestFile(
-      syncFile,
-      onLocalFileNotFound: .local,
-      onEqualFiles: .local,
-    );
-    if (bestFile != .remote) return;
-
-    late final StreamSubscription<SaberSyncFile> subscription;
-    void listener(SaberSyncFile transferred) {
-      if (transferred != syncFile) return;
-      subscription.cancel();
-      _initStrokes();
-    }
-
-    subscription = syncer.downloader.transferStream.listen(listener);
-
-    await syncer.downloader.enqueue(syncFile: syncFile);
-    syncer.downloader.bringToFront(syncFile);
+    // TODO: Implement Supabase-based sync check
+    return;
   }
 
   void autosaveAfterDelay() {

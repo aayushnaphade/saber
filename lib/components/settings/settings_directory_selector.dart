@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
 import 'package:saber/components/theming/font_fallbacks.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
-import 'package:saber/data/nextcloud/saber_syncer.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/i18n/strings.g.dart';
 
@@ -133,9 +132,8 @@ class _DirectorySelectorState extends State<DirectorySelector> {
     final colorScheme = ColorScheme.of(context);
 
     final emptyError = widget.mustBeEmpty && !_isEmpty;
-    final syncingError =
-        widget.mustBeDoneSyncing &&
-        (syncer.uploader.numPending > 0 || syncer.downloader.numPending > 0);
+    // Syncing check removed - Supabase sync TBD
+    final syncingError = false;
     final anyErrors = emptyError || syncingError;
 
     return AdaptiveAlertDialog(
@@ -172,11 +170,12 @@ class _DirectorySelectorState extends State<DirectorySelector> {
               t.settings.customDataDir.mustBeEmpty,
               style: TextStyle(color: colorScheme.error),
             ),
-          if (syncingError)
-            Text(
-              t.settings.customDataDir.mustBeDoneSyncing,
-              style: TextStyle(color: colorScheme.error),
-            ),
+          // Syncing check removed - Supabase sync TBD
+          // if (syncingError)
+          //   Text(
+          //     t.settings.customDataDir.mustBeDoneSyncing,
+          //     style: TextStyle(color: colorScheme.error),
+          //   ),
         ],
       ),
       actions: [

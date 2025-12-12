@@ -11,8 +11,8 @@ import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:saber/data/nextcloud/saber_syncer.dart';
 import 'package:saber/data/prefs.dart';
+import 'package:saber/data/supabase/document_sync_service.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/editor/editor.dart';
 import 'package:saver_gallery/saver_gallery.dart';
@@ -238,7 +238,11 @@ class FileManager {
 
     void afterWrite() {
       broadcastFileWrite(FileOperationType.write, filePath);
-      if (alsoUpload) syncer.uploader.enqueueRel(filePath);
+      // Queue for Supabase upload
+      if (filePath.contains('/patients/') &&
+          filePath.endsWith(Editor.extension)) {
+        DocumentSyncService.queueUpload(filePath);
+      }
       if (filePath.endsWith(Editor.extension)) {
         _removeReferences(
           '${filePath.substring(0, filePath.length - Editor.extension.length)}'
@@ -380,8 +384,7 @@ class FileManager {
       log.warning('Tried to move non-existent file from $fromPath to $toPath');
     }
 
-    syncer.uploader.enqueueRel(fromPath);
-    syncer.uploader.enqueueRel(toPath);
+    // TODO: Queue for Supabase upload (Phase 4)
 
     _renameReferences(fromPath, toPath);
     broadcastFileWrite(FileOperationType.delete, fromPath);
@@ -429,7 +432,7 @@ class FileManager {
     if (!file.existsSync()) return;
     await file.delete();
 
-    if (alsoUpload) syncer.uploader.enqueueRel(filePath);
+    // TODO: Queue for Supabase upload (Phase 4)
 
     _removeReferences(filePath);
     broadcastFileWrite(FileOperationType.delete, filePath);

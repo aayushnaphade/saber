@@ -11,6 +11,10 @@ abstract class RoutePaths {
   static const edit = '/edit';
   static const login = '/login';
   static const logs = '/logs';
+  static const patients = '$prefixOfHome/patients';
+  static const patientDetail = '$prefixOfHome/patients/:patientId';
+  static const patientDocuments =
+      '$prefixOfHome/patients/:patientId/:documentType';
 
   static const prefixOfHome = '/home';
 

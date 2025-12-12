@@ -16,8 +16,6 @@ import 'package:saber/components/canvas/pencil_shader.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/flavor_config.dart';
-import 'package:saber/data/nextcloud/nc_http_overrides.dart';
-import 'package:saber/data/nextcloud/saber_syncer.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/sentry/sentry_init.dart';
@@ -27,11 +25,12 @@ import 'package:saber/data/tools/stroke_properties.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/editor/editor.dart';
 import 'package:saber/pages/home/home.dart';
+import 'package:saber/pages/home/patient_browse.dart';
+import 'package:saber/pages/home/patient_profile.dart';
 import 'package:saber/pages/logs.dart';
 import 'package:saber/pages/user/supabase_login.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
-import 'package:workmanager/workmanager.dart';
 
 Future<void> main(List<String> args) async {
   /// To set the flavor config e.g. for the Play Store, use:
@@ -126,10 +125,8 @@ Future<void> appRunner(List<String> args) async {
     }
   });
 
-  HttpOverrides.global = NcHttpOverrides();
   runApp(SentryWidget(child: TranslationProvider(child: const App())));
   startSyncAfterLoaded();
-  setupBackgroundSync();
 }
 
 void startSyncAfterLoaded() async {
@@ -148,10 +145,8 @@ void startSyncAfterLoaded() async {
   // wait for other prefs to load
   await Future.delayed(const Duration(milliseconds: 100));
 
-  // TODO: Implement Supabase-based sync instead of Nextcloud
-  // For now, disable automatic sync
-  // syncer.downloader.refresh();
-  // syncer.uploader.refresh();
+  // TODO: Implement Supabase-based sync
+  // See SYNAPSEAI_ROADMAP.md for sync infrastructure plan
 }
 
 void setLocale() {
@@ -163,78 +158,11 @@ void setLocale() {
   }
 }
 
-void setupBackgroundSync() {
-  if (!Platform.isAndroid && !Platform.isIOS) return;
-  if (!stows.syncInBackground.loaded) {
-    return stows.syncInBackground.addListener(setupBackgroundSync);
-  } else {
-    stows.syncInBackground.removeListener(setupBackgroundSync);
-  }
-  if (!stows.syncInBackground.value) return;
+// Background sync removed - will be reimplemented with Supabase
+// See SYNAPSEAI_ROADMAP.md for sync infrastructure plan
 
-  Workmanager().initialize(doBackgroundSync);
-  const uniqueName = 'background-sync';
-  const initialDelay = Duration(hours: 12);
-  final constraints = Constraints(
-    networkType: NetworkType.unmetered,
-    requiresBatteryNotLow: true,
-    requiresCharging: false,
-    requiresDeviceIdle: true,
-    requiresStorageNotLow: true,
-  );
-
-  if (Platform.isAndroid)
-    Workmanager().registerPeriodicTask(
-      uniqueName,
-      uniqueName,
-      frequency: initialDelay,
-      initialDelay: initialDelay,
-      constraints: constraints,
-    );
-  else if (Platform.isIOS)
-    Workmanager().registerOneOffTask(
-      uniqueName,
-      uniqueName,
-      initialDelay: initialDelay,
-      constraints: constraints,
-    );
-}
-
-@pragma('vm:entry-point')
-void doBackgroundSync() {
-  Workmanager().executeTask((_, _) async {
-    FlavorConfig.setupFromEnvironment();
-    StrokeOptionsExtension.setDefaults();
-    Editor.canRasterPdf = false;
-
-    await Future.wait([
-      FileManager.init(),
-      workerManager.init(),
-      stows.url.waitUntilRead(),
-      stows.allowInsecureConnections.waitUntilRead(),
-    ]);
-
-    /// Only sync a few files to avoid using too much data/battery
-    const maxFilesSynced = 10;
-    var filesSynced = 0;
-    final completer = Completer<bool>();
-    late final StreamSubscription<SaberSyncFile> transferSubscription;
-    void transferListener([_]) {
-      filesSynced++;
-      if (filesSynced >= maxFilesSynced ||
-          syncer.downloader.numPending <= 0 ||
-          completer.isCompleted) {
-        transferSubscription.cancel();
-        if (!completer.isCompleted) completer.complete(filesSynced > 0);
-      }
-    }
-
-    transferSubscription = syncer.downloader.transferStream.listen(
-      transferListener,
-    );
-    return completer.future;
-  });
-}
+// Background sync removed - will be reimplemented with Supabase
+// See SYNAPSEAI_ROADMAP.md Phase 4 for sync infrastructure plan
 
 class App extends StatefulWidget {
   const App({super.key});
@@ -289,6 +217,22 @@ class App extends StatefulWidget {
           subpage: state.pathParameters['subpage'] ?? HomePage.recentSubpage,
           path: state.uri.queryParameters['path'],
         ),
+      ),
+      GoRoute(
+        path: RoutePaths.patientDocuments,
+        builder: (context, state) => PatientBrowsePage(
+          patientId: state.pathParameters['patientId'],
+          documentType: state.pathParameters['documentType'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.patientDetail,
+        builder: (context, state) =>
+            PatientProfilePage(patientId: state.pathParameters['patientId']!),
+      ),
+      GoRoute(
+        path: RoutePaths.patients,
+        builder: (context, state) => const PatientBrowsePage(),
       ),
       GoRoute(
         path: RoutePaths.edit,

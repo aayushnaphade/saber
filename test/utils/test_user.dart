@@ -1,4 +1,4 @@
-import 'package:saber/components/settings/nextcloud_profile.dart';
+import 'package:saber/data/models/quota.dart';
 
 abstract class TestUser {
   static Quota getQuota() {

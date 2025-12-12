@@ -7,9 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:perfect_freehand/perfect_freehand.dart';
 import 'package:saber/components/canvas/_canvas_background_painter.dart';
 import 'package:saber/components/navbar/responsive_navbar.dart';
-import 'package:saber/components/settings/nextcloud_profile.dart';
 import 'package:saber/data/codecs/base64_codec.dart';
-import 'package:saber/data/codecs/quota_codec.dart';
 import 'package:saber/data/flavor_config.dart';
 import 'package:saber/data/sentry/sentry_consent.dart';
 import 'package:saber/data/tools/_tool.dart';
@@ -391,14 +389,6 @@ class Stows {
     'fileSyncResyncEverythingDate',
     DateTime.parse('2023-12-10T10:06:31.000Z'),
     codec: const DateTimeCodec(),
-    volatile: !_isOnMainIsolate,
-  );
-
-  /// The last storage quota that was fetched from Nextcloud
-  final lastStorageQuota = PlainStow<Quota?>(
-    'lastStorageQuota',
-    null,
-    codec: const QuotaCodec(),
     volatile: !_isOnMainIsolate,
   );
 
