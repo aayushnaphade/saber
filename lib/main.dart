@@ -173,7 +173,7 @@ class App extends StatefulWidget {
     // Check if user is authenticated
     if (SupabaseAuthService.isAuthenticated) {
       return pathToFunction(RoutePaths.home)({
-        'subpage': HomePage.recentSubpage,
+        'subpage': HomePage.dashboardSubpage,
       });
     }
     return RoutePaths.login;
@@ -193,7 +193,7 @@ class App extends StatefulWidget {
       // If authenticated and on login page, redirect to home
       if (isAuthenticated && isLoginRoute) {
         return pathToFunction(RoutePaths.home)({
-          'subpage': HomePage.recentSubpage,
+          'subpage': HomePage.dashboardSubpage,
         });
       }
 
@@ -206,7 +206,7 @@ class App extends StatefulWidget {
         redirect: (context, state) {
           return SupabaseAuthService.isAuthenticated
               ? pathToFunction(RoutePaths.home)({
-                  'subpage': HomePage.recentSubpage,
+                  'subpage': HomePage.dashboardSubpage,
                 })
               : RoutePaths.login;
         },
@@ -214,7 +214,7 @@ class App extends StatefulWidget {
       GoRoute(
         path: RoutePaths.home,
         builder: (context, state) => HomePage(
-          subpage: state.pathParameters['subpage'] ?? HomePage.recentSubpage,
+          subpage: state.pathParameters['subpage'] ?? HomePage.dashboardSubpage,
           path: state.uri.queryParameters['path'],
         ),
       ),

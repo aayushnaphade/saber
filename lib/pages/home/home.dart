@@ -4,6 +4,7 @@ import 'package:saber/components/home/sentry_consent_dialog.dart';
 import 'package:saber/components/navbar/responsive_navbar.dart';
 import 'package:saber/components/settings/update_manager.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
+import 'package:saber/pages/home/dashboard/dashboard_page.dart';
 import 'package:saber/pages/home/patient_browse.dart';
 import 'package:saber/pages/home/recent_notes.dart';
 import 'package:saber/pages/home/settings.dart';
@@ -18,11 +19,13 @@ class HomePage extends StatefulWidget {
   @override
   State<HomePage> createState() => _HomePageState();
 
+  static const dashboardSubpage = 'dashboard';
   static const recentSubpage = 'recent';
   static const browseSubpage = 'browse';
   static const whiteboardSubpage = 'whiteboard';
   static const settingsSubpage = 'settings';
   static const List<String> subpages = [
+    dashboardSubpage,
     recentSubpage,
     browseSubpage,
     whiteboardSubpage,
@@ -55,6 +58,7 @@ class _HomePageState extends State<HomePage> {
       child: KeyedSubtree(
         key: ValueKey(widget.subpage),
         child: switch (widget.subpage) {
+          HomePage.dashboardSubpage => const DashboardPage(),
           HomePage.browseSubpage => const PatientBrowsePage(),
           HomePage.whiteboardSubpage => const Whiteboard(),
           HomePage.settingsSubpage => const SettingsPage(),

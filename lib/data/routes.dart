@@ -42,11 +42,19 @@ abstract class HomeRoutes {
 
   static List<_Route> get _routes => <_Route>[
     _Route(
+      routePath: _homeFunction({'subpage': HomePage.dashboardSubpage}),
+      label: 'Dashboard',
+      icon: const AdaptiveIcon(
+        icon: Icons.dashboard_rounded,
+        cupertinoIcon: CupertinoIcons.square_grid_2x2_fill,
+      ),
+    ),
+    _Route(
       routePath: _homeFunction({'subpage': HomePage.recentSubpage}),
       label: t.home.tabs.home,
       icon: const AdaptiveIcon(
-        icon: Icons.home,
-        cupertinoIcon: CupertinoIcons.house_fill,
+        icon: Icons.history,
+        cupertinoIcon: CupertinoIcons.clock_fill,
       ),
     ),
     _Route(

@@ -4,7 +4,8 @@ import 'package:path/path.dart' as path;
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/supabase/supabase_auth_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show FileObject, FileOptions;
 
 /// Service for syncing documents between local storage and Supabase Storage
 class DocumentSyncService {
@@ -93,8 +94,71 @@ class DocumentSyncService {
     }
   }
 
+  /// Delete a document file from Supabase Storage
+  static Future<void> deleteDocument(String localPath) async {
+    try {
+      log.info('Deleting document from cloud: $localPath');
+
+      final cloudPath = _getCloudPath(localPath);
+      if (cloudPath == null) {
+        log.warning('Could not determine cloud path for: $localPath');
+        return;
+      }
+
+      // Delete from storage
+      await supabase.storage.from('medical_notes').remove([cloudPath]);
+
+      log.info('Successfully deleted from cloud: $cloudPath');
+
+      // If this is a .sbn2 file, also delete the .sba assets folder
+      if (localPath.endsWith('.sbn2')) {
+        await _deleteAssetsFolder(localPath, cloudPath);
+      }
+    } catch (e, stackTrace) {
+      log.severe(
+        'Failed to delete document from cloud: $localPath',
+        e,
+        stackTrace,
+      );
+      // Don't rethrow, just log error so local delete can proceed/succeed
+    }
+  }
+
+  /// Delete assets folder (.sba) for a .sbn2 file from cloud
+  static Future<void> _deleteAssetsFolder(
+    String localSbn2Path,
+    String cloudSbn2Path,
+  ) async {
+    try {
+      final cloudAssetsPath =
+          '${cloudSbn2Path.substring(0, cloudSbn2Path.length - 5)}.sba';
+
+      // List files in assets folder
+      final files = await supabase.storage
+          .from('medical_notes')
+          .list(path: cloudAssetsPath);
+
+      if (files.isEmpty) return;
+
+      final pathsToDelete = files
+          .map((f) => '$cloudAssetsPath/${f.name}')
+          .toList();
+
+      await supabase.storage.from('medical_notes').remove(pathsToDelete);
+    } catch (e) {
+      log.warning(
+        'Failed to delete assets folder from cloud: $cloudSbn2Path',
+        e,
+      );
+    }
+  }
+
   /// Sync all documents for a specific patient
-  static Future<void> syncPatientDocuments(String patientId) async {
+  static Future<void> syncPatientDocuments(
+    String patientId, {
+    required Future<Map<String, bool>> Function(List<String> fileNames)
+    onConflicts,
+  }) async {
     try {
       log.info('Syncing documents for patient: $patientId');
 
@@ -104,28 +168,56 @@ class DocumentSyncService {
         return;
       }
 
+      final cloudPrefix = '$doctorId/$patientId';
+
       // List all files in patient's cloud folder
-      final cloudPrefix = '$doctorId/$patientId/';
-      final cloudFiles = await supabase.storage
-          .from('medical_notes')
-          .list(path: cloudPrefix);
+      // We need to list recursively to get files in subfolders (like session_notes/session_1/...)
+      final cloudFiles = await _listCloudFilesRecursive(cloudPrefix);
 
       log.info('Found ${cloudFiles.length} cloud files for patient $patientId');
 
-      // Download missing files
-      for (final file in cloudFiles) {
-        if (file.name.isEmpty) continue;
+      final missingFiles = <String>[];
+      final fileMap = <String, String>{}; // relativePath -> cloudPath
 
-        final cloudPath = '$cloudPrefix${file.name}';
-        final localPath = '/patients/$patientId/${file.name}';
+      // Identify missing files
+      for (final cloudFile in cloudFiles) {
+        // cloudFile.name is the full path: doctorId/patientId/folder/file
+        // We want the path relative to the patient folder: folder/file
+        if (!cloudFile.name.startsWith('$cloudPrefix/')) {
+          continue; // Should not happen if list works correctly
+        }
 
+        final relativePath = cloudFile.name.substring(cloudPrefix.length + 1);
+        final localPath = '/patients/$patientId/$relativePath';
         final localFile = FileManager.getFile(localPath);
+
         if (!await localFile.exists()) {
-          log.info('Downloading missing file: ${file.name}');
-          await downloadDocument(cloudPath, localPath);
+          missingFiles.add(relativePath);
+          fileMap[relativePath] = cloudFile.name;
         } else {
           // TODO: Check timestamps and sync if cloud is newer
-          log.fine('File already exists locally: ${file.name}');
+          log.fine('File already exists locally: $relativePath');
+        }
+      }
+
+      // Handle conflicts if any
+      if (missingFiles.isNotEmpty) {
+        log.info('Found ${missingFiles.length} missing files');
+        final resolutions = await onConflicts(missingFiles);
+
+        for (final entry in resolutions.entries) {
+          final relativePath = entry.key;
+          final shouldRestore = entry.value;
+          final cloudPath = fileMap[relativePath]!;
+          final localPath = '/patients/$patientId/$relativePath';
+
+          if (shouldRestore) {
+            log.info('Restoring missing file: $relativePath');
+            await downloadDocument(cloudPath, localPath);
+          } else {
+            log.info('Deleting orphaned cloud file: $relativePath');
+            await deleteCloudDocument(cloudPath);
+          }
         }
       }
 
@@ -137,6 +229,48 @@ class DocumentSyncService {
       log.severe('Failed to sync patient documents: $patientId', e, stackTrace);
       rethrow;
     }
+  }
+
+  static Future<List<FileObject>> _listCloudFilesRecursive(
+    String prefix,
+  ) async {
+    final files = <FileObject>[];
+
+    // Helper to process a directory
+    Future<void> processDir(String path) async {
+      final result = await supabase.storage
+          .from('medical_notes')
+          .list(path: path);
+
+      for (final item in result) {
+        if (item.id == null) {
+          // It's a folder (Supabase storage returns folders with null ID)
+          await processDir(path.isEmpty ? item.name : '$path/${item.name}');
+        } else {
+          // It's a file
+          // We need to reconstruct the full relative path
+          final fullPath = path.isEmpty ? item.name : '$path/${item.name}';
+          // Create a new FileObject with the full relative path as name
+          files.add(
+            FileObject(
+              name: fullPath,
+              bucketId: item.bucketId,
+              owner: item.owner,
+              id: item.id,
+              updatedAt: item.updatedAt,
+              createdAt: item.createdAt,
+              lastAccessedAt: item.lastAccessedAt,
+              metadata: item.metadata,
+              buckets:
+                  null, // Required parameter in newer storage_client versions
+            ),
+          );
+        }
+      }
+    }
+
+    await processDir(prefix);
+    return files;
   }
 
   /// Convert local path to cloud storage path
@@ -265,8 +399,8 @@ class DocumentSyncService {
     }
   }
 
-  /// Delete a document from cloud storage
-  static Future<void> deleteDocument(String cloudPath) async {
+  /// Delete a document from cloud storage by cloud path
+  static Future<void> deleteCloudDocument(String cloudPath) async {
     try {
       log.info('Deleting document: $cloudPath');
 

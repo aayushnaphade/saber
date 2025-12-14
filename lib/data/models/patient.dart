@@ -50,20 +50,29 @@ class Patient {
       fullName: json['full_name']?.toString() ?? '',
       age: json['age'] as int?,
       gender: json['gender']?.toString(),
-      status: PatientStatus.fromString(json['status']?.toString() ?? 'waiting'),
-      lastVisit: json['last_visit'] != null
-          ? DateTime.parse(json['last_visit'].toString())
-          : null,
-      doctorId: json['doctor_id']?.toString() ?? '',
-      phoneNumber: json['phone_number']?.toString(),
-      email: json['email']?.toString(),
-      medicalHistory: json['medical_history'] as Map<String, dynamic>?,
-      isActive: json['is_active'] as bool? ?? true,
+      // status: PatientStatus.fromString(json['status']?.toString() ?? 'waiting'),
+      status: PatientStatus.waiting, // Default as not in DB
+      // lastVisit: json['last_visit'] != null
+      //     ? DateTime.parse(json['last_visit'].toString())
+      //     : null,
+      lastVisit: null, // Not in DB
+      // doctorId: json['doctor_id']?.toString() ?? '',
+      doctorId: '', // Not in DB
+      phoneNumber: json['contact_number']
+          ?.toString(), // Mapped from contact_number
+      // email: json['email']?.toString(),
+      email: null, // Not in DB
+      // medicalHistory: json['medical_history'] as Map<String, dynamic>?,
+      medicalHistory: null, // Not in DB
+      // isActive: json['is_active'] as bool? ?? true,
+      isActive: true, // Default as not in DB
       weight: json['weight'] != null
           ? (json['weight'] as num).toDouble()
           : null,
-      bloodGroup: json['blood_group']?.toString(),
-      allergies: json['allergies']?.toString(),
+      // bloodGroup: json['blood_group']?.toString(),
+      bloodGroup: null, // Not in DB
+      // allergies: json['allergies']?.toString(),
+      allergies: null, // Not in DB
       address: json['address']?.toString(),
     );
   }
@@ -76,16 +85,16 @@ class Patient {
       'full_name': fullName,
       'age': age,
       'gender': gender,
-      'status': status.value,
-      'last_visit': lastVisit?.toIso8601String(),
-      'doctor_id': doctorId,
-      'phone_number': phoneNumber,
-      'email': email,
-      'medical_history': medicalHistory,
-      'is_active': isActive,
+      // 'status': status.value,
+      // 'last_visit': lastVisit?.toIso8601String(),
+      // 'doctor_id': doctorId,
+      'contact_number': phoneNumber, // Mapped to contact_number
+      // 'email': email,
+      // 'medical_history': medicalHistory,
+      // 'is_active': isActive,
       'weight': weight,
-      'blood_group': bloodGroup,
-      'allergies': allergies,
+      // 'blood_group': bloodGroup,
+      // 'allergies': allergies,
       'address': address,
     };
   }
@@ -97,16 +106,17 @@ class Patient {
       'full_name': fullName,
       if (age != null) 'age': age,
       if (gender != null) 'gender': gender,
-      'status': status.value,
-      if (lastVisit != null) 'last_visit': lastVisit!.toIso8601String(),
+      // 'status': status.value,
+      // if (lastVisit != null) 'last_visit': lastVisit!.toIso8601String(),
       // doctor_id is set automatically by database default (auth.uid())
-      if (phoneNumber != null) 'phone_number': phoneNumber,
-      if (email != null) 'email': email,
-      if (medicalHistory != null) 'medical_history': medicalHistory,
-      'is_active': isActive,
+      if (phoneNumber != null)
+        'contact_number': phoneNumber, // Mapped to contact_number
+      // if (email != null) 'email': email,
+      // if (medicalHistory != null) 'medical_history': medicalHistory,
+      // 'is_active': isActive,
       if (weight != null) 'weight': weight,
-      if (bloodGroup != null) 'blood_group': bloodGroup,
-      if (allergies != null) 'allergies': allergies,
+      // if (bloodGroup != null) 'blood_group': bloodGroup,
+      // if (allergies != null) 'allergies': allergies,
       if (address != null) 'address': address,
     };
   }

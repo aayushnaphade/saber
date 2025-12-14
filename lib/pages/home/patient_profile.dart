@@ -26,10 +26,85 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   var isSyncing = false;
   String? error;
 
+  // Selection mode state
+  bool _isSelectionMode = false;
+  final Set<String> _selectedSessionIds = {};
+
   @override
   void initState() {
     super.initState();
     _loadPatientData();
+  }
+
+  void _toggleSelection(String sessionId) {
+    setState(() {
+      if (_selectedSessionIds.contains(sessionId)) {
+        _selectedSessionIds.remove(sessionId);
+        if (_selectedSessionIds.isEmpty) {
+          _isSelectionMode = false;
+        }
+      } else {
+        _selectedSessionIds.add(sessionId);
+      }
+    });
+  }
+
+  Future<void> _deleteSelectedSessions() async {
+    if (patient == null || _selectedSessionIds.isEmpty) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Sessions'),
+        content: Text(
+          'Are you sure you want to delete ${_selectedSessionIds.length} sessions? '
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      for (final sessionId in _selectedSessionIds) {
+        final sessionPath =
+            '${patient!.documentFolderPath(DocumentType.sessionNote)}/$sessionId';
+        await FileManager.deleteDirectory(sessionPath);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Sessions deleted')));
+        setState(() {
+          _isSelectionMode = false;
+          _selectedSessionIds.clear();
+        });
+        _loadPatientData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete sessions: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _syncDocuments() async {
@@ -38,11 +113,28 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     setState(() => isSyncing = true);
 
     try {
-      await DocumentSyncService.syncPatientDocuments(patient!.id);
+      await DocumentSyncService.syncPatientDocuments(
+        patient!.id,
+        onConflicts: (fileNames) async {
+          if (!mounted) return {for (var f in fileNames) f: true};
+
+          // Ask user what to do with missing local files
+          final result = await showDialog<Map<String, bool>>(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => _SyncConflictDialog(fileNames: fileNames),
+          );
+
+          // Default to restore all if dialog dismissed
+          return result ?? {for (var f in fileNames) f: true};
+        },
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Documents synced successfully')),
         );
+        _loadPatientData(); // Reload to show restored files
       }
     } catch (e) {
       if (mounted) {
@@ -225,86 +317,109 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       // Transparent app bar for immersive design
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/home/browse'),
-          tooltip: 'Back to patients',
-        ),
-        title: const Text('Patient Profile'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          if (patient != null) ...[
-            // Cloud sync indicator - shows background sync status
-            if (isSyncing)
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Tooltip(
-                  message: 'Syncing documents...',
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ),
-              )
-            else
-              IconButton(
-                icon: const Icon(Icons.cloud_outlined),
-                onPressed: _syncDocuments,
-                tooltip: 'Sync to cloud',
+      appBar: _isSelectionMode
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () {
+                  setState(() {
+                    _isSelectionMode = false;
+                    _selectedSessionIds.clear();
+                  });
+                },
               ),
-            // Quick actions menu
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
-              tooltip: 'More options',
-              onSelected: (value) {
-                switch (value) {
-                  case 'edit':
-                    _editDemographics();
-                    break;
-                  case 'share':
-                    _sharePatientProfile();
-                    break;
-                  case 'export':
-                    _exportRecords();
-                    break;
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: ListTile(
-                    leading: Icon(Icons.edit_outlined),
-                    title: Text('Edit Demographics'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'share',
-                  child: ListTile(
-                    leading: Icon(Icons.share_outlined),
-                    title: Text('Share Profile'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'export',
-                  child: ListTile(
-                    leading: Icon(Icons.file_download_outlined),
-                    title: Text('Export Records'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
+              title: Text('${_selectedSessionIds.length} selected'),
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: _deleteSelectedSessions,
+                  tooltip: 'Delete selected',
                 ),
               ],
+            )
+          : AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.go('/home/browse'),
+                tooltip: 'Back to patients',
+              ),
+              title: const Text('Patient Profile'),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              actions: [
+                if (patient != null) ...[
+                  // Cloud sync indicator - shows background sync status
+                  if (isSyncing)
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Tooltip(
+                        message: 'Syncing documents...',
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    IconButton(
+                      icon: const Icon(Icons.cloud_outlined),
+                      onPressed: _syncDocuments,
+                      tooltip: 'Sync to cloud',
+                    ),
+                  // Quick actions menu
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    tooltip: 'More options',
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'edit':
+                          _editDemographics();
+                          break;
+                        case 'share':
+                          _sharePatientProfile();
+                          break;
+                        case 'export':
+                          _exportRecords();
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: ListTile(
+                          leading: Icon(Icons.edit_outlined),
+                          title: Text('Edit Demographics'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'share',
+                        child: ListTile(
+                          leading: Icon(Icons.share_outlined),
+                          title: Text('Share Profile'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'export',
+                        child: ListTile(
+                          leading: Icon(Icons.file_download_outlined),
+                          title: Text('Export Records'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
             ),
-          ],
-        ],
-      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : error != null
@@ -867,16 +982,119 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       itemCount: sessions.length,
       itemBuilder: (context, index) {
         final session = sessions[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
-            leading: CircleAvatar(child: Text('${session.sessionNumber}')),
-            title: Text('Session ${session.sessionNumber}'),
-            subtitle: Text(
-              '${session.fileCount} ${session.fileCount == 1 ? 'file' : 'files'} • ${DateFormat.yMMMd().format(session.createdDate)}',
+        final isSelected = _selectedSessionIds.contains(session.folderName);
+
+        return Dismissible(
+          key: Key(session.folderName),
+          direction: _isSelectionMode
+              ? DismissDirection.none
+              : DismissDirection.endToStart,
+          background: Container(
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.error,
+              borderRadius: BorderRadius.circular(12),
             ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _openSession(session),
+            child: Icon(
+              Icons.delete_outline,
+              color: Theme.of(context).colorScheme.onError,
+            ),
+          ),
+          confirmDismiss: (direction) async {
+            return await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Delete Session'),
+                content: Text(
+                  'Are you sure you want to delete Session ${session.sessionNumber}? '
+                  'This action cannot be undone.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                    ),
+                    child: const Text('Delete'),
+                  ),
+                ],
+              ),
+            );
+          },
+          onDismissed: (direction) async {
+            // Optimistically remove from list
+            final sessionPath =
+                '${patient!.documentFolderPath(DocumentType.sessionNote)}/${session.folderName}';
+
+            setState(() {
+              sessions.removeAt(index);
+            });
+
+            try {
+              await FileManager.deleteDirectory(sessionPath);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Session deleted')),
+                );
+              }
+            } catch (e) {
+              // If delete fails, reload to restore the item
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to delete session: $e'),
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                );
+                _loadPatientData();
+              }
+            }
+          },
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            color: isSelected
+                ? Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withOpacity(0.3)
+                : null,
+            child: InkWell(
+              onLongPress: () {
+                setState(() {
+                  _isSelectionMode = true;
+                  _toggleSelection(session.folderName);
+                });
+              },
+              onTap: () {
+                if (_isSelectionMode) {
+                  _toggleSelection(session.folderName);
+                } else {
+                  _openSession(session);
+                }
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: ListTile(
+                leading: _isSelectionMode
+                    ? Checkbox(
+                        value: isSelected,
+                        onChanged: (value) =>
+                            _toggleSelection(session.folderName),
+                      )
+                    : CircleAvatar(child: Text('${session.sessionNumber}')),
+                title: Text('Session ${session.sessionNumber}'),
+                subtitle: Text(
+                  '${session.fileCount} ${session.fileCount == 1 ? 'file' : 'files'} • ${DateFormat.yMMMd().format(session.createdDate)}',
+                ),
+                trailing: _isSelectionMode
+                    ? null
+                    : const Icon(Icons.chevron_right),
+              ),
+            ),
           ),
         );
       },
@@ -962,11 +1180,13 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
 
   void _openSession(SessionInfo session) {
     if (patient == null) return;
-    // TODO: Navigate to session folder view
-    // final sessionPath = '${patient!.documentFolderPath(DocumentType.sessionNote)}/${session.folderName}';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Opening session ${session.sessionNumber}')),
-    );
+
+    final sessionPath =
+        '${patient!.documentFolderPath(DocumentType.sessionNote)}/${session.folderName}';
+    final documentName = '${session.folderName}_notes.sbn';
+    final documentPath = '$sessionPath/$documentName';
+
+    context.push(RoutePaths.editFilePath(documentPath));
   }
 
   void _openDocumentFolder(DocumentType type) {
@@ -1229,4 +1449,110 @@ class SessionInfo {
     required this.fileCount,
     required this.createdDate,
   });
+}
+
+class _SyncConflictDialog extends StatefulWidget {
+  const _SyncConflictDialog({required this.fileNames});
+
+  final List<String> fileNames;
+
+  @override
+  State<_SyncConflictDialog> createState() => _SyncConflictDialogState();
+}
+
+class _SyncConflictDialogState extends State<_SyncConflictDialog> {
+  // true = restore, false = delete
+  final Map<String, bool> _selections = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // Default to restore all
+    for (final file in widget.fileNames) {
+      _selections[file] = true;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Sync Conflicts'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'The following files exist in cloud but are missing locally. '
+              'Select action for each file:',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: widget.fileNames.length,
+                itemBuilder: (context, index) {
+                  final fileName = widget.fileNames[index];
+                  final isRestore = _selections[fileName] ?? true;
+                  return CheckboxListTile(
+                    title: Text(fileName),
+                    subtitle: Text(
+                      isRestore ? 'Restore to Device' : 'Delete from Cloud',
+                      style: TextStyle(
+                        color: isRestore
+                            ? Colors.green
+                            : Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                    value: isRestore,
+                    onChanged: (value) {
+                      setState(() {
+                        _selections[fileName] = value ?? true;
+                      });
+                    },
+                    secondary: Icon(
+                      isRestore ? Icons.cloud_download : Icons.delete_forever,
+                      color: isRestore
+                          ? Colors.green
+                          : Theme.of(context).colorScheme.error,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            // Set all to delete
+            setState(() {
+              for (final file in widget.fileNames) {
+                _selections[file] = false;
+              }
+            });
+          },
+          child: const Text('Delete All'),
+        ),
+        TextButton(
+          onPressed: () {
+            // Set all to restore
+            setState(() {
+              for (final file in widget.fileNames) {
+                _selections[file] = true;
+              }
+            });
+          },
+          child: const Text('Restore All'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _selections),
+          child: const Text('Confirm'),
+        ),
+      ],
+    );
+  }
 }
