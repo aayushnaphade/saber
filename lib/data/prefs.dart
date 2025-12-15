@@ -109,6 +109,30 @@ class Stows {
     codec: const Base64StowCodec(),
     volatile: !_isOnMainIsolate,
   );
+
+  // Profile Cache Stows
+  final userDisplayName = PlainStow(
+    'userDisplayName',
+    '',
+    volatile: !_isOnMainIsolate,
+  );
+  final userHospital = PlainStow(
+    'userHospital',
+    '',
+    volatile: !_isOnMainIsolate,
+  );
+  final userSpecialization = PlainStow(
+    'userSpecialization',
+    '',
+    volatile: !_isOnMainIsolate,
+  );
+  final userPhone = PlainStow('userPhone', '', volatile: !_isOnMainIsolate);
+  final userAvatarUrl = PlainStow<String?>(
+    'userAvatarUrl',
+    null,
+    volatile: !_isOnMainIsolate,
+  );
+
   final syncInBackground = PlainStow(
     'syncInBackground',
     true,

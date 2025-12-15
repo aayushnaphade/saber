@@ -17,6 +17,7 @@ import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/editor/editor.dart';
+import 'package:saber/pages/home/widgets/patient_history_calendar.dart';
 
 class RecentPage extends StatefulWidget {
   const RecentPage({super.key});
@@ -140,6 +141,33 @@ class _RecentPageState extends State<RecentPage> {
                   ),
                 ),
                 actions: const [SyncingButton()],
+              ),
+            ),
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Patient History',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    PatientHistoryCalendar(),
+                    SizedBox(height: 24),
+                    Text(
+                      'Recent Notes',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                  ],
+                ),
               ),
             ),
             if (failed) ...[

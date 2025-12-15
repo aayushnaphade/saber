@@ -92,7 +92,7 @@ class SupabasePatientService {
         return null;
       }
 
-      final patient = Patient.fromJson(response as Map<String, dynamic>);
+      final patient = Patient.fromJson(response);
       log.info('Fetched patient: ${patient.fullName}');
       return patient;
     } catch (e) {
@@ -162,7 +162,7 @@ class SupabasePatientService {
           .select()
           .single();
 
-      final createdPatient = Patient.fromJson(response as Map<String, dynamic>);
+      final createdPatient = Patient.fromJson(response);
       log.info('Created patient: ${createdPatient.id}');
       return createdPatient;
     } catch (e) {
@@ -186,7 +186,7 @@ class SupabasePatientService {
           .select()
           .single();
 
-      final updatedPatient = Patient.fromJson(response as Map<String, dynamic>);
+      final updatedPatient = Patient.fromJson(response);
       log.info('Updated patient: ${updatedPatient.id}');
       return updatedPatient;
     } catch (e) {
@@ -254,11 +254,11 @@ class SupabasePatientService {
     try {
       log.info('Deleting patient: $patientId');
 
-      // 1. Delete from database (Postgres should handle cascade if configured, but we do it explicitly for safety)
-      // Note: Assuming RLS policies allow deletion
+      // Delete patient.
+      // Related rows (e.g. consultations) are deleted by the database via ON DELETE CASCADE.
       await supabase.from('patients').delete().eq('id', patientId);
 
-      // 2. Delete from Storage (Cascade delete for files)
+      // Delete from Storage (best-effort cleanup)
       // We need to list and delete all files in the patient's folder
       try {
         final storage = supabase.storage.from('medical_notes');
@@ -292,11 +292,7 @@ class SupabasePatientService {
         .from('patients')
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false)
-        .map(
-          (data) => data
-              .map((json) => Patient.fromJson(json as Map<String, dynamic>))
-              .toList(),
-        );
+        .map((data) => data.map((json) => Patient.fromJson(json)).toList());
   }
 
   /// Watch for real-time changes to waiting queue
@@ -307,10 +303,6 @@ class SupabasePatientService {
         .stream(primaryKey: ['id'])
         // .eq('status', 'waiting') // Column does not exist
         .order('created_at', ascending: true)
-        .map(
-          (data) => data
-              .map((json) => Patient.fromJson(json as Map<String, dynamic>))
-              .toList(),
-        );
+        .map((data) => data.map((json) => Patient.fromJson(json)).toList());
   }
 }

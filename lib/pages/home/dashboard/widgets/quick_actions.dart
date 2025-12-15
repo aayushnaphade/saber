@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:saber/pages/home/dashboard/widgets/new_patient_dialog.dart';
 
 class QuickActions extends StatelessWidget {
   const QuickActions({super.key});
@@ -13,7 +14,12 @@ class QuickActions extends StatelessWidget {
             'New Patient',
             Icons.person_add_outlined,
             Colors.blue,
-            () {},
+            () {
+              showDialog(
+                context: context,
+                builder: (context) => const NewPatientDialog(),
+              );
+            },
           ),
         ),
         const SizedBox(width: 12),

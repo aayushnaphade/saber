@@ -1,38 +1,14 @@
-import 'dart:io';
-
-import 'package:collapsible/collapsible.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:go_router/go_router.dart';
-import 'package:material_symbols_icons/symbols.dart';
-import 'package:saber/components/navbar/responsive_navbar.dart';
 import 'package:saber/components/settings/app_info.dart';
-import 'package:saber/components/settings/supabase_profile.dart';
 import 'package:saber/components/settings/settings_button.dart';
-import 'package:saber/components/settings/settings_color.dart';
-import 'package:saber/components/settings/settings_directory_selector.dart';
-import 'package:saber/components/settings/settings_dropdown.dart';
-import 'package:saber/components/settings/settings_selection.dart';
-import 'package:saber/components/settings/settings_sentry.dart';
-import 'package:saber/components/settings/settings_subtitle.dart';
-import 'package:saber/components/settings/settings_switch.dart';
+import 'package:saber/components/settings/supabase_profile.dart';
 import 'package:saber/components/settings/update_manager.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
-import 'package:saber/components/theming/adaptive_toggle_buttons.dart';
-import 'package:saber/components/theming/saber_theme.dart';
-import 'package:saber/data/file_manager/file_manager.dart';
-import 'package:saber/data/flavor_config.dart';
-import 'package:saber/data/locales.dart';
 import 'package:saber/data/prefs.dart';
-import 'package:saber/data/routes.dart';
-import 'package:saber/data/sentry/sentry_init.dart';
-import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/i18n/strings.g.dart';
-import 'package:stow/stow.dart';
-
 import 'package:saber/pages/home/settings_subpages/app_settings_page.dart';
+import 'package:stow/stow.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -87,6 +63,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = ColorScheme.of(context);
+    final isTablet = MediaQuery.of(context).size.width > 700;
 
     return Scaffold(
       body: CustomScrollView(
@@ -110,6 +87,37 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               actions: [
+                // Theme Toggle
+                ValueListenableBuilder(
+                  valueListenable: stows.appTheme,
+                  builder: (context, currentMode, _) {
+                    IconData icon;
+                    String tooltip;
+                    if (currentMode == ThemeMode.light) {
+                      icon = Icons.light_mode;
+                      tooltip = 'Switch to Dark Mode';
+                    } else if (currentMode == ThemeMode.dark) {
+                      icon = Icons.dark_mode;
+                      tooltip = 'Switch to System Mode';
+                    } else {
+                      icon = Icons.brightness_auto;
+                      tooltip = 'Switch to Light Mode';
+                    }
+
+                    return IconButton(
+                      tooltip: tooltip,
+                      icon: Icon(icon),
+                      onPressed: () {
+                        final currentIndex = ThemeMode.values.indexOf(
+                          currentMode,
+                        );
+                        final nextIndex =
+                            (currentIndex + 1) % ThemeMode.values.length;
+                        stows.appTheme.value = ThemeMode.values[nextIndex];
+                      },
+                    );
+                  },
+                ),
                 if (UpdateManager.status.value != UpdateStatus.upToDate)
                   IconButton(
                     tooltip: t.home.tooltips.showUpdateDialog,
@@ -125,28 +133,65 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           SliverSafeArea(
-            sliver: SliverList.list(
-              children: [
-                const SupabaseProfile(),
-                const Padding(padding: EdgeInsets.all(8), child: AppInfo()),
-
-                // Link to App Settings (Saber Settings)
-                SettingsButton(
-                  title: 'App Settings', // TODO: Localize
-                  subtitle: 'General, Editor, Theme, etc.',
-                  icon: Icons.settings_applications,
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const AppSettingsPage(),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
+            sliver: isTablet ? _buildTabletLayout() : _buildMobileLayout(),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return SliverList.list(
+      children: [
+        const SupabaseProfile(),
+        const Padding(padding: EdgeInsets.all(8), child: AppInfo()),
+        SettingsButton(
+          title: 'App Settings',
+          subtitle: 'General, Editor, Theme, etc.',
+          icon: Icons.settings_applications,
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const AppSettingsPage()),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabletLayout() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Expanded(flex: 5, child: SupabaseProfile()),
+            const SizedBox(width: 24),
+            Expanded(
+              flex: 4,
+              child: Column(
+                children: [
+                  const SizedBox(height: 16),
+                  const AppInfo(),
+                  const SizedBox(height: 16),
+                  SettingsButton(
+                    title: 'App Settings',
+                    subtitle: 'General, Editor, Theme, etc.',
+                    icon: Icons.settings_applications,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const AppSettingsPage(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

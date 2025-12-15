@@ -27,7 +27,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   String? error;
 
   // Selection mode state
-  bool _isSelectionMode = false;
+  var _isSelectionMode = false;
   final Set<String> _selectedSessionIds = {};
 
   @override
@@ -116,7 +116,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       await DocumentSyncService.syncPatientDocuments(
         patient!.id,
         onConflicts: (fileNames) async {
-          if (!mounted) return {for (var f in fileNames) f: true};
+          if (!mounted) return {for (final f in fileNames) f: true};
 
           // Ask user what to do with missing local files
           final result = await showDialog<Map<String, bool>>(
@@ -126,7 +126,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
           );
 
           // Default to restore all if dialog dismissed
-          return result ?? {for (var f in fileNames) f: true};
+          return result ?? {for (final f in fileNames) f: true};
         },
       );
 
@@ -381,13 +381,10 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                       switch (value) {
                         case 'edit':
                           _editDemographics();
-                          break;
                         case 'share':
                           _sharePatientProfile();
-                          break;
                         case 'export':
                           _exportRecords();
-                          break;
                       }
                     },
                     itemBuilder: (context) => [
@@ -494,7 +491,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         // Right side: Sessions history
         Expanded(
           flex: 3,
-          child: Container(
+          child: DecoratedBox(
             decoration: BoxDecoration(
               border: Border(
                 left: BorderSide(color: Theme.of(context).dividerColor),
@@ -530,7 +527,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
           width: 1,
         ),
       ),
-      child: Container(
+      child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           gradient: LinearGradient(
@@ -1153,7 +1150,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _openDocumentFolder(type),
-        child: Container(
+        child: DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,

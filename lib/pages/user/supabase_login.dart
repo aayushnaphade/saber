@@ -23,10 +23,10 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
   final _passwordController = TextEditingController();
   final _otpController = TextEditingController();
 
-  bool _isLoading = false;
-  bool _obscurePassword = true;
-  bool _isSignUpMode = false;
-  bool _showOtpInput = false;
+  var _isLoading = false;
+  var _obscurePassword = true;
+  var _isSignUpMode = false;
+  var _showOtpInput = false;
   late final StreamSubscription<AuthState> _authStateSubscription;
 
   @override
@@ -223,15 +223,15 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
     final isLandscape = size.width > size.height;
 
     return Scaffold(
-      body: Container(
+      body: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              colorScheme.primary.withOpacity(0.05),
-              colorScheme.secondary.withOpacity(0.05),
-              colorScheme.tertiary.withOpacity(0.05),
+              colorScheme.primary.withValues(alpha: 0.05),
+              colorScheme.secondary.withValues(alpha: 0.05),
+              colorScheme.tertiary.withValues(alpha: 0.05),
             ],
           ),
         ),
@@ -330,83 +330,89 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
   }
 
   Widget _buildIllustration(ColorScheme colorScheme, double size) {
-    return Container(
+    return SizedBox(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colorScheme.primaryContainer,
-            colorScheme.secondaryContainer,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              colorScheme.primaryContainer,
+              colorScheme.secondaryContainer,
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: colorScheme.primary.withValues(alpha: 0.2),
+              blurRadius: 40,
+              offset: const Offset(0, 20),
+            ),
           ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.primary.withOpacity(0.2),
-            blurRadius: 40,
-            offset: const Offset(0, 20),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // Brain illustration using icons and shapes
-          Center(
-            child: Icon(
-              Icons.psychology_rounded,
-              size: size * 0.5,
-              color: colorScheme.primary.withOpacity(0.9),
-            ),
-          ),
-          // Decorative elements
-          Positioned(
-            top: size * 0.15,
-            right: size * 0.15,
-            child: Container(
-              width: size * 0.12,
-              height: size * 0.12,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colorScheme.tertiary.withOpacity(0.6),
+        child: Stack(
+          children: [
+            // Brain illustration using icons and shapes
+            Center(
+              child: Icon(
+                Icons.psychology_rounded,
+                size: size * 0.5,
+                color: colorScheme.primary.withValues(alpha: 0.9),
               ),
             ),
-          ),
-          Positioned(
-            bottom: size * 0.2,
-            left: size * 0.1,
-            child: Container(
-              width: size * 0.15,
-              height: size * 0.15,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colorScheme.secondary.withOpacity(0.5),
+            // Decorative elements
+            Positioned(
+              top: size * 0.15,
+              right: size * 0.15,
+              child: SizedBox(
+                width: size * 0.12,
+                height: size * 0.12,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colorScheme.tertiary.withValues(alpha: 0.6),
+                  ),
+                ),
               ),
             ),
-          ),
-          // Heart icon for care
-          Positioned(
-            bottom: size * 0.15,
-            right: size * 0.2,
-            child: Icon(
-              Icons.favorite,
-              size: size * 0.15,
-              color: colorScheme.error.withOpacity(0.7),
+            Positioned(
+              bottom: size * 0.2,
+              left: size * 0.1,
+              child: SizedBox(
+                width: size * 0.15,
+                height: size * 0.15,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colorScheme.secondary.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
             ),
-          ),
-          // Stethoscope for medical
-          Positioned(
-            top: size * 0.2,
-            left: size * 0.15,
-            child: Icon(
-              Icons.medical_services_outlined,
-              size: size * 0.13,
-              color: colorScheme.primary.withOpacity(0.6),
+            // Heart icon for care
+            Positioned(
+              bottom: size * 0.15,
+              right: size * 0.2,
+              child: Icon(
+                Icons.favorite,
+                size: size * 0.15,
+                color: colorScheme.error.withValues(alpha: 0.7),
+              ),
             ),
-          ),
-        ],
+            // Stethoscope for medical
+            Positioned(
+              top: size * 0.2,
+              left: size * 0.15,
+              child: Icon(
+                Icons.medical_services_outlined,
+                size: size * 0.13,
+                color: colorScheme.primary.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -423,7 +429,7 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.1),
+            color: colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 30,
             offset: const Offset(0, 10),
           ),
@@ -440,16 +446,18 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
               // OTP Verification Header
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
+                  DecoratedBox(
                     decoration: BoxDecoration(
                       color: colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Icon(
-                      Icons.mark_email_read_rounded,
-                      color: colorScheme.primary,
-                      size: 28,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Icon(
+                        Icons.mark_email_read_rounded,
+                        color: colorScheme.primary,
+                        size: 28,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -496,8 +504,8 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
                     color: colorScheme.primary,
                   ),
                   filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest.withOpacity(
-                    0.3,
+                  fillColor: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.3,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -506,7 +514,7 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide(
-                      color: colorScheme.outline.withOpacity(0.2),
+                      color: colorScheme.outline.withValues(alpha: 0.2),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
@@ -525,8 +533,8 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
                 onPressed: _isLoading ? null : _handleOtpVerification,
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(16)),
                   ),
                 ),
                 child: _isLoading
@@ -557,22 +565,24 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
                     : () {
                         setState(() => _showOtpInput = false);
                       },
-                child: Text('Back to Login'),
+                child: const Text('Back to Login'),
               ),
             ] else ...[
               // Header
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
+                  DecoratedBox(
                     decoration: BoxDecoration(
                       color: colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Icon(
-                      Icons.lock_person_rounded,
-                      color: colorScheme.primary,
-                      size: 28,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Icon(
+                        Icons.lock_person_rounded,
+                        color: colorScheme.primary,
+                        size: 28,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -617,8 +627,8 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
                     color: colorScheme.primary,
                   ),
                   filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest.withOpacity(
-                    0.3,
+                  fillColor: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.3,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -627,7 +637,7 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide(
-                      color: colorScheme.outline.withOpacity(0.2),
+                      color: colorScheme.outline.withValues(alpha: 0.2),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
@@ -683,8 +693,8 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
                     },
                   ),
                   filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest.withOpacity(
-                    0.3,
+                  fillColor: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.3,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -693,7 +703,7 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide(
-                      color: colorScheme.outline.withOpacity(0.2),
+                      color: colorScheme.outline.withValues(alpha: 0.2),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
@@ -751,8 +761,8 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
                 onPressed: _isLoading ? null : _handleEmailPasswordAuth,
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(16)),
                   ),
                   elevation: 2,
                 ),
@@ -821,8 +831,8 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
                       },
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(16)),
                   ),
                   side: BorderSide(color: colorScheme.outline, width: 1.5),
                 ),
@@ -858,7 +868,7 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
                       : () {
                           setState(() => _showOtpInput = true);
                         },
-                  child: Text('I have a verification code'),
+                  child: const Text('I have a verification code'),
                 ),
               ],
             ],
@@ -869,7 +879,7 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
             Text(
               'For Mental Health Professionals',
               style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
               textAlign: TextAlign.center,
             ),

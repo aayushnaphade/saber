@@ -19,20 +19,23 @@ class PatientBrowsePage extends StatefulWidget {
 }
 
 class _PatientBrowsePageState extends State<PatientBrowsePage> {
+  // Patient list view mode (only applies when viewing the patients list)
+  _PatientsViewMode _patientsViewMode = _PatientsViewMode.list;
+
   List<Patient>? patients;
   List<Patient>? filteredPatients;
   Patient? selectedPatient;
   List<String>? documents;
-  bool isLoading = true;
+  var isLoading = true;
   String? error;
   StreamSubscription<List<Patient>>? _patientsSubscription;
 
   // Search state
-  final TextEditingController _searchController = TextEditingController();
-  bool _isSearching = false;
+  final _searchController = TextEditingController();
+  var _isSearching = false;
 
   // Selection state
-  bool _isSelectionMode = false;
+  var _isSelectionMode = false;
   final Set<String> _selectedPatientIds = {};
 
   @override
@@ -118,14 +121,13 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
     try {
       setState(() => isLoading = true);
 
-      // Delete locally first (optimistic update)
+      // Delete from Supabase first; only delete local data after DB delete succeeds.
       for (final id in _selectedPatientIds) {
         final patient = patients?.firstWhere((p) => p.id == id);
+        await SupabasePatientService.deletePatient(id);
         if (patient != null) {
           await FileManager.deleteDirectory(patient.localFolderPath);
         }
-        // Delete from Supabase (Cascade handled in service)
-        await SupabasePatientService.deletePatient(id);
       }
 
       if (mounted) {
@@ -331,7 +333,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
       ),
     );
 
-    if (result == true && fullName != null) {
+    if ((result ?? false) && fullName != null) {
       try {
         setState(() => isLoading = true);
         final patient = await SupabasePatientService.createPatient(
@@ -373,55 +375,68 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
     context.go('/home/patients/${patient.id}/${type.folderName}');
   }
 
-  Widget _buildPatientsList() {
-    final displayList = filteredPatients;
+  Widget? _buildPatientsEmptyState(List<Patient>? displayList) {
+    if (displayList != null && displayList.isNotEmpty) return null;
 
-    if (displayList == null || displayList.isEmpty) {
-      if (_searchController.text.isNotEmpty) {
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.search_off,
-                size: 64,
-                color: Theme.of(context).colorScheme.outline,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No patients found',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ],
-          ),
-        );
-      }
+    if (_searchController.text.isNotEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.people_outline,
+              Icons.search_off,
               size: 64,
               color: Theme.of(context).colorScheme.outline,
             ),
             const SizedBox(height: 16),
             Text(
-              'No patients yet',
+              'No patients found',
               style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tap + to add your first patient',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
             ),
           ],
         ),
       );
     }
 
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.people_outline,
+            size: 64,
+            color: Theme.of(context).colorScheme.outline,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No patients yet',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tap + to add your first patient',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPatientsView() {
+    final displayList = filteredPatients;
+    final emptyState = _buildPatientsEmptyState(displayList);
+    if (emptyState != null) return emptyState;
+
+    return switch (_patientsViewMode) {
+      _PatientsViewMode.list => _buildPatientsListView(displayList!),
+      _PatientsViewMode.grid => _buildPatientsGridView(displayList!),
+      _PatientsViewMode.table => _buildPatientsTableView(displayList!),
+    };
+  }
+
+  Widget _buildPatientsListView(List<Patient> displayList) {
     return ListView.builder(
       itemCount: displayList.length,
       padding: const EdgeInsets.all(16),
@@ -473,26 +488,79 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
             );
           },
           onDismissed: (direction) async {
-            try {
-              // Optimistic update handled by stream, but we can show loading
-              await SupabasePatientService.deletePatient(patient.id);
-              await FileManager.deleteDirectory(patient.localFolderPath);
+            // Dismissible requires the item to be removed from the tree immediately.
+            // Remove from local lists first, then perform async deletion.
+            final removedPatient = patient;
+            final removedPatientsIndex =
+                patients?.indexWhere((p) => p.id == removedPatient.id) ?? -1;
+            final removedFilteredIndex =
+                filteredPatients?.indexWhere(
+                  (p) => p.id == removedPatient.id,
+                ) ??
+                -1;
 
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${patient.fullName} deleted')),
-                );
-              }
+            setState(() {
+              patients?.removeWhere((p) => p.id == removedPatient.id);
+              filteredPatients?.removeWhere((p) => p.id == removedPatient.id);
+              _selectedPatientIds.remove(removedPatient.id);
+              if (_selectedPatientIds.isEmpty) _isSelectionMode = false;
+            });
+
+            try {
+              await SupabasePatientService.deletePatient(removedPatient.id);
             } catch (e) {
+              // Restore the patient in the UI if server deletion failed.
               if (mounted) {
+                setState(() {
+                  if (patients != null && removedPatientsIndex >= 0) {
+                    final safeIndex = removedPatientsIndex.clamp(
+                      0,
+                      patients!.length,
+                    );
+                    patients!.insert(safeIndex, removedPatient);
+                  } else {
+                    patients ??= <Patient>[];
+                    patients!.insert(0, removedPatient);
+                  }
+
+                  if (filteredPatients != null && removedFilteredIndex >= 0) {
+                    final safeIndex = removedFilteredIndex.clamp(
+                      0,
+                      filteredPatients!.length,
+                    );
+                    filteredPatients!.insert(safeIndex, removedPatient);
+                  }
+                });
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Failed to delete patient: $e'),
                     backgroundColor: Theme.of(context).colorScheme.error,
                   ),
                 );
-                // Stream will restore the item if delete failed
               }
+              return;
+            }
+
+            try {
+              await FileManager.deleteDirectory(removedPatient.localFolderPath);
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Deleted patient, but failed to delete local files: $e',
+                    ),
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                );
+              }
+            }
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('${removedPatient.fullName} deleted')),
+              );
             }
           },
           child: Card(
@@ -553,6 +621,179 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildPatientsGridView(List<Patient> displayList) {
+    final width = MediaQuery.sizeOf(context).width;
+    final crossAxisCount = width >= 900
+        ? 4
+        : width >= 700
+        ? 3
+        : 2;
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1.25,
+      ),
+      itemCount: displayList.length,
+      itemBuilder: (context, index) {
+        final patient = displayList[index];
+        final isSelected = _selectedPatientIds.contains(patient.id);
+
+        return Card(
+          color: isSelected
+              ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+              : null,
+          child: InkWell(
+            onLongPress: () {
+              setState(() {
+                _isSelectionMode = true;
+                _toggleSelection(patient.id);
+              });
+            },
+            onTap: () {
+              if (_isSelectionMode) {
+                _toggleSelection(patient.id);
+              } else {
+                _openPatient(patient);
+              }
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Stack(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
+                            child: Text(
+                              patient.fullName[0].toUpperCase(),
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              patient.fullName,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        [
+                          if (patient.age != null) '${patient.age} years',
+                          if (patient.gender != null) patient.gender!,
+                          patient.status.value.replaceAll('_', ' '),
+                        ].join(' • '),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_isSelectionMode)
+                    PositionedDirectional(
+                      top: 0,
+                      end: 0,
+                      child: Checkbox(
+                        value: isSelected,
+                        onChanged: (_) => _toggleSelection(patient.id),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPatientsTableView(List<Patient> displayList) {
+    final minWidth = MediaQuery.sizeOf(context).width - 32;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minWidth: minWidth),
+        child: SingleChildScrollView(
+          child: DataTable(
+            // We provide our own checkbox column, so disable the built-in one.
+            showCheckboxColumn: false,
+            headingRowColor: WidgetStatePropertyAll(
+              Theme.of(context).colorScheme.surfaceContainerHighest,
+            ),
+            columnSpacing: 24,
+            horizontalMargin: 12,
+            headingRowHeight: 48,
+            dataRowMinHeight: 52,
+            dataRowMaxHeight: 56,
+            columns: const [
+              DataColumn(label: Text('')),
+              DataColumn(label: Text('Name')),
+              DataColumn(label: Text('Age')),
+              DataColumn(label: Text('Gender')),
+              DataColumn(label: Text('Status')),
+            ],
+            rows: displayList
+                .map((patient) {
+                  final isSelected = _selectedPatientIds.contains(patient.id);
+
+                  return DataRow(
+                    selected: isSelected,
+                    onSelectChanged: (_) {
+                      if (_isSelectionMode) {
+                        _toggleSelection(patient.id);
+                      } else {
+                        _openPatient(patient);
+                      }
+                    },
+                    cells: [
+                      DataCell(
+                        Checkbox(
+                          value: isSelected,
+                          onChanged: (_) {
+                            setState(() {
+                              _isSelectionMode = true;
+                            });
+                            _toggleSelection(patient.id);
+                          },
+                        ),
+                      ),
+                      DataCell(Text(patient.fullName)),
+                      DataCell(Text(patient.age?.toString() ?? '—')),
+                      DataCell(Text(patient.gender ?? '—')),
+                      DataCell(Text(patient.status.value.replaceAll('_', ' '))),
+                    ],
+                  );
+                })
+                .toList(growable: false),
+          ),
+        ),
+      ),
     );
   }
 
@@ -716,6 +957,35 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
                     ),
               actions: [
                 if (selectedPatient == null)
+                  PopupMenuButton<_PatientsViewMode>(
+                    tooltip: 'View mode',
+                    initialValue: _patientsViewMode,
+                    onSelected: (mode) {
+                      setState(() {
+                        _patientsViewMode = mode;
+                      });
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: _PatientsViewMode.list,
+                        child: Text('List'),
+                      ),
+                      PopupMenuItem(
+                        value: _PatientsViewMode.grid,
+                        child: Text('Grid'),
+                      ),
+                      PopupMenuItem(
+                        value: _PatientsViewMode.table,
+                        child: Text('Table'),
+                      ),
+                    ],
+                    icon: Icon(switch (_patientsViewMode) {
+                      _PatientsViewMode.list => Icons.view_list,
+                      _PatientsViewMode.grid => Icons.grid_view,
+                      _PatientsViewMode.table => Icons.table_rows,
+                    }),
+                  ),
+                if (selectedPatient == null)
                   IconButton(
                     icon: Icon(_isSearching ? Icons.close : Icons.search),
                     onPressed: () {
@@ -749,7 +1019,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
             )
           : selectedPatient != null
           ? _buildPatientView()
-          : _buildPatientsList(),
+          : _buildPatientsView(),
       floatingActionButton: selectedPatient == null
           ? FloatingActionButton(
               onPressed: _createNewPatient,
@@ -759,3 +1029,5 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
     );
   }
 }
+
+enum _PatientsViewMode { list, grid, table }

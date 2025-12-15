@@ -61,16 +61,8 @@ abstract class HomeRoutes {
       routePath: _homeFunction({'subpage': HomePage.browseSubpage}),
       label: t.home.tabs.browse,
       icon: const AdaptiveIcon(
-        icon: Icons.folder,
-        cupertinoIcon: CupertinoIcons.folder_fill,
-      ),
-    ),
-    _Route(
-      routePath: _homeFunction({'subpage': HomePage.whiteboardSubpage}),
-      label: t.home.tabs.whiteboard,
-      icon: const AdaptiveIcon(
-        icon: Icons.draw,
-        cupertinoIcon: CupertinoIcons.pencil_outline,
+        icon: Icons.people,
+        cupertinoIcon: CupertinoIcons.person_2_fill,
       ),
     ),
     _Route(

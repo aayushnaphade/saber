@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:saber/components/navbar/responsive_navbar.dart';
 import 'package:saber/components/settings/settings_button.dart';
 import 'package:saber/components/settings/settings_color.dart';
 import 'package:saber/components/settings/settings_directory_selector.dart';
@@ -25,7 +26,6 @@ import 'package:saber/data/routes.dart';
 import 'package:saber/data/sentry/sentry_init.dart';
 import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/i18n/strings.g.dart';
-import 'package:stow/stow.dart';
 
 class AppSettingsPage extends StatefulWidget {
   const AppSettingsPage({super.key});

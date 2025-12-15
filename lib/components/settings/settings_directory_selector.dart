@@ -133,7 +133,7 @@ class _DirectorySelectorState extends State<DirectorySelector> {
 
     final emptyError = widget.mustBeEmpty && !_isEmpty;
     // Syncing check removed - Supabase sync TBD
-    final syncingError = false;
+    const syncingError = false;
     final anyErrors = emptyError || syncingError;
 
     return AdaptiveAlertDialog(

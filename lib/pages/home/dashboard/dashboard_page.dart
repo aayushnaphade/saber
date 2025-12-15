@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:saber/data/models/dashboard_models.dart';
+import 'package:saber/data/supabase/supabase_client.dart';
+import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/pages/home/dashboard/widgets/ai_insights_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/appointment_timeline.dart';
 import 'package:saber/pages/home/dashboard/widgets/live_queue_card.dart';
@@ -7,48 +9,138 @@ import 'package:saber/pages/home/dashboard/widgets/quick_actions.dart';
 import 'package:saber/pages/home/dashboard/widgets/stat_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/welcome_header.dart';
 
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
   @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  var _doctorName = '';
+  String? _avatarUrl;
+
+  // Dashboard Data
+  var _isLoading = true;
+  DashboardStats _stats = const DashboardStats(
+    patientsToday: 0,
+    pendingReports: 0,
+    completedSessions: 0,
+    averageTimePerPatient: 0,
+  );
+  List<QueueItem> _queue = [];
+  List<Appointment> _appointments = [];
+  List<AIInsight> _insights = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    debugPrint('Dashboard: Starting data load...');
+    try {
+      await Future.wait([_fetchProfile(), _fetchDashboardData()]);
+    } catch (e) {
+      debugPrint('Dashboard: Error in _loadDashboardData: $e');
+    } finally {
+      if (mounted) {
+        debugPrint('Dashboard: Data load complete, setting isLoading = false');
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _fetchDashboardData() async {
+    debugPrint('Dashboard: Fetching dashboard stats/queue/appointments...');
+    try {
+      final results = await Future.wait([
+        SupabaseDashboardService.getStats(),
+        SupabaseDashboardService.getLiveQueue(),
+        SupabaseDashboardService.getTodayAppointments(),
+      ]);
+
+      debugPrint(
+        'Dashboard: Fetch complete. Stats: ${results[0]}, Queue: ${(results[1] as List).length}, Appts: ${(results[2] as List).length}',
+      );
+
+      if (mounted) {
+        setState(() {
+          _stats = results[0] as DashboardStats;
+          _queue = results[1] as List<QueueItem>;
+          _appointments = results[2] as List<Appointment>;
+          _insights = MockDashboardData.getInsights(); // Keep mock for now
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching dashboard data: $e');
+    }
+  }
+
+  Future<void> _fetchProfile() async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
+      final data = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (data != null && mounted) {
+        setState(() {
+          _doctorName = data['full_name'] as String? ?? '';
+          _avatarUrl = data['avatar_url'] as String?;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching profile for dashboard: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Mock Data
-    final stats = MockDashboardData.getStats();
-    final queue = MockDashboardData.getLiveQueue();
-    final appointments = MockDashboardData.getTodayAppointments();
-    final insights = MockDashboardData.getInsights();
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const WelcomeHeader(doctorName: 'Adil Hanney'),
-              const SizedBox(height: 32),
+        child: RefreshIndicator(
+          onRefresh: _loadDashboardData,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                WelcomeHeader(doctorName: _doctorName, avatarUrl: _avatarUrl),
+                const SizedBox(height: 32),
 
-              // Main Grid Layout
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth > 900) {
-                    return _buildDesktopLayout(
-                      stats,
-                      queue,
-                      appointments,
-                      insights,
-                    );
-                  } else {
-                    return _buildMobileLayout(
-                      stats,
-                      queue,
-                      appointments,
-                      insights,
-                    );
-                  }
-                },
-              ),
-            ],
+                // Main Grid Layout
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth > 900) {
+                      return _buildDesktopLayout(
+                        _stats,
+                        _queue,
+                        _appointments,
+                        _insights,
+                      );
+                    } else {
+                      return _buildMobileLayout(
+                        _stats,
+                        _queue,
+                        _appointments,
+                        _insights,
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),

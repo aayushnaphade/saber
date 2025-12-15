@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:path_to_regexp/path_to_regexp.dart';
 import 'package:saber/components/navbar/horizontal_navbar.dart';
 import 'package:saber/components/navbar/vertical_navbar.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
-import 'package:saber/pages/home/home.dart';
-import 'package:saber/pages/home/whiteboard.dart';
 import 'package:stow_codecs/stow_codecs.dart';
 
 class ResponsiveNavbar extends StatefulWidget {
@@ -39,24 +36,6 @@ class _ResponsiveNavbarState extends State<ResponsiveNavbar> {
 
   void onDestinationSelected(int index) {
     if (index == widget.selectedIndex) return;
-
-    // if on whiteboard, check if saved
-    final whiteboardPath = pathToFunction(RoutePaths.home)({
-      'subpage': HomePage.whiteboardSubpage,
-    });
-    if (HomeRoutes.getRoute(widget.selectedIndex) == whiteboardPath) {
-      final savingState = Whiteboard.savingState;
-      switch (savingState) {
-        case null:
-        case .saved:
-          break;
-        case .waitingToSave:
-          Whiteboard.triggerSave();
-          return;
-        case .saving:
-          return;
-      }
-    }
 
     context.go(HomeRoutes.getRoute(index));
   }

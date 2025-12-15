@@ -202,19 +202,15 @@ class AppointmentTimeline extends StatelessWidget {
       case AppointmentStatus.upcoming:
         color = Colors.blue;
         label = 'Upcoming';
-        break;
       case AppointmentStatus.inProgress:
         color = Colors.green;
         label = 'Now';
-        break;
       case AppointmentStatus.completed:
         color = Colors.grey;
         label = 'Done';
-        break;
       case AppointmentStatus.cancelled:
         color = Colors.red;
         label = 'Cancelled';
-        break;
     }
 
     return Container(

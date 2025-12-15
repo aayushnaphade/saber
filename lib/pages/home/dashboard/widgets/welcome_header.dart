@@ -3,8 +3,9 @@ import 'package:intl/intl.dart';
 
 class WelcomeHeader extends StatelessWidget {
   final String doctorName;
+  final String? avatarUrl;
 
-  const WelcomeHeader({super.key, required this.doctorName});
+  const WelcomeHeader({super.key, required this.doctorName, this.avatarUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -12,44 +13,60 @@ class WelcomeHeader extends StatelessWidget {
     final greeting = _getGreeting(now.hour);
     final dateStr = DateFormat('EEEE, MMMM d').format(now);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Text(
-          dateStr.toUpperCase(),
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            letterSpacing: 1.5,
-            fontWeight: FontWeight.bold,
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(
+              context,
+            ).colorScheme.primaryContainer.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Image.asset(
+            'assets/android/playstore-icon.png',
+            width: 32,
+            height: 32,
           ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '$greeting,',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  Text(
-                    'Dr. $doctorName',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                ],
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                dateStr.toUpperCase(),
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  letterSpacing: 1.5,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            _buildAIPulse(context),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                '$greeting,',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w400,
+                  height: 1.1,
+                ),
+              ),
+              Text(
+                doctorName.isNotEmpty ? 'Dr. $doctorName' : 'Doctor',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
         ),
+        if (avatarUrl != null) ...[
+          CircleAvatar(radius: 24, backgroundImage: NetworkImage(avatarUrl!)),
+          const SizedBox(width: 16),
+        ],
+        _buildAIPulse(context),
       ],
     );
   }
@@ -89,7 +106,7 @@ class WelcomeHeader extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            'Saber AI Active',
+            'Synapsai Active',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: Theme.of(context).colorScheme.onPrimaryContainer,
               fontWeight: FontWeight.w600,

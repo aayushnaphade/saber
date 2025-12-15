@@ -28,7 +28,6 @@ class HomePage extends StatefulWidget {
     dashboardSubpage,
     recentSubpage,
     browseSubpage,
-    whiteboardSubpage,
     settingsSubpage,
   ];
 }

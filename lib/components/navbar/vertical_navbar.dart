@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:saber/components/files/file_tree.dart';
+import 'package:go_router/go_router.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
+import 'package:saber/data/routes.dart';
+import 'package:saber/data/supabase/supabase_auth_service.dart';
 
 class VerticalNavbar extends StatefulWidget {
   const VerticalNavbar({
@@ -21,6 +23,47 @@ class VerticalNavbar extends StatefulWidget {
 
 class _VerticalNavbarState extends State<VerticalNavbar> {
   var expanded = false;
+
+  Future<void> _handleLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text('Are you sure you want to sign out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+
+    if ((confirm ?? false) && mounted) {
+      try {
+        await SupabaseAuthService.signOut();
+        if (mounted) {
+          context.go(RoutePaths.login);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to sign out: $e'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +110,30 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
               onDestinationSelected: widget.onDestinationSelected,
             ),
           ),
-          if (expanded) const Expanded(child: FileTree()),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: expanded
+                ? FilledButton.icon(
+                    onPressed: _handleLogout,
+                    icon: const Icon(Icons.logout, size: 20),
+                    label: const Text('Sign Out'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.errorContainer,
+                      foregroundColor: Theme.of(
+                        context,
+                      ).colorScheme.onErrorContainer,
+                    ),
+                  )
+                : IconButton(
+                    onPressed: _handleLogout,
+                    icon: const Icon(Icons.logout, size: 20),
+                    tooltip: 'Sign Out',
+                  ),
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );
