@@ -9,6 +9,7 @@ import 'package:saber/data/prefs.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/home/settings_subpages/app_settings_page.dart';
 import 'package:stow/stow.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -144,6 +145,28 @@ class _SettingsPageState extends State<SettingsPage> {
     return SliverList.list(
       children: [
         const SupabaseProfile(),
+        ValueListenableBuilder(
+          valueListenable: stows.receptionMode,
+          builder: (context, value, _) {
+            return SwitchListTile(
+              title: const Text('Reception Mode'),
+              subtitle: const Text('Enable simplified interface for reception'),
+              value: value,
+              onChanged: (newValue) async {
+                stows.receptionMode.value = newValue;
+                try {
+                  await Supabase.instance.client
+                      .from('profiles')
+                      .update({'reception_mode': newValue})
+                      .eq('id', Supabase.instance.client.auth.currentUser!.id);
+                } catch (e) {
+                  // ignore error
+                }
+              },
+              secondary: const Icon(Icons.desk),
+            );
+          },
+        ),
         const Padding(padding: EdgeInsets.all(8), child: AppInfo()),
         SettingsButton(
           title: 'App Settings',
@@ -172,6 +195,28 @@ class _SettingsPageState extends State<SettingsPage> {
               flex: 4,
               child: Column(
                 children: [
+                  ValueListenableBuilder(
+                    valueListenable: stows.receptionMode,
+                    builder: (context, value, _) {
+                      return SwitchListTile(
+                        title: const Text('Reception Mode'),
+                        subtitle: const Text('Enable simplified interface for reception'),
+                        value: value,
+                        onChanged: (newValue) async {
+                          stows.receptionMode.value = newValue;
+                          try {
+                            await Supabase.instance.client
+                                .from('profiles')
+                                .update({'reception_mode': newValue})
+                                .eq('id', Supabase.instance.client.auth.currentUser!.id);
+                          } catch (e) {
+                            // ignore error
+                          }
+                        },
+                        secondary: const Icon(Icons.desk),
+                      );
+                    },
+                  ),
                   const SizedBox(height: 16),
                   const AppInfo(),
                   const SizedBox(height: 16),

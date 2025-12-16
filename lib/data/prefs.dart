@@ -54,6 +54,12 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
+  final receptionMode = PlainStow<bool>(
+    'receptionMode',
+    false,
+    volatile: !_isOnMainIsolate,
+  );
+
   // Legacy Nextcloud credentials (kept for migration)
   final url = SecureStow('url', '', volatile: !_isOnMainIsolate);
   final username = SecureStow('username', '', volatile: !_isOnMainIsolate);

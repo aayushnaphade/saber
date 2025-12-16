@@ -159,7 +159,7 @@ class _RecentPageState extends State<RecentPage> {
                     PatientHistoryCalendar(),
                     SizedBox(height: 24),
                     Text(
-                      'Recent Notes',
+                      'History',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,

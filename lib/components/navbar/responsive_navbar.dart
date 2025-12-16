@@ -27,6 +27,7 @@ class _ResponsiveNavbarState extends State<ResponsiveNavbar> {
   void initState() {
     stows.locale.addListener(onChange);
     stows.layoutSize.addListener(onChange);
+    stows.receptionMode.addListener(onChange);
     super.initState();
   }
 

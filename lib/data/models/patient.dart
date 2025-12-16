@@ -56,8 +56,7 @@ class Patient {
       //     ? DateTime.parse(json['last_visit'].toString())
       //     : null,
       lastVisit: null, // Not in DB
-      // doctorId: json['doctor_id']?.toString() ?? '',
-      doctorId: '', // Not in DB
+      doctorId: json['doctor_id']?.toString() ?? '',
       phoneNumber: json['contact_number']
           ?.toString(), // Mapped from contact_number
       // email: json['email']?.toString(),
@@ -100,7 +99,6 @@ class Patient {
   }
 
   /// Create JSON for INSERT/UPDATE (without auto-generated fields)
-  /// Note: doctor_id is omitted as it defaults to auth.uid() in the database
   Map<String, dynamic> toInsertJson() {
     return {
       'full_name': fullName,
@@ -108,7 +106,7 @@ class Patient {
       if (gender != null) 'gender': gender,
       // 'status': status.value,
       // if (lastVisit != null) 'last_visit': lastVisit!.toIso8601String(),
-      // doctor_id is set automatically by database default (auth.uid())
+      'doctor_id': doctorId,
       if (phoneNumber != null)
         'contact_number': phoneNumber, // Mapped to contact_number
       // if (email != null) 'email': email,

@@ -4,12 +4,12 @@ common:
   cancel: Cancel
 home: 
   tabs: 
-    home: Home
+    home: History
     browse: Browse
     whiteboard: Whiteboard
     settings: Settings
   titles: 
-    home: Recent notes
+    home: History
     browse: Browse
     whiteboard: Whiteboard
     settings: Settings

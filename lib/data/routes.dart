@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:path_to_regexp/path_to_regexp.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
+import 'package:saber/data/prefs.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/home/home.dart';
 
@@ -40,40 +41,56 @@ abstract class HomeRoutes {
 
   static final PathFunction _homeFunction = pathToFunction(RoutePaths.home);
 
-  static List<_Route> get _routes => <_Route>[
-    _Route(
-      routePath: _homeFunction({'subpage': HomePage.dashboardSubpage}),
-      label: 'Dashboard',
-      icon: const AdaptiveIcon(
-        icon: Icons.dashboard_rounded,
-        cupertinoIcon: CupertinoIcons.square_grid_2x2_fill,
+  static List<_Route> get _routes {
+    final routes = <_Route>[
+      _Route(
+        routePath: _homeFunction({'subpage': HomePage.dashboardSubpage}),
+        label: 'Dashboard',
+        icon: const AdaptiveIcon(
+          icon: Icons.dashboard_rounded,
+          cupertinoIcon: CupertinoIcons.square_grid_2x2_fill,
+        ),
       ),
-    ),
-    _Route(
-      routePath: _homeFunction({'subpage': HomePage.recentSubpage}),
-      label: t.home.tabs.home,
-      icon: const AdaptiveIcon(
-        icon: Icons.history,
-        cupertinoIcon: CupertinoIcons.clock_fill,
+      _Route(
+        routePath: _homeFunction({'subpage': HomePage.recentSubpage}),
+        label: t.home.tabs.home,
+        icon: const AdaptiveIcon(
+          icon: Icons.history,
+          cupertinoIcon: CupertinoIcons.clock_fill,
+        ),
       ),
-    ),
-    _Route(
-      routePath: _homeFunction({'subpage': HomePage.browseSubpage}),
-      label: t.home.tabs.browse,
-      icon: const AdaptiveIcon(
-        icon: Icons.people,
-        cupertinoIcon: CupertinoIcons.person_2_fill,
+      _Route(
+        routePath: _homeFunction({'subpage': HomePage.browseSubpage}),
+        label: t.home.tabs.browse,
+        icon: const AdaptiveIcon(
+          icon: Icons.people,
+          cupertinoIcon: CupertinoIcons.person_2_fill,
+        ),
       ),
-    ),
-    _Route(
-      routePath: _homeFunction({'subpage': HomePage.settingsSubpage}),
-      label: t.home.tabs.settings,
-      icon: const AdaptiveIcon(
-        icon: Icons.settings,
-        cupertinoIcon: CupertinoIcons.settings_solid,
+      _Route(
+        routePath: _homeFunction({'subpage': HomePage.whiteboardSubpage}),
+        label: t.home.tabs.whiteboard,
+        icon: const AdaptiveIcon(
+          icon: Icons.brush,
+          cupertinoIcon: CupertinoIcons.paintbrush_fill,
+        ),
       ),
-    ),
-  ];
+      _Route(
+        routePath: _homeFunction({'subpage': HomePage.settingsSubpage}),
+        label: t.home.tabs.settings,
+        icon: const AdaptiveIcon(
+          icon: Icons.settings,
+          cupertinoIcon: CupertinoIcons.settings_solid,
+        ),
+      ),
+    ];
+
+    if (stows.receptionMode.value) {
+      // In reception mode, hide Whiteboard
+      return routes.where((r) => r.label != t.home.tabs.whiteboard).toList();
+    }
+    return routes;
+  }
 
   static String getRoute(int index) {
     return _routes[index].routePath;

@@ -43,7 +43,7 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
           // We use context.go to ensure GoRouter handles the navigation correctly
           // and updates the browser URL if on web
           context.go(
-            RoutePaths.home.replaceFirst(':subpage', HomePage.recentSubpage),
+            RoutePaths.home.replaceFirst(':subpage', HomePage.dashboardSubpage),
           );
         }
       },

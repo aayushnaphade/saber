@@ -202,7 +202,28 @@ class SupabaseAuthService {
     stows.supabaseRefreshToken.value = session.refreshToken ?? '';
     stows.supabaseUserEmail.value = session.user.email ?? '';
 
+    await syncProfile();
     log.info('Session saved to preferences');
+  }
+
+  /// Sync profile data from Supabase
+  static Future<void> syncProfile() async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final profile = await supabase
+          .from('profiles')
+          .select('reception_mode')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (profile != null) {
+        stows.receptionMode.value = profile['reception_mode'] as bool? ?? false;
+      }
+    } catch (e) {
+      log.warning('Failed to sync profile', e);
+    }
   }
 
   /// Clear session data from secure storage
@@ -245,6 +266,22 @@ class SupabaseAuthService {
       final session = currentSession;
 
       if (session != null && !session.isExpired) {
+        // Ensure prefs are in sync with the restored session
+        // This fixes the issue where UI shows "Not Logged In" even if session is valid
+        if (stows.supabaseUserEmail.value.isEmpty) {
+          stows.supabaseUserEmail.value = session.user.email ?? '';
+        }
+        if (stows.supabaseUserId.value.isEmpty) {
+          stows.supabaseUserId.value = session.user.id;
+        }
+        if (stows.supabaseAccessToken.value.isEmpty) {
+          stows.supabaseAccessToken.value = session.accessToken;
+        }
+        if (stows.supabaseRefreshToken.value.isEmpty) {
+          stows.supabaseRefreshToken.value = session.refreshToken ?? '';
+        }
+        
+        await syncProfile();
         log.info('Session restored successfully');
         return true;
       }
