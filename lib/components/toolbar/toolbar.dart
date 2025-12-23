@@ -50,6 +50,7 @@ class Toolbar extends StatefulWidget {
     required this.exportAsSba,
     required this.exportAsPdf,
     required this.exportAsPng,
+    required this.generateReport,
   });
 
   final bool readOnly;
@@ -79,9 +80,11 @@ class Toolbar extends StatefulWidget {
   final Future Function(BuildContext)? exportAsSba;
   final Future Function(BuildContext)? exportAsPdf;
   final Future Function(BuildContext)? exportAsPng;
+  final Future Function(BuildContext)? generateReport;
 
   @override
   State<Toolbar> createState() => _ToolbarState();
+
 
   static const _buttonPaddingHorizontal = EdgeInsets.symmetric(horizontal: 6);
   static const _buttonPaddingVertical = EdgeInsets.symmetric(vertical: 6);
@@ -383,9 +386,18 @@ class _ToolbarState extends State<Toolbar> {
                 padding: buttonPadding,
                 child: const FaIcon(Highlighter.highlighterIcon, size: 16),
               ),
+              ToolbarIconButton(
+                tooltip: 'Finish Session & Generate Report',
+                selected: false,
+                enabled: !widget.readOnly,
+                onPressed: () => widget.generateReport?.call(context),
+                padding: buttonPadding,
+                child: const Icon(Icons.auto_awesome, size: 20),
+              ),
               ValueListenableBuilder(
                 valueListenable: showColorOptions,
                 builder: (context, showColorOptions, child) {
+
                   return ToolbarIconButton(
                     tooltip: t.editor.toolbar.toggleColors,
                     selected: showColorOptions,

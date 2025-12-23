@@ -6,7 +6,7 @@
 <component type="desktop-application">
     <id>com.adilhanney.saber</id>
 
-    <name>Saber</name>
+    <name>SynapseAi</name>
     <summary>The notes app built for handwriting</summary>
     <url type="homepage">https://github.com/saber-notes/saber</url>
     <url type="bugtracker">https://github.com/saber-notes/saber/issues</url>

@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path/path.dart' as p;
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/routes.dart';
@@ -230,12 +233,29 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
           ? patient.documentFolderPath(docType)
           : patient.localFolderPath;
 
-      final children = await FileManager.getChildrenOfDirectory(path);
-
-      setState(() {
-        documents = children?.files ?? [];
-        isLoading = false;
-      });
+      // Use direct directory listing to include all file types (md, pdf, etc.)
+      // FileManager.getChildrenOfDirectory filters for .sbn files by default
+      final fullPath = '${FileManager.documentsDirectory}$path';
+      final dir = Directory(fullPath);
+      
+      if (await dir.exists()) {
+        final entities = await dir.list().toList();
+        final fileNames = entities
+            .whereType<File>()
+            .map((e) => p.basename(e.path))
+            .where((name) => !name.startsWith('.')) // Filter hidden files
+            .toList();
+            
+        setState(() {
+          documents = fileNames;
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          documents = [];
+          isLoading = false;
+        });
+      }
     } catch (e) {
       setState(() {
         error = e.toString();
@@ -858,15 +878,55 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
     );
   }
 
-  void _openDocument(String fileName) {
+  void _openDocument(String fileName) async {
     if (selectedPatient == null || widget.documentType == null) return;
 
     final docType = DocumentType.values.firstWhere(
       (t) => t.folderName == widget.documentType,
     );
-    final path = '${selectedPatient!.documentFolderPath(docType)}/$fileName';
-
-    context.push(RoutePaths.editFilePath(path));
+    final relativePath = '${selectedPatient!.documentFolderPath(docType)}/$fileName';
+    
+    if (fileName.toLowerCase().endsWith('.md')) {
+      // Show Markdown files in a dialog
+      try {
+        final fullPath = '${FileManager.documentsDirectory}$relativePath';
+        final content = await File(fullPath).readAsString();
+        
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => Dialog(
+              child: Column(
+                children: [
+                  AppBar(
+                    title: Text(fileName),
+                    leading: const CloseButton(),
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                  ),
+                  Expanded(
+                    child: Markdown(
+                      data: content,
+                      selectable: true,
+                      padding: const EdgeInsets.all(16),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to read file: $e')),
+          );
+        }
+      }
+    } else {
+      // Open other files (Saber notes) in the editor
+      context.push(RoutePaths.editFilePath(relativePath));
+    }
   }
 
   Widget _buildDocumentsList() {
@@ -941,6 +1001,12 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
               ],
             )
           : AppBar(
+              leading: selectedPatient != null
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () => context.go('/home/patients/${selectedPatient!.id}'),
+                    )
+                  : null,
               title: _isSearching
                   ? TextField(
                       controller: _searchController,

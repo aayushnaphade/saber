@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:lottie/lottie.dart' as lottie_pkg;
 import 'package:collapsible/collapsible.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
@@ -48,8 +49,14 @@ import 'package:saber/data/tools/select.dart';
 import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/home/whiteboard.dart';
+import 'package:saber/data/api/report_generator.dart';
+import 'package:saber/pages/editor/report_view.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:super_clipboard/super_clipboard.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:intl/intl.dart';
+
 
 typedef _PhotoInfo = ({Uint8List bytes, String extension});
 
@@ -1558,7 +1565,197 @@ class EditorState extends State<Editor> {
           exportAsSba: exportAsSba,
           exportAsPdf: exportAsPdf,
           exportAsPng: null,
+          generateReport: (context) async {
+            // 1. Capture Screenshot
+            final screenshotController = ScreenshotController();
+            final page = coreInfo.pages.first; // Assuming single page or first page for now
+            final previewHeight = page.previewHeight(lineHeight: coreInfo.lineHeight);
+            final targetSize = Size(page.size.width, page.size.height);
+
+            // Show loading indicator
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => Center(
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: lottie_pkg.Lottie.asset(
+                    'assets/saber.json',
+                    width: 300,
+                    height: 300,
+                    errorBuilder: (context, error, stackTrace) {
+                      log.warning('Lottie Error: $error');
+                      // Fallback to standard spinner if Lottie fails (e.g. invalid file)
+                      return const CircularProgressIndicator();
+                    },
+                  ),
+                ),
+              ),
+            );
+
+            try {
+              final imageBytes = await screenshotController.captureFromWidget(
+                Theme(
+                  data: ThemeData(
+                    brightness: Brightness.light,
+                    colorScheme: const ColorScheme.light(
+                      primary: EditorExporter.primaryColor,
+                      secondary: EditorExporter.secondaryColor,
+                    ),
+                  ),
+                  child: Localizations.override(
+                    context: context,
+                    child: SizedBox(
+                      width: targetSize.width,
+                      height: targetSize.height,
+                      child: FittedBox(
+                        child: pageBuilderForScreenshot(
+                          context,
+                          pageIndex: 0,
+                          previewHeight: previewHeight,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                pixelRatio: 2.0, // Higher quality for OCR
+                context: context,
+                targetSize: targetSize,
+              );
+
+              // 2. Send to API
+              // ignore: use_build_context_synchronously
+              if (!context.mounted) return;
+              
+              final reportData = await ReportGenerator.generateReport(imageBytes);
+
+              // 3. Show Split Screen / Report View
+              // ignore: use_build_context_synchronously
+              if (!context.mounted) return;
+              Navigator.pop(context); // Close loading dialog
+
+              showDialog(
+                context: context,
+                builder: (context) => Dialog(
+                  insetPadding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // Left side: Image Preview (Static for now, could be interactive)
+                      Expanded(
+                        child: Container(
+                          color: Colors.grey[200],
+                          child: Image.memory(imageBytes),
+                        ),
+                      ),
+                      // Right side: Report Form
+                      Expanded(
+                        child: ReportView(
+                          reportData: reportData,
+                          onVerify: () async {
+                            try {
+                              // Convert to Markdown
+                              final sb = StringBuffer();
+                              sb.writeln('# Clinical Assessment Report');
+                              sb.writeln();
+                              sb.writeln('**Date:** ${DateFormat.yMMMd().format(DateTime.now())}');
+                              sb.writeln();
+                              
+                              sb.writeln('## Current Symptoms');
+                              sb.writeln(reportData['current_symptoms'] ?? 'Not mentioned');
+                              sb.writeln();
+
+                              sb.writeln('## Premorbid Personality');
+                              sb.writeln(reportData['premorbid_personality'] ?? 'Not mentioned');
+                              sb.writeln();
+
+                              sb.writeln('## Past History');
+                              sb.writeln(reportData['past_history'] ?? 'Not mentioned');
+                              sb.writeln();
+
+                              sb.writeln('## Family History');
+                              sb.writeln(reportData['family_history'] ?? 'Not mentioned');
+                              sb.writeln();
+
+                              sb.writeln('## Mental Status Examination');
+                              final mse = reportData['mental_status_examination'];
+                              if (mse is Map) {
+                                mse.forEach((key, value) {
+                                  final formattedKey = key.toString().replaceAll('_', ' ').toUpperCase();
+                                  sb.writeln('- **$formattedKey:** $value');
+                                });
+                              } else {
+                                sb.writeln('Not mentioned');
+                              }
+                              sb.writeln();
+
+                              sb.writeln('## Diagnosis');
+                              sb.writeln(reportData['provided_diagnosis'] ?? 'Not mentioned');
+
+                              // Determine path
+                              String filePath = coreInfo.filePath;
+                              
+                              // Ensure we have a valid absolute path
+                              // If the path is just '/patients/...' on mobile, it's likely relative to the app sandbox
+                              if (!File(filePath).isAbsolute || (Platform.isAndroid || Platform.isIOS) && filePath.startsWith('/patients')) {
+                                if (filePath.startsWith('/')) {
+                                  filePath = filePath.substring(1);
+                                }
+                                // Use FileManager.documentsDirectory to ensure we are in the 'Saber' subfolder
+                                filePath = p.join(FileManager.documentsDirectory, filePath);
+                              }
+
+                              // coreInfo.filePath is like .../patients/{id}/session_notes/session_X/notes
+                              final currentDir = p.dirname(filePath); // .../session_X
+                              final sessionName = p.basename(currentDir); // session_X
+                              final sessionNotesDir = p.dirname(currentDir); // .../session_notes
+                              final patientDir = p.dirname(sessionNotesDir); // .../patients/{id}
+                              
+                              final targetDir = p.join(patientDir, 'examination_reports');
+                              log.info('Saving report to: $targetDir');
+
+                              await Directory(targetDir).create(recursive: true);
+                              
+                              final targetFile = p.join(targetDir, 'report_$sessionName.md');
+                              await File(targetFile).writeAsString(sb.toString());
+
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Report saved to $targetFile')),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Failed to save report: $e')),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+
+
+            } catch (e) {
+              // ignore: use_build_context_synchronously
+              if (context.mounted) {
+                Navigator.pop(context); // Close loading dialog
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error generating report: $e')),
+                );
+              }
+            }
+          },
         ),
+
       ),
     );
 
