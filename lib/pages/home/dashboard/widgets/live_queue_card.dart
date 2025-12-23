@@ -6,12 +6,14 @@ class LiveQueueCard extends StatelessWidget {
   final QueueItem? currentPatient;
   final int waitingCount;
   final VoidCallback onStartSession;
+  final VoidCallback? onCancel;
 
   const LiveQueueCard({
     super.key,
     this.currentPatient,
     required this.waitingCount,
     required this.onStartSession,
+    this.onCancel,
   });
 
   @override
@@ -125,26 +127,45 @@ class LiveQueueCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: onStartSession,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: isDark
-                            ? Colors.white.withOpacity(0.1)
-                            : Colors.white,
-                        foregroundColor: isDark
-                            ? Colors.white
-                            : theme.colorScheme.primary,
-                        padding: const EdgeInsets.all(16),
-                        elevation: 0,
-                        side: isDark
-                            ? BorderSide(color: Colors.white.withOpacity(0.2))
-                            : BorderSide.none,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: onStartSession,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: isDark
+                                ? Colors.white.withOpacity(0.1)
+                                : Colors.white,
+                            foregroundColor: isDark
+                                ? Colors.white
+                                : theme.colorScheme.primary,
+                            padding: const EdgeInsets.all(16),
+                            elevation: 0,
+                            side: isDark
+                                ? BorderSide(
+                                    color: Colors.white.withOpacity(0.2))
+                                : BorderSide.none,
+                          ),
+                          icon: const Icon(Icons.play_arrow_rounded),
+                          label: const Text('Start Session'),
+                        ),
                       ),
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      label: const Text('Start Session'),
-                    ),
+                      if (onCancel != null) ...[
+                        const SizedBox(width: 12),
+                        IconButton.filled(
+                          onPressed: onCancel,
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.white.withOpacity(0.1),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.all(16),
+                            side: BorderSide(
+                                color: Colors.white.withOpacity(0.2)),
+                          ),
+                          icon: const Icon(Icons.close),
+                          tooltip: 'Cancel Appointment',
+                        ),
+                      ],
+                    ],
                   ),
                 ] else
                   Center(

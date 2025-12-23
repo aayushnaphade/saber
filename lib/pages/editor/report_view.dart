@@ -39,6 +39,8 @@ class _ReportViewState extends State<ReportView> {
       mse.forEach((key, value) {
         _mseControllers[key.toString()] = TextEditingController(text: value?.toString() ?? '');
       });
+    } else if (mse is String) {
+      _mseControllers['MSE'] = TextEditingController(text: mse);
     }
   }
 

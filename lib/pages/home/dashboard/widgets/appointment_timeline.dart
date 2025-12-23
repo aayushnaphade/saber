@@ -4,8 +4,15 @@ import 'package:saber/data/models/dashboard_models.dart';
 
 class AppointmentTimeline extends StatelessWidget {
   final List<Appointment> appointments;
+  final Function(String) onCancel;
+  final Function(String, DateTime) onReschedule;
 
-  const AppointmentTimeline({super.key, required this.appointments});
+  const AppointmentTimeline({
+    super.key,
+    required this.appointments,
+    required this.onCancel,
+    required this.onReschedule,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -183,7 +190,78 @@ class AppointmentTimeline extends StatelessWidget {
                         ],
                       ),
                     ),
-                    _buildStatusChip(context, appointment.status),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildStatusChip(context, appointment.status),
+                        if (appointment.status == AppointmentStatus.upcoming)
+                          PopupMenuButton<String>(
+                            icon: Icon(
+                              Icons.more_vert,
+                              color: theme.colorScheme.onSurfaceVariant,
+                              size: 20,
+                            ),
+                            onSelected: (value) {
+                              if (value == 'cancel') {
+                                onCancel(appointment.id);
+                              } else if (value == 'reschedule') {
+                                showDatePicker(
+                                  context: context,
+                                  initialDate: appointment.time,
+                                  firstDate: DateTime.now(),
+                                  lastDate: DateTime.now()
+                                      .add(const Duration(days: 365)),
+                                ).then((date) {
+                                  if (date != null && context.mounted) {
+                                    showTimePicker(
+                                      context: context,
+                                      initialTime: TimeOfDay.fromDateTime(
+                                          appointment.time),
+                                    ).then((time) {
+                                      if (time != null) {
+                                        final newDateTime = DateTime(
+                                          date.year,
+                                          date.month,
+                                          date.day,
+                                          time.hour,
+                                          time.minute,
+                                        );
+                                        onReschedule(
+                                            appointment.id, newDateTime);
+                                      }
+                                    });
+                                  }
+                                });
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'reschedule',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.schedule, size: 20),
+                                    SizedBox(width: 8),
+                                    Text('Reschedule'),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'cancel',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.cancel_outlined,
+                                        size: 20, color: Colors.red),
+                                    SizedBox(width: 8),
+                                    Text('Cancel',
+                                        style: TextStyle(color: Colors.red)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),

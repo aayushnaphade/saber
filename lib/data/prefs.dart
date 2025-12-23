@@ -442,6 +442,18 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
+  final exactExtraction = PlainStow(
+    'exactExtraction',
+    false,
+    volatile: !_isOnMainIsolate,
+  );
+
+  final aiNotesEnabled = PlainStow(
+    'aiNotesEnabled',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
+
   @pragma('vm:platform-const')
   static final isDesktop =
       Platform.isLinux || Platform.isWindows || Platform.isMacOS;

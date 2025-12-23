@@ -1687,6 +1687,8 @@ class EditorState extends State<Editor> {
                                   final formattedKey = key.toString().replaceAll('_', ' ').toUpperCase();
                                   sb.writeln('- **$formattedKey:** $value');
                                 });
+                              } else if (mse is String) {
+                                sb.writeln(mse);
                               } else {
                                 sb.writeln('Not mentioned');
                               }

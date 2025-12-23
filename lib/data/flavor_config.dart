@@ -26,7 +26,7 @@ class FlavorConfig {
     appStore: const String.fromEnvironment('APP_STORE'),
     shouldCheckForUpdatesByDefault: const bool.fromEnvironment(
       'UPDATE_CHECK',
-      defaultValue: true,
+      defaultValue: false,
     ),
   );
 }

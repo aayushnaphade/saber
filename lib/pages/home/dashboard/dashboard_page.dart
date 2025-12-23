@@ -8,6 +8,7 @@ import 'package:saber/pages/home/dashboard/widgets/live_queue_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/quick_actions.dart';
 import 'package:saber/pages/home/dashboard/widgets/stat_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/welcome_header.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -19,6 +20,7 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   var _doctorName = '';
   String? _avatarUrl;
+  RealtimeChannel? _consultationsSubscription;
 
   // Dashboard Data
   var _isLoading = true;
@@ -36,6 +38,30 @@ class _DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
     _loadDashboardData();
+    _setupRealtimeSubscription();
+  }
+
+  @override
+  void dispose() {
+    if (_consultationsSubscription != null) {
+      supabase.removeChannel(_consultationsSubscription!);
+    }
+    super.dispose();
+  }
+
+  void _setupRealtimeSubscription() {
+    _consultationsSubscription = supabase
+        .channel('public:consultations')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'consultations',
+          callback: (payload) {
+            debugPrint('Dashboard: Realtime update received: $payload');
+            _fetchDashboardData();
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _loadDashboardData() async {
@@ -100,6 +126,45 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  Future<void> _handleCancelAppointment(String consultationId) async {
+    try {
+      await SupabaseDashboardService.cancelAppointment(consultationId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Appointment cancelled')),
+        );
+        // Realtime subscription should handle the update, but we can force fetch too
+        _fetchDashboardData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error cancelling appointment: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleRescheduleAppointment(
+      String consultationId, DateTime newTime) async {
+    try {
+      await SupabaseDashboardService.rescheduleAppointment(
+          consultationId, newTime);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Appointment rescheduled')),
+        );
+        _fetchDashboardData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error rescheduling appointment: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -153,12 +218,18 @@ class _DashboardPageState extends State<DashboardPage> {
     List<Appointment> appointments,
     List<AIInsight> insights,
   ) {
+    final waitingCount = queue.isEmpty ? 0 : queue.length - 1;
+    final currentPatient = queue.isNotEmpty ? queue.first : null;
+
     return Column(
       children: [
         LiveQueueCard(
-          waitingCount: queue.length - 1,
-          currentPatient: queue.isNotEmpty ? queue.first : null,
+          waitingCount: waitingCount,
+          currentPatient: currentPatient,
           onStartSession: () {},
+          onCancel: currentPatient != null
+              ? () => _handleCancelAppointment(currentPatient.id)
+              : null,
         ),
         const SizedBox(height: 24),
         const QuickActions(),
@@ -167,7 +238,11 @@ class _DashboardPageState extends State<DashboardPage> {
         const SizedBox(height: 24),
         AIInsightsCard(insights: insights),
         const SizedBox(height: 24),
-        AppointmentTimeline(appointments: appointments),
+        AppointmentTimeline(
+          appointments: appointments,
+          onCancel: _handleCancelAppointment,
+          onReschedule: _handleRescheduleAppointment,
+        ),
       ],
     );
   }
@@ -178,6 +253,9 @@ class _DashboardPageState extends State<DashboardPage> {
     List<Appointment> appointments,
     List<AIInsight> insights,
   ) {
+    final waitingCount = queue.isEmpty ? 0 : queue.length - 1;
+    final currentPatient = queue.isNotEmpty ? queue.first : null;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -187,14 +265,21 @@ class _DashboardPageState extends State<DashboardPage> {
           child: Column(
             children: [
               LiveQueueCard(
-                waitingCount: queue.length - 1,
-                currentPatient: queue.isNotEmpty ? queue.first : null,
+                waitingCount: waitingCount,
+                currentPatient: currentPatient,
                 onStartSession: () {},
+                onCancel: currentPatient != null
+                    ? () => _handleCancelAppointment(currentPatient.id)
+                    : null,
               ),
               const SizedBox(height: 24),
               _buildStatsGrid(stats),
               const SizedBox(height: 24),
-              AppointmentTimeline(appointments: appointments),
+              AppointmentTimeline(
+                appointments: appointments,
+                onCancel: _handleCancelAppointment,
+                onReschedule: _handleRescheduleAppointment,
+              ),
             ],
           ),
         ),

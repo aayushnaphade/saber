@@ -7,6 +7,7 @@ import 'package:saber/components/settings/update_manager.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/i18n/strings.g.dart';
+import 'package:saber/pages/home/settings_subpages/ai_settings_page.dart';
 import 'package:saber/pages/home/settings_subpages/app_settings_page.dart';
 import 'package:stow/stow.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -178,6 +179,16 @@ class _SettingsPageState extends State<SettingsPage> {
             );
           },
         ),
+        SettingsButton(
+          title: 'AI Settings',
+          subtitle: 'Exact Extraction, AI Notes',
+          icon: Icons.psychology,
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const AiSettingsPage()),
+            );
+          },
+        ),
       ],
     );
   }
@@ -228,6 +239,19 @@ class _SettingsPageState extends State<SettingsPage> {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (context) => const AppSettingsPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  SettingsButton(
+                    title: 'AI Settings',
+                    subtitle: 'Exact Extraction, AI Notes',
+                    icon: Icons.psychology,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const AiSettingsPage(),
                         ),
                       );
                     },

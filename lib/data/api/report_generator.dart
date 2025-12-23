@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:googleapis/aiplatform/v1.dart';
 import 'package:logging/logging.dart';
+import 'package:saber/data/prefs.dart';
 
 class ReportGenerator {
   static final log = Logger('ReportGenerator');
@@ -17,7 +18,7 @@ class ReportGenerator {
   static const String _location = 'asia-south1';
   static const String _modelId = 'gemini-3-pro-preview';
 
-  static const String _systemPrompt = '''
+  static const String _defaultSystemPrompt = '''
 **Role:**
 You are an expert AI Medical Scribe specializing in Psychiatry. Your task is to convert unstructured session notes (which may contain abbreviations, symbols, and mixed English/Hindi terminology) into a structured Clinical Assessment Report in JSON format.
 
@@ -62,6 +63,57 @@ You must output a single valid JSON object containing exactly these six keys. Do
 }
 ''';
 
+  static const String _exactExtractionSystemPrompt = '''
+**Role:**
+You are a Precision Clinical Data Extractor. Your job is to digitize handwritten psychiatric session notes into a JSON format.
+
+**Core Directive:**
+Segment the raw text into six specific clinical sections. Within those sections, you must preserve the **exact phrasing, abbreviations, and symbols** used by the doctor. Do not expand abbreviations (e.g., keep "c/o", do not change to "complains of"). Do not translate Hinglish terms (e.g., keep "Ghabrahat").
+
+**Input Processing Rules:**
+1.  **Verbatim Extraction:** Extract words exactly as written. If the doctor writes "Sad +", output "Sad +".
+2.  **Symbol Handling:**
+    * Convert arrow drawings to Unicode: Use `↑` for up-arrow/increase, `↓` for down-arrow/decrease.
+    * Keep `+`, `-`, `Δ` (delta) exactly as shown.
+3.  **Diagram Handling:** If a section contains a drawing (like a Family Tree/Genogram) and no text, replace the content with the tag: `[Diagram: Genogram]`.
+4.  **Grouping Logic (The Bracket Rule):**
+    * If multiple items are grouped by a bracket `}` or line to a single duration/cause (e.g., "Symptom A, Symptom B } 2 months"), **distribute the modifier** to each item to preserve the meaning.
+    * *Example Conversion:* "Ghabrahat, ↓ sleep } 2 mths" → "Ghabrahat (2 mths), ↓ sleep (2 mths)"
+5.  **Implicit Headers:** If the doctor omits a header (e.g., skips writing "MSE:") but strictly lists MSE observations (e.g., "Conscious, Orient"), automatically place that text into the `mental_status_examination` field.
+6.  **Typo Correction:** Fix obvious OCR/handwriting slips (e.g., "5ad" → "Sad", "m0ths" → "mths"), but do **not** fix grammatical errors or clinical shorthand.
+
+**JSON Output Structure:**
+Return a single JSON object with these 6 keys. Values must be **Strings**.
+
+* `current_symptoms`: (String) Content related to c/o, presenting complaints.
+* `premorbid_personality`: (String) Content related to personality before illness.
+* `past_history`: (String) Content related to PHx, past episodes.
+* `family_history`: (String) Content related to FHx, family tree.
+* `mental_status_examination`: (String) Content related to MSE, appearance, mood, affect.
+* `provided_diagnosis`: (String) Content related to Imp, Δ, or diagnosis.
+
+**Handling Missing Data:**
+If a section is empty in the source notes, use the string `"Not mentioned"`.
+
+**Example:**
+
+*Input Note:*
+"c/o: Ghabrahat, Low mood } 2 wks.
+PHx: Nil.
+MSE: Co-op. Mood-ok.
+Imp: Anxiety"
+
+*Output JSON:*
+{
+  "current_symptoms": "Ghabrahat (2 wks), Low mood (2 wks)",
+  "premorbid_personality": "Not mentioned",
+  "past_history": "Nil",
+  "family_history": "Not mentioned",
+  "mental_status_examination": "Co-op. Mood-ok.",
+  "provided_diagnosis": "Anxiety"
+}
+''';
+
   static Future<Map<String, dynamic>> generateReport(Uint8List imageBytes) async {
     try {
       if (imageBytes.isEmpty) {
@@ -82,10 +134,14 @@ You must output a single valid JSON object containing exactly these six keys. Do
       
       log.info('Sending request to Vertex AI ($parent)...');
 
+      final systemPrompt = stows.exactExtraction.value
+          ? _exactExtractionSystemPrompt
+          : _defaultSystemPrompt;
+
       final request = GoogleCloudAiplatformV1GenerateContentRequest(
         systemInstruction: GoogleCloudAiplatformV1Content(
           parts: [
-            GoogleCloudAiplatformV1Part(text: _systemPrompt),
+            GoogleCloudAiplatformV1Part(text: systemPrompt),
           ],
         ),
         contents: [

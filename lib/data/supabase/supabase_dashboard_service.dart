@@ -9,10 +9,12 @@ class SupabaseDashboardService {
   /// Fetches the current live queue (waiting and in-progress consultations)
   static Future<List<QueueItem>> getLiveQueue() async {
     try {
+      final now = DateTime.now().toIso8601String();
       final response = await supabase
           .from('consultations')
           .select('*, patients(full_name)')
           .or('status.eq.waiting,status.eq.in_progress')
+          .lte('created_at', now) // Only show items scheduled for now or earlier
           .order('created_at', ascending: true);
 
       final List<QueueItem> queue = [];
@@ -140,7 +142,7 @@ class SupabaseDashboardService {
         patientsToday: patientsToday,
         pendingReports: pending, // Using pending consultations as proxy
         completedSessions: completedSessions,
-        averageTimePerPatient: 15.0, // Mock value
+        averageTimePerPatient: completedSessions > 0 ? 15.0 : 0.0, // Mock value until we have duration data
       );
     } catch (e) {
       log.severe('Error fetching stats: $e');
@@ -150,6 +152,33 @@ class SupabaseDashboardService {
         completedSessions: 0,
         averageTimePerPatient: 0,
       );
+    }
+  }
+
+  /// Cancels an appointment
+  static Future<void> cancelAppointment(String consultationId) async {
+    try {
+      await supabase
+          .from('consultations')
+          .update({'status': 'cancelled'})
+          .eq('id', consultationId);
+    } catch (e) {
+      log.severe('Error cancelling appointment: $e');
+      rethrow;
+    }
+  }
+
+  /// Reschedules an appointment
+  static Future<void> rescheduleAppointment(
+      String consultationId, DateTime newTime) async {
+    try {
+      await supabase
+          .from('consultations')
+          .update({'created_at': newTime.toIso8601String()})
+          .eq('id', consultationId);
+    } catch (e) {
+      log.severe('Error rescheduling appointment: $e');
+      rethrow;
     }
   }
 }
