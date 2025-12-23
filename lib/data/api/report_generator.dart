@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:googleapis/aiplatform/v1.dart';
 import 'package:logging/logging.dart';
@@ -10,19 +11,7 @@ class ReportGenerator {
   // Service Account Credentials
   // IMPORTANT: In a production app, never hardcode credentials like this.
   // Use a backend proxy or secure storage.
-  static const _serviceAccountJson = {
-    "type": "service_account",
-    "project_id": "synapseai-production",
-    "private_key_id": "REPLACE_WITH_PRIVATE_KEY_ID",
-    "private_key": "REPLACE_WITH_PRIVATE_KEY",
-    "client_email": "gemini-backend-user@synapseai-production.iam.gserviceaccount.com",
-    "client_id": "REPLACE_WITH_CLIENT_ID",
-    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-    "token_uri": "https://oauth2.googleapis.com/token",
-    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/gemini-backend-user%40synapseai-production.iam.gserviceaccount.com",
-    "universe_domain": "googleapis.com"
-  };
+  static final _serviceAccountJson = jsonDecode(dotenv.env['GOOGLE_SERVICE_ACCOUNT_JSON']!);
 
   static const String _projectId = 'synapseai-production';
   static const String _location = 'asia-south1';

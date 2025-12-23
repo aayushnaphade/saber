@@ -5,6 +5,7 @@ import 'package:args/args.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logging/logging.dart';
 import 'package:onyxsdk_pen/onyxsdk_pen.dart';
@@ -39,6 +40,8 @@ Future<void> main(List<String> args) async {
   ///   --dart-define=APP_STORE="Google Play" \
   ///   --dart-define=UPDATE_CHECK="false"
   FlavorConfig.setupFromEnvironment();
+
+  await dotenv.load(fileName: ".env");
 
   await initSentry(() => appRunner(args));
 }

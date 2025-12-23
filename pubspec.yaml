@@ -162,6 +162,7 @@ dependencies:
   googleapis: ^15.0.0
   lottie: ^3.3.2
   flutter_markdown: ^0.7.7+1
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -212,6 +213,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - .env
     - assets/saber.json
     - assets/icon/icon.svg
     - assets/icon/icon.png
