@@ -6,7 +6,7 @@ import 'package:saber/data/supabase/supabase_client.dart';
 class SupabasePatientService {
   static final log = Logger('SupabasePatientService');
 
-  /// Get all patients for the current doctor
+  /// Get all patients for the current doctor (including archived)
   static Future<List<Patient>> getAllPatients() async {
     try {
       log.info('Fetching all patients');
@@ -28,16 +28,15 @@ class SupabasePatientService {
     }
   }
 
-  /// Get active patients only
-  /// Note: 'is_active' column does not exist in current schema, so this returns all patients.
+  /// Get active patients only (not archived)
   static Future<List<Patient>> getActivePatients() async {
     try {
-      log.info('Fetching active patients (all)');
+      log.info('Fetching active patients');
 
       final response = await supabase
           .from('patients')
           .select()
-          // .eq('is_active', true) // Column does not exist
+          .eq('is_active', true)
           .order('created_at', ascending: false);
 
       final patients = (response as List)
@@ -53,15 +52,15 @@ class SupabasePatientService {
   }
 
   /// Get patients in waiting queue
-  /// Note: 'status' column does not exist, so this returns all patients for now.
   static Future<List<Patient>> getWaitingPatients() async {
     try {
-      log.info('Fetching waiting patients (all)');
+      log.info('Fetching waiting patients');
 
       final response = await supabase
           .from('patients')
           .select()
-          // .eq('status', 'waiting') // Column does not exist
+          .eq('status', 'waiting')
+          .eq('is_active', true)
           .order('created_at', ascending: true); // FIFO order
 
       final patients = (response as List)
@@ -196,33 +195,20 @@ class SupabasePatientService {
   }
 
   /// Update patient status
-  /// Note: 'status' column does not exist, so this is a no-op.
   static Future<Patient> updatePatientStatus(
     String patientId,
     PatientStatus status,
   ) async {
     try {
-      log.info('Updating patient status: $patientId -> $status (No-op)');
+      log.info('Updating patient status: $patientId -> $status');
 
-      // Return current patient state since we can't update status
-      return await getPatient(patientId) ??
-          Patient(
-            id: patientId,
-            createdAt: DateTime.now(),
-            fullName: 'Unknown',
-            status: status,
-            doctorId: '',
-          );
-
-      /*
       final updates = {
         'status': status.value,
-        if (status == PatientStatus.completed)
+        if (status == PatientStatus.discharged)
           'last_visit': DateTime.now().toIso8601String(),
       };
 
       return await updatePatient(patientId, updates);
-      */
     } catch (e) {
       log.severe('Failed to update patient status: $patientId', e);
       rethrow;
@@ -230,17 +216,14 @@ class SupabasePatientService {
   }
 
   /// Mark patient as inactive (soft delete)
-  /// Note: 'is_active' column does not exist, so this is a no-op.
   static Future<void> deactivatePatient(String patientId) async {
     try {
-      log.info('Deactivating patient: $patientId (No-op)');
+      log.info('Deactivating patient: $patientId');
 
-      /*
       await supabase
           .from('patients')
           .update({'is_active': false})
           .eq('id', patientId);
-      */
 
       log.info('Deactivated patient: $patientId');
     } catch (e) {
@@ -296,12 +279,11 @@ class SupabasePatientService {
   }
 
   /// Watch for real-time changes to waiting queue
-  /// Note: 'status' column does not exist, so this watches all patients.
   static Stream<List<Patient>> watchWaitingQueue() {
     return supabase
         .from('patients')
         .stream(primaryKey: ['id'])
-        // .eq('status', 'waiting') // Column does not exist
+        .eq('status', 'waiting')
         .order('created_at', ascending: true)
         .map((data) => data.map((json) => Patient.fromJson(json)).toList());
   }

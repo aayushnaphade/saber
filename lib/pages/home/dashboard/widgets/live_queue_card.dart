@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:mesh_gradient/mesh_gradient.dart';
 import 'package:saber/data/models/dashboard_models.dart';
+import 'package:saber/design_system/spacing.dart';
+import 'package:saber/design_system/radius.dart';
 
 class LiveQueueCard extends StatelessWidget {
   final QueueItem? currentPatient;
   final int waitingCount;
   final VoidCallback onStartSession;
   final VoidCallback? onCancel;
+  final VoidCallback? onViewProfile;
 
   const LiveQueueCard({
     super.key,
@@ -14,7 +17,14 @@ class LiveQueueCard extends StatelessWidget {
     required this.waitingCount,
     required this.onStartSession,
     this.onCancel,
+    this.onViewProfile,
   });
+
+  /// Calculate safe waiting count (excluding current patient if in progress)
+  int get _displayWaitingCount {
+    if (currentPatient == null) return 0;
+    return waitingCount > 0 ? waitingCount : 0;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +33,7 @@ class LiveQueueCard extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.xlRadius),
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
@@ -46,7 +56,7 @@ class LiveQueueCard extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(AppSpacing.cardPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -95,7 +105,7 @@ class LiveQueueCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '$waitingCount Waiting',
+                      '$_displayWaitingCount Waiting',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: Colors.white.withOpacity(0.9),
                         fontWeight: FontWeight.w500,
@@ -150,6 +160,21 @@ class LiveQueueCard extends StatelessWidget {
                           label: const Text('Start Session'),
                         ),
                       ),
+                      if (onViewProfile != null) ...[
+                        const SizedBox(width: 12),
+                        IconButton.filled(
+                          onPressed: onViewProfile,
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.white.withOpacity(0.1),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.all(16),
+                            side: BorderSide(
+                                color: Colors.white.withOpacity(0.2)),
+                          ),
+                          icon: const Icon(Icons.person_outline),
+                          tooltip: 'View Patient Profile',
+                        ),
+                      ],
                       if (onCancel != null) ...[
                         const SizedBox(width: 12),
                         IconButton.filled(

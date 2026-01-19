@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:lottie/lottie.dart' as lottie_pkg;
 import 'package:collapsible/collapsible.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
@@ -11,8 +10,11 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' as flutter_quill;
+import 'package:intl/intl.dart';
 import 'package:keybinder/keybinder.dart';
 import 'package:logging/logging.dart';
+import 'package:lottie/lottie.dart' as lottie_pkg;
+import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
 import 'package:saber/components/canvas/_stroke.dart';
@@ -30,6 +32,7 @@ import 'package:saber/components/toolbar/color_bar.dart';
 import 'package:saber/components/toolbar/editor_bottom_sheet.dart';
 import 'package:saber/components/toolbar/editor_page_manager.dart';
 import 'package:saber/components/toolbar/toolbar.dart';
+import 'package:saber/data/api/report_generator.dart';
 import 'package:saber/data/editor/_color_change.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
@@ -39,6 +42,8 @@ import 'package:saber/data/extensions/change_notifier_extensions.dart';
 import 'package:saber/data/extensions/matrix4_extensions.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/prefs.dart';
+import 'package:saber/data/supabase/supabase_dashboard_service.dart';
+import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
 import 'package:saber/data/tools/highlighter.dart';
@@ -48,20 +53,16 @@ import 'package:saber/data/tools/pencil.dart';
 import 'package:saber/data/tools/select.dart';
 import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/i18n/strings.g.dart';
-import 'package:saber/pages/home/whiteboard.dart';
-import 'package:saber/data/api/report_generator.dart';
 import 'package:saber/pages/editor/report_view.dart';
+import 'package:saber/pages/home/whiteboard.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:super_clipboard/super_clipboard.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:intl/intl.dart';
 
 
 typedef _PhotoInfo = ({Uint8List bytes, String extension});
 
 class Editor extends StatefulWidget {
-  Editor({super.key, String? path, this.customTitle, this.pdfPath})
+  Editor({super.key, String? path, this.customTitle, this.pdfPath, this.consultationId})
     : initialPath = path != null
           ? Future.value(path)
           : FileManager.newFilePath('/'),
@@ -72,6 +73,7 @@ class Editor extends StatefulWidget {
 
   final String? customTitle;
   final String? pdfPath;
+  final String? consultationId;
 
   /// The file extension used by the app.
   /// Files with this extension are
@@ -939,6 +941,17 @@ class EditorState extends State<Editor> {
       ]);
       savingState.value = .saved;
       history.markLastChangeAsSaved();
+
+      // Mark consultation as completed if this is a session note
+      if (widget.consultationId != null) {
+        try {
+          await SupabaseDashboardService.completeConsultation(widget.consultationId!);
+          log.info('Consultation ${widget.consultationId} marked as completed');
+        } catch (e) {
+          log.warning('Failed to mark consultation as completed: $e');
+          // Don't block the save flow if this fails
+        }
+      }
     } catch (e) {
       log.severe('Failed to save file: $e', e);
       savingState.value = .waitingToSave;
@@ -1566,11 +1579,9 @@ class EditorState extends State<Editor> {
           exportAsPdf: exportAsPdf,
           exportAsPng: null,
           generateReport: (context) async {
-            // 1. Capture Screenshot
+            // 1. Capture Screenshots of ALL pages
             final screenshotController = ScreenshotController();
-            final page = coreInfo.pages.first; // Assuming single page or first page for now
-            final previewHeight = page.previewHeight(lineHeight: coreInfo.lineHeight);
-            final targetSize = Size(page.size.width, page.size.height);
+            final imageBytesList = <Uint8List>[];
 
             // Show loading indicator
             showDialog(
@@ -1583,60 +1594,80 @@ class EditorState extends State<Editor> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: lottie_pkg.Lottie.asset(
-                    'assets/saber.json',
-                    width: 300,
-                    height: 300,
-                    errorBuilder: (context, error, stackTrace) {
-                      log.warning('Lottie Error: $error');
-                      // Fallback to standard spinner if Lottie fails (e.g. invalid file)
-                      return const CircularProgressIndicator();
-                    },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                       lottie_pkg.Lottie.asset(
+                        'assets/saber.json',
+                        width: 250,
+                        height: 250,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const CircularProgressIndicator(),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Digitizing clinical notes...',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
                 ),
               ),
             );
 
             try {
-              final imageBytes = await screenshotController.captureFromWidget(
-                Theme(
-                  data: ThemeData(
-                    brightness: Brightness.light,
-                    colorScheme: const ColorScheme.light(
-                      primary: EditorExporter.primaryColor,
-                      secondary: EditorExporter.secondaryColor,
+              // Loop through all pages
+              for (var i = 0; i < coreInfo.pages.length; i++) {
+                final page = coreInfo.pages[i];
+                final previewHeight = page.previewHeight(lineHeight: coreInfo.lineHeight);
+                final targetSize = Size(page.size.width, page.size.height);
+
+                final imageBytes = await screenshotController.captureFromWidget(
+                  Theme(
+                    data: ThemeData(
+                      brightness: Brightness.light,
+                      colorScheme: const ColorScheme.light(
+                        primary: EditorExporter.primaryColor,
+                        secondary: EditorExporter.secondaryColor,
+                      ),
                     ),
-                  ),
-                  child: Localizations.override(
-                    context: context,
-                    child: SizedBox(
-                      width: targetSize.width,
-                      height: targetSize.height,
-                      child: FittedBox(
-                        child: pageBuilderForScreenshot(
-                          context,
-                          pageIndex: 0,
-                          previewHeight: previewHeight,
+                    child: Localizations.override(
+                      context: context,
+                      child: SizedBox(
+                        width: targetSize.width,
+                        height: targetSize.height,
+                        child: FittedBox(
+                          child: pageBuilderForScreenshot(
+                            context,
+                            pageIndex: i,
+                            previewHeight: previewHeight,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                pixelRatio: 2.0, // Higher quality for OCR
-                context: context,
-                targetSize: targetSize,
-              );
+                  pixelRatio: 2.0, // Higher quality for OCR
+                  context: context,
+                  targetSize: targetSize,
+                );
+                imageBytesList.add(imageBytes);
+              }
 
               // 2. Send to API
               // ignore: use_build_context_synchronously
               if (!context.mounted) return;
               
-              final reportData = await ReportGenerator.generateReport(imageBytes);
+              final reportData = await ReportGenerator.generateReport(imageBytesList);
 
               // 3. Show Split Screen / Report View
               // ignore: use_build_context_synchronously
               if (!context.mounted) return;
               Navigator.pop(context); // Close loading dialog
+
+              // Calculate total height for the scrollable preview
+              // We'll just stack them vertically in a ListView
+              // No need to stitch bytes manually, the UI can just list them.
 
               showDialog(
                 context: context,
@@ -1644,11 +1675,25 @@ class EditorState extends State<Editor> {
                   insetPadding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      // Left side: Image Preview (Static for now, could be interactive)
+                      // Left side: Image Preview (Scrollable list of pages)
                       Expanded(
                         child: Container(
                           color: Colors.grey[200],
-                          child: Image.memory(imageBytes),
+                          child: ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: imageBytesList.length,
+                            separatorBuilder: (context, index) => const SizedBox(height: 16),
+                            itemBuilder: (context, index) {
+                              return RepaintBoundary(
+                                child: Image.memory(
+                                  imageBytesList[index],
+                                  gaplessPlayback: true,
+                                  cacheWidth: 1024,
+                                  fit: BoxFit.contain,
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
                       // Right side: Report Form
@@ -1699,6 +1744,7 @@ class EditorState extends State<Editor> {
 
                               // Determine path
                               String filePath = coreInfo.filePath;
+                              String? patientId;
                               
                               // Ensure we have a valid absolute path
                               // If the path is just '/patients/...' on mobile, it's likely relative to the app sandbox
@@ -1706,8 +1752,31 @@ class EditorState extends State<Editor> {
                                 if (filePath.startsWith('/')) {
                                   filePath = filePath.substring(1);
                                 }
+                                
+                                // Attempt to extract patient ID from path "patients/{id}/..."
+                                final parts = filePath.split('/');
+                                if (parts.length >= 2 && parts[0] == 'patients') {
+                                  patientId = parts[1];
+                                }
+
                                 // Use FileManager.documentsDirectory to ensure we are in the 'Saber' subfolder
                                 filePath = p.join(FileManager.documentsDirectory, filePath);
+                              }
+
+                              // Submit to Supabase if we found a patient ID
+                              if (patientId != null) {
+                                try {
+                                  await SupabaseReportService.createReport(
+                                    patientId: patientId,
+                                    structuredData: reportData,
+                                    markdownContent: sb.toString(),
+                                    sourceDocumentPath: coreInfo.filePath,
+                                  );
+                                  log.info('Report saved to Supabase for patient $patientId');
+                                } catch (dbError) {
+                                  log.severe('Failed to save report to DB', dbError);
+                                  // Don't block local file save if DB fails
+                                }
                               }
 
                               // coreInfo.filePath is like .../patients/{id}/session_notes/session_X/notes

@@ -102,12 +102,14 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
           ),
           IntrinsicHeight(
             child: NavigationRail(
+              key: ValueKey(expanded),
               destinations: widget.destinations,
               selectedIndex: widget.selectedIndex,
               backgroundColor: backgroundColor,
               extended: expanded,
-              minExtendedWidth: 300,
+              minExtendedWidth: 220,
               onDestinationSelected: widget.onDestinationSelected,
+              useIndicator: true,
             ),
           ),
           const Spacer(),

@@ -53,7 +53,7 @@ abstract class HomeRoutes {
       ),
       _Route(
         routePath: _homeFunction({'subpage': HomePage.recentSubpage}),
-        label: t.home.tabs.home,
+        label: 'Recent Notes',
         icon: const AdaptiveIcon(
           icon: Icons.history,
           cupertinoIcon: CupertinoIcons.clock_fill,
@@ -85,11 +85,8 @@ abstract class HomeRoutes {
       ),
     ];
 
-    if (stows.receptionMode.value) {
-      // In reception mode, hide Whiteboard
-      return routes.where((r) => r.label != t.home.tabs.whiteboard).toList();
-    }
-    return routes;
+    // Whiteboard is now hidden permanently
+    return routes.where((r) => r.label != t.home.tabs.whiteboard).toList();
   }
 
   static String getRoute(int index) {
@@ -114,5 +111,13 @@ class _Route {
   NavigationDestination toNavigationDestination() =>
       NavigationDestination(label: label, icon: icon);
   NavigationRailDestination toNavigationRailDestination() =>
-      NavigationRailDestination(label: Text(label), icon: icon);
+      NavigationRailDestination(
+        label: Text(
+          label,
+          overflow: TextOverflow.clip,
+          maxLines: 1,
+          softWrap: false,
+        ),
+        icon: icon,
+      );
 }

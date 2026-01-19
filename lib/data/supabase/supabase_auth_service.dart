@@ -304,7 +304,26 @@ class SupabaseAuthService {
 
   /// Check if user is currently authenticated
   static bool get isAuthenticated {
+    // First check if we have a valid session
     final session = currentSession;
-    return session != null && !session.isExpired;
+    if (session != null && !session.isExpired) {
+      return true;
+    }
+
+    // If offline or no session available, check local storage
+    // This allows the app to work offline if user was previously logged in
+    try {
+      final hasLocalSession = stows.supabaseUserId.value.isNotEmpty &&
+          stows.supabaseAccessToken.value.isNotEmpty;
+
+      if (hasLocalSession) {
+        log.info('Using locally stored session (offline mode)');
+        return true;
+      }
+    } catch (e) {
+      log.warning('Error checking local session', e);
+    }
+
+    return false;
   }
 }

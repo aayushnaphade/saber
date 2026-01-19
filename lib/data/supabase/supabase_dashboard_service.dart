@@ -9,13 +9,17 @@ class SupabaseDashboardService {
   /// Fetches the current live queue (waiting and in-progress consultations)
   static Future<List<QueueItem>> getLiveQueue() async {
     try {
+      // Auto-cleanup past pending sessions
+      await cancelPastPendingSessions();
+
       final now = DateTime.now().toIso8601String();
       final response = await supabase
           .from('consultations')
           .select('*, patients(full_name)')
           .or('status.eq.waiting,status.eq.in_progress')
-          .lte('created_at', now) // Only show items scheduled for now or earlier
-          .order('created_at', ascending: true);
+          .lte('scheduled_time', now) // Only show items scheduled for now or earlier
+          .order('queue_order', ascending: true)
+          .order('scheduled_time', ascending: true);
 
       final List<QueueItem> queue = [];
       int position = 1;
@@ -50,6 +54,9 @@ class SupabaseDashboardService {
   /// Fetches today's appointments (all consultations created today)
   static Future<List<Appointment>> getTodayAppointments() async {
     try {
+      // Auto-cleanup past pending sessions
+      await cancelPastPendingSessions();
+
       final now = DateTime.now();
       final startOfDay = DateTime(
         now.year,
@@ -67,27 +74,26 @@ class SupabaseDashboardService {
 
       final response = await supabase
           .from('consultations')
-          .select('*, patients(full_name)')
-          .gte('created_at', startOfDay)
-          .lte('created_at', endOfDay)
-          .order('created_at', ascending: true);
+          .select('*, patients(full_name, visit_type)')
+          .gte('scheduled_time', startOfDay)
+          .lte('scheduled_time', endOfDay)
+          .order('scheduled_time', ascending: true);
 
       return (response as List).map((item) {
         final patient = item['patients'];
         final patientName = patient != null ? patient['full_name'] : 'Unknown';
+        final visitType = patient != null ? patient['visit_type'] : null;
         final statusStr = item['status'] as String;
+        final appointmentTypeStr = item['appointment_type'] as String?;
 
         AppointmentStatus status;
         switch (statusStr) {
           case 'completed':
             status = AppointmentStatus.completed;
-            break;
           case 'cancelled':
             status = AppointmentStatus.cancelled;
-            break;
           case 'in_progress':
             status = AppointmentStatus.inProgress;
-            break;
           default:
             status = AppointmentStatus.upcoming;
         }
@@ -96,10 +102,10 @@ class SupabaseDashboardService {
           id: item['id'],
           patientName: patientName,
           patientId: item['patient_id'],
-          time: DateTime.parse(item['created_at']),
-          reason:
-              'General Consultation', // Placeholder as reason isn't in schema yet
+          time: DateTime.parse(item['scheduled_time'] ?? item['created_at']),
+          reason: visitType ?? 'General Consultation',
           status: status,
+          appointmentType: appointmentTypeStr ?? 'walk-in',
         );
       }).toList();
     } catch (e) {
@@ -181,4 +187,125 @@ class SupabaseDashboardService {
       rethrow;
     }
   }
+
+  /// Completes a consultation session
+  static Future<void> completeConsultation(String consultationId) async {
+    try {
+      await supabase
+          .from('consultations')
+          .update({'status': 'completed'})
+          .eq('id', consultationId);
+      log.info('Consultation $consultationId marked as completed');
+    } catch (e) {
+      log.severe('Error completing consultation: $e');
+      rethrow;
+    }
+  }
+
+  /// Cancel past pending sessions (auto-cleanup for no-shows)
+  /// Marks all waiting/in_progress consultations from previous days as cancelled
+  static Future<int> cancelPastPendingSessions() async {
+    try {
+      final now = DateTime.now();
+      final startOfToday = DateTime(now.year, now.month, now.day).toIso8601String();
+
+      final response = await supabase
+          .from('consultations')
+          .update({'status': 'cancelled'})
+          .lt('scheduled_time', startOfToday)
+          .inFilter('status', ['waiting', 'in_progress'])
+          .select();
+
+      final count = (response as List).length;
+      if (count > 0) {
+        log.info('Auto-cancelled $count past pending sessions');
+      }
+      return count;
+    } catch (e) {
+      log.severe('Error cancelling past pending sessions: $e');
+      return 0;
+    }
+  }
+
+  /// Check for scheduling conflicts
+  /// Returns list of conflicting appointments for the given time slot
+  static Future<List<Appointment>> checkTimeSlotConflicts(
+      DateTime scheduledTime,
+      {String? excludeConsultationId}) async {
+    try {
+      // Check within a 30-minute window
+      final start = scheduledTime.subtract(const Duration(minutes: 15));
+      final end = scheduledTime.add(const Duration(minutes: 15));
+
+      var query = supabase
+          .from('consultations')
+          .select('*, patients(full_name, visit_type)')
+          .gte('scheduled_time', start.toIso8601String())
+          .lte('scheduled_time', end.toIso8601String())
+          .neq('status', 'cancelled')
+          .neq('status', 'completed');
+
+      if (excludeConsultationId != null) {
+        query = query.neq('id', excludeConsultationId);
+      }
+
+      final response = await query;
+
+      return (response as List).map((item) {
+        final patient = item['patients'];
+        final patientName = patient != null ? patient['full_name'] : 'Unknown';
+        final visitType = patient != null ? patient['visit_type'] : null;
+        final statusStr = item['status'] as String;
+        final appointmentTypeStr = item['appointment_type'] as String?;
+
+        AppointmentStatus status;
+        switch (statusStr) {
+          case 'completed':
+            status = AppointmentStatus.completed;
+          case 'cancelled':
+            status = AppointmentStatus.cancelled;
+          case 'in_progress':
+            status = AppointmentStatus.inProgress;
+          default:
+            status = AppointmentStatus.upcoming;
+        }
+
+        return Appointment(
+          id: item['id'],
+          patientName: patientName,
+          patientId: item['patient_id'],
+          time: DateTime.parse(item['scheduled_time'] ?? item['created_at']),
+          reason: visitType ?? 'General Consultation',
+          status: status,
+          appointmentType: appointmentTypeStr ?? 'walk-in',
+        );
+      }).toList();
+    } catch (e) {
+      log.severe('Error checking time slot conflicts: $e');
+      return [];
+    }
+  }
+
+  /// Generate mock AI insights (until we have real analysis backend)
+  static Future<List<AIInsight>> getInsights() async {
+    // In a real app, this would fetch from an 'insights' table or an Edge Function
+    // that analyzes patient data.
+    return [
+      AIInsight(
+        id: '1',
+        title: 'High Volume Expected',
+        description: 'Based on historical data, Monday mornings have 20% more walk-ins.',
+        type: InsightType.trend,
+        timestamp: DateTime.now(),
+      ),
+      AIInsight(
+        id: '2',
+        title: 'Pending Lab Reports',
+        description: '3 patients from yesterday are waiting for blood test results.',
+        type: InsightType.action,
+        timestamp: DateTime.now().subtract(const Duration(hours: 2)),
+      ),
+    ];
+  }
 }
+

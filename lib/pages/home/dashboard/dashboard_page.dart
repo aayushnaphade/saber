@@ -1,5 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:path/path.dart' as p;
+import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/dashboard_models.dart';
+import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/pages/home/dashboard/widgets/ai_insights_card.dart';
@@ -24,7 +30,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
   // Dashboard Data
   var _isLoading = true;
-  DashboardStats _stats = const DashboardStats(
+  var _stats = const DashboardStats(
     patientsToday: 0,
     pendingReports: 0,
     completedSessions: 0,
@@ -81,6 +87,9 @@ class _DashboardPageState extends State<DashboardPage> {
   Future<void> _fetchDashboardData() async {
     debugPrint('Dashboard: Fetching dashboard stats/queue/appointments...');
     try {
+      // Clean up past pending sessions first
+      await SupabaseDashboardService.cancelPastPendingSessions();
+
       final results = await Future.wait([
         SupabaseDashboardService.getStats(),
         SupabaseDashboardService.getLiveQueue(),
@@ -96,7 +105,10 @@ class _DashboardPageState extends State<DashboardPage> {
           _stats = results[0] as DashboardStats;
           _queue = results[1] as List<QueueItem>;
           _appointments = results[2] as List<Appointment>;
-          _insights = MockDashboardData.getInsights(); // Keep mock for now
+          // Fetch insights from service (currently mocked inside service)
+          SupabaseDashboardService.getInsights().then((value) {
+            if (mounted) setState(() => _insights = value);
+          });
         });
       }
     } catch (e) {
@@ -123,6 +135,87 @@ class _DashboardPageState extends State<DashboardPage> {
       }
     } catch (e) {
       debugPrint('Error fetching profile for dashboard: $e');
+    }
+  }
+
+  Future<void> _handleStartSession(QueueItem item) async {
+    try {
+      // 1. Update status to in_progress
+      await supabase
+          .from('consultations')
+          .update({'status': 'in_progress'})
+          .eq('id', item.id);
+
+      // 2. Create Session Files
+      final patientId = item.patientId;
+      
+      final patientsDir = Directory(p.join(FileManager.documentsDirectory, 'patients', patientId));
+      if (!patientsDir.existsSync()) {
+        await patientsDir.create(recursive: true);
+      }
+      
+      final sessionNotesDir = Directory(p.join(patientsDir.path, 'session_notes'));
+      if (!sessionNotesDir.existsSync()) {
+        await sessionNotesDir.create(recursive: true);
+      }
+      
+      int nextSessionNumber = 1;
+      try {
+        final existing = sessionNotesDir.listSync();
+        var maxNum = 0;
+        for (var entity in existing) {
+           if (entity is Directory) {
+             final name = p.basename(entity.path);
+             if (name.startsWith('session_')) {
+                final num = int.tryParse(name.replaceAll('session_', ''));
+                if (num != null && num > maxNum) maxNum = num;
+             }
+           }
+        }
+        nextSessionNumber = maxNum + 1;
+      } catch (e) {
+        // ignore
+      }
+      
+      final sessionFolderName = 'session_$nextSessionNumber';
+      final sessionDir = Directory(p.join(sessionNotesDir.path, sessionFolderName));
+      await sessionDir.create();
+      
+      final documentName = 'session_${nextSessionNumber}_notes';
+      final fullPath = p.join(sessionDir.path, '$documentName.sbn');
+      
+      // Navigate to editor
+      // RoutePaths.editFilePath expects path relative to app's data logic if it's based on it,
+      // but usually Editor accepts aboslute paths too?
+      // Looking at RoutePaths.editFilePath implementation:
+      // return '$edit?path=${Uri.encodeQueryComponent(filePath)}';
+      // The Editor logic usually handles loading.
+      // Based on patient_profile.dart, it passes:
+      // '${patient!.documentFolderPath(DocumentType.sessionNote)}/$sessionFolderName/$documentName.sbn';
+      // which is relative to documentsDirectory if patient.localFolderPath is relative.
+      // patient.localFolderPath => '/patients/$id'
+      // So passed path starts with /patients/...
+      // Relative path calculation:
+      
+      final relativePath = p.relative(fullPath, from: FileManager.documentsDirectory);
+      // Ensure it starts with / if needed, or if Editor handles relative paths correctly.
+      // PatientProfile uses path starting with /patients/...
+      // p.relative might return 'patients/...' (without leading /).
+      
+      final pathForRoute = relativePath.startsWith('/') ? relativePath : '/$relativePath';
+
+      if (mounted) {
+        // Pass consultation ID as a query parameter
+        final route = RoutePaths.editFilePath(pathForRoute);
+        final routeWithConsultation = '$route${route.contains('?') ? '&' : '?'}consultation_id=${item.id}';
+        context.go(routeWithConsultation);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error starting session: $e')),
+        );
+      }
     }
   }
 
@@ -226,7 +319,15 @@ class _DashboardPageState extends State<DashboardPage> {
         LiveQueueCard(
           waitingCount: waitingCount,
           currentPatient: currentPatient,
-          onStartSession: () {},
+          onStartSession: currentPatient != null
+              ? () => _handleStartSession(currentPatient)
+              : () {},
+          onViewProfile: currentPatient != null
+              ? () => context.go(
+                    RoutePaths.patientDetail
+                        .replaceFirst(':patientId', currentPatient.patientId),
+                  )
+              : null,
           onCancel: currentPatient != null
               ? () => _handleCancelAppointment(currentPatient.id)
               : null,
@@ -267,7 +368,15 @@ class _DashboardPageState extends State<DashboardPage> {
               LiveQueueCard(
                 waitingCount: waitingCount,
                 currentPatient: currentPatient,
-                onStartSession: () {},
+                onStartSession: currentPatient != null
+                    ? () => _handleStartSession(currentPatient)
+                    : () {},
+                onViewProfile: currentPatient != null
+                    ? () => context.go(
+                          RoutePaths.patientDetail
+                              .replaceFirst(':patientId', currentPatient.patientId),
+                        )
+                    : null,
                 onCancel: currentPatient != null
                     ? () => _handleCancelAppointment(currentPatient.id)
                     : null,

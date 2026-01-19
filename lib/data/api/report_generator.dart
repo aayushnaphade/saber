@@ -14,11 +14,11 @@ class ReportGenerator {
   // Use a backend proxy or secure storage.
   static final _serviceAccountJson = jsonDecode(dotenv.env['GOOGLE_SERVICE_ACCOUNT_JSON']!);
 
-  static const String _projectId = 'synapseai-production';
-  static const String _location = 'asia-south1';
-  static const String _modelId = 'gemini-3-pro-preview';
+  static const _projectId = 'synapseai-production';
+  static const _location = 'asia-south1';
+  static const _modelId = 'gemini-3-pro-preview';
 
-  static const String _defaultSystemPrompt = '''
+  static const _defaultSystemPrompt = '''
 **Role:**
 You are an expert AI Medical Scribe specializing in Psychiatry. Your task is to convert unstructured session notes (which may contain abbreviations, symbols, and mixed English/Hindi terminology) into a structured Clinical Assessment Report in JSON format.
 
@@ -63,7 +63,7 @@ You must output a single valid JSON object containing exactly these six keys. Do
 }
 ''';
 
-  static const String _exactExtractionSystemPrompt = '''
+  static const _exactExtractionSystemPrompt = '''
 **Role:**
 You are a Precision Clinical Data Extractor. Your job is to digitize handwritten psychiatric session notes into a JSON format.
 
@@ -114,29 +114,51 @@ Imp: Anxiety"
 }
 ''';
 
-  static Future<Map<String, dynamic>> generateReport(Uint8List imageBytes) async {
+  static Future<Map<String, dynamic>> generateReport(List<Uint8List> imageBytesList) async {
     try {
-      if (imageBytes.isEmpty) {
+      if (imageBytesList.isEmpty) {
         throw Exception('ReportGenerator: Captured image bytes are empty');
       }
 
       log.info('ReportGenerator: Generating report with model $_modelId in $_location');
-      log.info('ReportGenerator: Image size: ${imageBytes.length} bytes');
+      log.info('ReportGenerator: Processing ${imageBytesList.length} pages');
       log.info('Authenticating with Google Cloud...');
       
-      final accountCredentials = ServiceAccountCredentials.fromJson(_serviceAccountJson);
+      // Fix for private key formatting issues when reading from .env
+      final serviceAccount = Map<String, dynamic>.from(_serviceAccountJson);
+      if (serviceAccount.containsKey('private_key')) {
+        serviceAccount['private_key'] = (serviceAccount['private_key'] as String)
+            .replaceAll(r'\n', '\n');
+      }
+
+      final accountCredentials = ServiceAccountCredentials.fromJson(serviceAccount);
       final scopes = [AiplatformApi.cloudPlatformScope];
       
       final client = await clientViaServiceAccount(accountCredentials, scopes);
       final api = AiplatformApi(client);
 
-      final parent = 'projects/$_projectId/locations/$_location/publishers/google/models/$_modelId';
+      const parent = 'projects/$_projectId/locations/$_location/publishers/google/models/$_modelId';
       
       log.info('Sending request to Vertex AI ($parent)...');
 
       final systemPrompt = stows.exactExtraction.value
           ? _exactExtractionSystemPrompt
           : _defaultSystemPrompt;
+
+      // Create parts for all pages
+      final parts = <GoogleCloudAiplatformV1Part>[
+        GoogleCloudAiplatformV1Part(text: 'Analyze these clinical notes (spanning ${imageBytesList.length} pages) and generate the report.'),
+      ];
+
+      for (var i = 0; i < imageBytesList.length; i++) {
+        parts.add(GoogleCloudAiplatformV1Part(text: 'Page ${i + 1}:'));
+        parts.add(GoogleCloudAiplatformV1Part(
+          inlineData: GoogleCloudAiplatformV1Blob(
+            mimeType: 'image/png',
+            data: base64Encode(imageBytesList[i]),
+          ),
+        ));
+      }
 
       final request = GoogleCloudAiplatformV1GenerateContentRequest(
         systemInstruction: GoogleCloudAiplatformV1Content(
@@ -147,15 +169,7 @@ Imp: Anxiety"
         contents: [
           GoogleCloudAiplatformV1Content(
             role: 'user',
-            parts: [
-              GoogleCloudAiplatformV1Part(text: "Analyze this clinical note and generate the report."),
-              GoogleCloudAiplatformV1Part(
-                inlineData: GoogleCloudAiplatformV1Blob(
-                  mimeType: 'image/png',
-                  data: base64Encode(imageBytes),
-                ),
-              ),
-            ],
+            parts: parts,
           ),
         ],
         generationConfig: GoogleCloudAiplatformV1GenerationConfig(
@@ -167,19 +181,19 @@ Imp: Anxiety"
         safetySettings: [
           GoogleCloudAiplatformV1SafetySetting(
             category: 'HARM_CATEGORY_HATE_SPEECH',
-            threshold: 'BLOCK_ONLY_HIGH',
+            threshold: 'BLOCK_NONE',
           ),
           GoogleCloudAiplatformV1SafetySetting(
             category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            threshold: 'BLOCK_ONLY_HIGH',
+            threshold: 'BLOCK_NONE',
           ),
           GoogleCloudAiplatformV1SafetySetting(
             category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-            threshold: 'BLOCK_ONLY_HIGH',
+            threshold: 'BLOCK_NONE',
           ),
           GoogleCloudAiplatformV1SafetySetting(
             category: 'HARM_CATEGORY_HARASSMENT',
-            threshold: 'BLOCK_ONLY_HIGH',
+            threshold: 'BLOCK_NONE',
           ),
         ],
       );
@@ -213,10 +227,12 @@ Imp: Anxiety"
             log.severe('Failed to parse JSON response: $responseText');
             throw Exception('Failed to parse AI response');
           }
+        } else {
+          throw Exception('Vertex AI returned no content. Finish reason: ${candidate.finishReason}');
         }
       }
       
-      throw Exception('No content generated from Vertex AI');
+      throw Exception('No candidates returned from Vertex AI');
 
     } catch (e) {
       log.severe('Error generating report', e);

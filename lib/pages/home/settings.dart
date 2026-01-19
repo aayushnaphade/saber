@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:saber/components/settings/app_info.dart';
 import 'package:saber/components/settings/settings_button.dart';
 import 'package:saber/components/settings/supabase_profile.dart';
 import 'package:saber/components/settings/update_manager.dart';
@@ -153,22 +152,16 @@ class _SettingsPageState extends State<SettingsPage> {
               title: const Text('Reception Mode'),
               subtitle: const Text('Enable simplified interface for reception'),
               value: value,
-              onChanged: (newValue) async {
+              onChanged: (newValue) {
+                // Dummy toggle - does nothing for now
                 stows.receptionMode.value = newValue;
-                try {
-                  await Supabase.instance.client
-                      .from('profiles')
-                      .update({'reception_mode': newValue})
-                      .eq('id', Supabase.instance.client.auth.currentUser!.id);
-                } catch (e) {
-                  // ignore error
-                }
               },
               secondary: const Icon(Icons.desk),
             );
           },
         ),
-        const Padding(padding: EdgeInsets.all(8), child: AppInfo()),
+        _buildFeedbackForm(),
+        const SizedBox(height: 16),
         SettingsButton(
           title: 'App Settings',
           subtitle: 'General, Editor, Theme, etc.',
@@ -213,23 +206,16 @@ class _SettingsPageState extends State<SettingsPage> {
                         title: const Text('Reception Mode'),
                         subtitle: const Text('Enable simplified interface for reception'),
                         value: value,
-                        onChanged: (newValue) async {
+                        onChanged: (newValue) {
+                          // Dummy toggle - does nothing for now
                           stows.receptionMode.value = newValue;
-                          try {
-                            await Supabase.instance.client
-                                .from('profiles')
-                                .update({'reception_mode': newValue})
-                                .eq('id', Supabase.instance.client.auth.currentUser!.id);
-                          } catch (e) {
-                            // ignore error
-                          }
                         },
                         secondary: const Icon(Icons.desk),
                       );
                     },
                   ),
                   const SizedBox(height: 16),
-                  const AppInfo(),
+                  _buildFeedbackForm(),
                   const SizedBox(height: 16),
                   SettingsButton(
                     title: 'App Settings',
@@ -257,6 +243,96 @@ class _SettingsPageState extends State<SettingsPage> {
                     },
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeedbackForm() {
+    final feedbackController = TextEditingController();
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.feedback, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Feedback & Suggestions',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: feedbackController,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                hintText: 'Share your thoughts, ideas, or report issues...',
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.all(12),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final feedback = feedbackController.text.trim();
+                  if (feedback.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter your feedback'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                    return;
+                  }
+
+                  try {
+                    await Supabase.instance.client.from('feedback').insert({
+                      'user_id': Supabase.instance.client.auth.currentUser?.id,
+                      'feedback': feedback,
+                      'created_at': DateTime.now().toIso8601String(),
+                    });
+
+                    feedbackController.clear();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Thank you for your feedback!'),
+                          backgroundColor: Colors.green,
+                          duration: Duration(seconds: 3),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to submit feedback: $e'),
+                          backgroundColor: Colors.red,
+                          duration: const Duration(seconds: 3),
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.send),
+                label: const Text('Submit Feedback'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
               ),
             ),
           ],

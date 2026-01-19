@@ -10,6 +10,7 @@ class Appointment {
   final String reason;
   final AppointmentStatus status;
   final String? avatarUrl;
+  final String appointmentType; // 'walk-in' or 'scheduled'
 
   const Appointment({
     required this.id,
@@ -19,7 +20,10 @@ class Appointment {
     required this.reason,
     required this.status,
     this.avatarUrl,
+    this.appointmentType = 'walk-in',
   });
+
+  bool get isScheduled => appointmentType == 'scheduled';
 }
 
 class QueueItem {
@@ -54,20 +58,61 @@ class DashboardStats {
   });
 }
 
+enum InsightType { trend, action, alert, info }
+
 class AIInsight {
+  final String id;
   final String title;
   final String description;
-  final IconData icon;
-  final Color color;
-  final String actionLabel;
+  final InsightType type;
+  final DateTime timestamp;
 
   const AIInsight({
+    required this.id,
     required this.title,
     required this.description,
-    required this.icon,
-    required this.color,
-    required this.actionLabel,
+    required this.type,
+    required this.timestamp,
   });
+
+  IconData get icon {
+    switch (type) {
+      case InsightType.trend:
+        return Icons.trending_up;
+      case InsightType.action:
+        return Icons.assignment_outlined;
+      case InsightType.alert:
+        return Icons.warning_amber_rounded;
+      case InsightType.info:
+        return Icons.lightbulb_outline;
+    }
+  }
+
+  Color get color {
+    switch (type) {
+      case InsightType.trend:
+        return Colors.blue;
+      case InsightType.action:
+        return Colors.green;
+      case InsightType.alert:
+        return Colors.orange;
+      case InsightType.info:
+        return Colors.purple;
+    }
+  }
+
+  String get actionLabel {
+    switch (type) {
+      case InsightType.trend:
+        return 'View Report';
+      case InsightType.action:
+        return 'View';
+      case InsightType.alert:
+        return 'Review';
+      case InsightType.info:
+        return 'Dismiss';
+    }
+  }
 }
 
 // Mock Data Generator
@@ -150,19 +195,19 @@ class MockDashboardData {
 
   static List<AIInsight> getInsights() {
     return [
-      const AIInsight(
+      AIInsight(
+        id: 'mock1',
         title: 'Pending Summaries',
         description: '3 sessions need your review',
-        icon: Icons.summarize_outlined,
-        color: Colors.orange,
-        actionLabel: 'Review',
+        type: InsightType.alert,
+        timestamp: DateTime.now(),
       ),
-      const AIInsight(
+      AIInsight(
+        id: 'mock2',
         title: 'Transcription Ready',
         description: 'Session with Sarah Johnson processed',
-        icon: Icons.record_voice_over_outlined,
-        color: Colors.green,
-        actionLabel: 'View',
+        type: InsightType.action,
+        timestamp: DateTime.now(),
       ),
     ];
   }

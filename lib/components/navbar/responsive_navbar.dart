@@ -57,7 +57,7 @@ class _ResponsiveNavbarState extends State<ResponsiveNavbar> {
           children: [
             IntrinsicWidth(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 300),
+                constraints: const BoxConstraints(maxWidth: 220),
                 child: VerticalNavbar(
                   destinations: HomeRoutes.navigationRailDestinations,
                   selectedIndex: widget.selectedIndex,

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:saber/pages/home/dashboard/widgets/new_patient_dialog.dart';
 import 'package:saber/pages/home/dashboard/widgets/schedule_appointment_dialog.dart';
+import 'package:saber/design_system/spacing.dart';
+import 'package:saber/design_system/radius.dart';
+import 'package:saber/design_system/animations.dart';
 
 class QuickActions extends StatelessWidget {
   const QuickActions({super.key});
@@ -34,13 +37,21 @@ class QuickActions extends StatelessWidget {
         label: 'Upload Scan',
         icon: Icons.upload_file_outlined,
         color: Colors.purple,
-        onTap: () {},
+        onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Document scanning coming soon')),
+          );
+        },
       ),
       (
         label: 'Voice Note',
         icon: Icons.mic_none_outlined,
         color: Colors.orange,
-        onTap: () {},
+        onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Voice dictation coming soon')),
+          );
+        },
       ),
     ];
 
@@ -49,7 +60,7 @@ class QuickActions extends StatelessWidget {
         // Determine number of columns based on available width
         // Assuming min item width of around 140px
         final int crossAxisCount = (constraints.maxWidth / 140).floor().clamp(2, 4);
-        final double spacing = 12;
+        const double spacing = AppSpacing.md;
         final double itemWidth = (constraints.maxWidth - (crossAxisCount - 1) * spacing) / crossAxisCount;
 
         return Wrap(
@@ -79,40 +90,82 @@ class QuickActions extends StatelessWidget {
     Color color,
     VoidCallback onTap,
   ) {
+    return _QuickActionButton(
+      label: label,
+      icon: icon,
+      color: color,
+      onTap: onTap,
+    );
+  }
+}
+
+class _QuickActionButton extends StatefulWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickActionButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  State<_QuickActionButton> createState() => _QuickActionButtonState();
+}
+
+class _QuickActionButtonState extends State<_QuickActionButton> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.surface,
-      borderRadius: BorderRadius.circular(16),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 1.0, end: _isPressed ? AppAnimations.buttonPressScale : 1.0),
+      duration: AppAnimations.buttonPress,
+      curve: AppAnimations.buttonPressCurve,
+      builder: (context, scale, child) => Transform.scale(
+        scale: scale,
+        child: Material(
+          color: theme.colorScheme.surface,
+          borderRadius: AppRadius.lgRadius,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: widget.onTap,
+            onTapDown: (_) => setState(() => _isPressed = true),
+            onTapUp: (_) => setState(() => _isPressed = false),
+            onTapCancel: () => setState(() => _isPressed = false),
+            child: Container(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+                ),
+                borderRadius: AppRadius.lgRadius,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(AppSpacing.sm + 2),
+                    decoration: BoxDecoration(
+                      color: widget.color.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(widget.icon, color: widget.color, size: 24),
+                  ),
+                  SizedBox(height: AppSpacing.md),
+                  Text(
+                    widget.label,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                label,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
           ),
         ),
       ),

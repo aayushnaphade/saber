@@ -41,7 +41,7 @@ Future<void> main(List<String> args) async {
   ///   --dart-define=UPDATE_CHECK="false"
   FlavorConfig.setupFromEnvironment();
 
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: '.env');
 
   await initSentry(() => appRunner(args));
 }
@@ -242,6 +242,7 @@ class App extends StatefulWidget {
         builder: (context, state) => Editor(
           path: state.uri.queryParameters['path'],
           pdfPath: state.uri.queryParameters['pdfPath'],
+          consultationId: state.uri.queryParameters['consultation_id'],
         ),
       ),
       GoRoute(

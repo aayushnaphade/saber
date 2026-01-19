@@ -1,11 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
+import 'package:saber/data/supabase/supabase_client.dart';
 
-class WelcomeHeader extends StatelessWidget {
+class WelcomeHeader extends StatefulWidget {
   final String doctorName;
   final String? avatarUrl;
 
   const WelcomeHeader({super.key, required this.doctorName, this.avatarUrl});
+
+  @override
+  State<WelcomeHeader> createState() => _WelcomeHeaderState();
+}
+
+class _WelcomeHeaderState extends State<WelcomeHeader> {
+  bool _isOnline = true;
+  Timer? _connectivityTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkConnectivity();
+    // Check connectivity every 10 seconds
+    _connectivityTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _checkConnectivity(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _connectivityTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkConnectivity() async {
+    try {
+      // Try to ping Supabase to check connectivity
+      final response = await supabase
+          .from('profiles')
+          .select('id')
+          .limit(1)
+          .timeout(const Duration(seconds: 5));
+      
+      if (mounted) {
+        setState(() {
+          _isOnline = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isOnline = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +102,7 @@ class WelcomeHeader extends StatelessWidget {
                 ),
               ),
               Text(
-                doctorName.isNotEmpty ? 'Dr. $doctorName' : 'Doctor',
+                widget.doctorName.isNotEmpty ? 'Dr. ${widget.doctorName}' : 'Doctor',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.onSurface,
@@ -62,8 +112,8 @@ class WelcomeHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (avatarUrl != null) ...[
-          CircleAvatar(radius: 24, backgroundImage: NetworkImage(avatarUrl!)),
+        if (widget.avatarUrl != null) ...[
+          CircleAvatar(radius: 24, backgroundImage: NetworkImage(widget.avatarUrl!)),
           const SizedBox(width: 16),
         ],
         _buildAIPulse(context),
@@ -78,13 +128,21 @@ class WelcomeHeader extends StatelessWidget {
   }
 
   Widget _buildAIPulse(BuildContext context) {
+    final isOnline = _isOnline;
+    final statusColor = isOnline 
+        ? Theme.of(context).colorScheme.primary
+        : Theme.of(context).colorScheme.error;
+    final statusText = isOnline ? 'Synapsai Active' : 'Offline';
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+        color: isOnline 
+            ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5)
+            : Theme.of(context).colorScheme.errorContainer.withOpacity(0.5),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+          color: statusColor.withOpacity(0.2),
         ),
       ),
       child: Row(
@@ -93,22 +151,24 @@ class WelcomeHeader extends StatelessWidget {
             width: 8,
             height: 8,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
+              color: statusColor,
               shape: BoxShape.circle,
-              boxShadow: [
+              boxShadow: isOnline ? [
                 BoxShadow(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                  color: statusColor.withOpacity(0.5),
                   blurRadius: 6,
                   spreadRadius: 2,
                 ),
-              ],
+              ] : null,
             ),
           ),
           const SizedBox(width: 8),
           Text(
-            'Synapsai Active',
+            statusText,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
+              color: isOnline 
+                  ? Theme.of(context).colorScheme.onPrimaryContainer
+                  : Theme.of(context).colorScheme.onErrorContainer,
               fontWeight: FontWeight.w600,
             ),
           ),

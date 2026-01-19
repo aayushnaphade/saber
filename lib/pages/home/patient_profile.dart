@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
@@ -8,6 +9,11 @@ import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/document_sync_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
+import 'package:saber/design_system/colors.dart';
+import 'package:saber/design_system/radius.dart';
+import 'package:saber/design_system/spacing.dart';
+import 'package:saber/components/loading/skeleton_loader.dart';
+import 'package:saber/components/empty_state/empty_state.dart';
 
 /// Patient profile page with demographics, session management, and history
 class PatientProfilePage extends StatefulWidget {
@@ -233,6 +239,11 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     if (patient == null) return;
 
     try {
+      // If patient is in Waiting Room, move them to Active automatically
+      if (patient!.status == PatientStatus.waiting) {
+        await _changePatientStatus(PatientStatus.active);
+      }
+
       // Determine next session number
       final nextSessionNumber = sessions.isEmpty
           ? 1
@@ -257,6 +268,33 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to start session: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _changePatientStatus(PatientStatus newStatus) async {
+    if (patient == null) return;
+    try {
+      final updatedPatient = await SupabasePatientService.updatePatientStatus(
+        patient!.id,
+        newStatus,
+      );
+      setState(() {
+        patient = updatedPatient;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Patient status updated to $_getStatusDisplayName($newStatus)')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update status: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -418,21 +456,15 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               ],
             ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? _buildLoadingSkeleton()
           : error != null
           ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 48),
-                  const SizedBox(height: 16),
-                  Text('Error: $error'),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: _loadPatientData,
-                    child: const Text('Retry'),
-                  ),
-                ],
+              child: EmptyState(
+                icon: Icons.error_outline,
+                title: 'Failed to Load Patient',
+                message: error!,
+                actionLabel: 'Retry',
+                onAction: _loadPatientData,
               ),
             )
           : OrientationBuilder(
@@ -452,18 +484,86 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     );
   }
 
+  Widget _buildLoadingSkeleton() {
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        children: [
+          // Header skeleton
+          Card(
+            child: Padding(
+              padding: EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      const SkeletonLoader(width: 64, height: 64, shape: BoxShape.circle),
+                      SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SkeletonLoader(width: 200, height: 24),
+                            SizedBox(height: AppSpacing.xs),
+                            SkeletonLoader(width: 150, height: 16),
+                          ],
+                        ),
+                      ),
+                      SkeletonLoader(width: 100, height: 32, borderRadius: BorderRadius.circular(16)),
+                    ],
+                  ),
+                  SizedBox(height: AppSpacing.md),
+                  Divider(),
+                  SizedBox(height: AppSpacing.md),
+                  Row(
+                    children: [
+                      SkeletonLoader(width: 80, height: 24, borderRadius: BorderRadius.circular(12)),
+                      SizedBox(width: AppSpacing.sm),
+                      SkeletonLoader(width: 80, height: 24, borderRadius: BorderRadius.circular(12)),
+                      SizedBox(width: AppSpacing.sm),
+                      SkeletonLoader(width: 120, height: 24, borderRadius: BorderRadius.circular(12)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: AppSpacing.xl),
+          // Demographics skeleton
+          Card(
+            child: Padding(
+              padding: EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SkeletonLoader(width: 180, height: 20),
+                  SizedBox(height: AppSpacing.lg),
+                  SkeletonLoader(width: double.infinity, height: 60, borderRadius: BorderRadius.circular(12)),
+                  SizedBox(height: AppSpacing.sm),
+                  SkeletonLoader(width: double.infinity, height: 60, borderRadius: BorderRadius.circular(12)),
+                  SizedBox(height: AppSpacing.sm),
+                  SkeletonLoader(width: double.infinity, height: 60, borderRadius: BorderRadius.circular(12)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPortraitLayout() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildPatientHeader(),
-          const SizedBox(height: 24),
+          SizedBox(height: AppSpacing.xl),
           _buildDemographicsCard(),
-          const SizedBox(height: 24),
+          SizedBox(height: AppSpacing.xl),
           _buildPreviousSessionsSection(),
-          const SizedBox(height: 80), // Space for FAB
+          SizedBox(height: AppSpacing.xxl * 2), // Space for FAB
         ],
       ),
     );
@@ -477,12 +577,12 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         Expanded(
           flex: 2,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(AppSpacing.lg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildPatientHeader(),
-                const SizedBox(height: 24),
+                SizedBox(height: AppSpacing.xl),
                 _buildDemographicsCard(),
               ],
             ),
@@ -498,12 +598,12 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               ),
             ),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildPreviousSessionsSection(),
-                  const SizedBox(height: 80), // Space for FAB
+                  SizedBox(height: AppSpacing.xxl * 2), // Space for FAB
                 ],
               ),
             ),
@@ -516,176 +616,219 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   Widget _buildPatientHeader() {
     if (patient == null) return const SizedBox();
 
-    // Design Philosophy: Hero section with patient identity and status at a glance
-    // Large avatar creates visual anchor, patient ID for quick reference
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         side: BorderSide(
           color: Theme.of(context).colorScheme.outlineVariant,
-          width: 1,
         ),
       ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-              Theme.of(context).colorScheme.surface,
-            ],
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  // Large, prominent avatar - establishes visual hierarchy
-                  Hero(
-                    tag: 'patient_avatar_${patient!.id}',
-                    child: CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.primaryContainer,
-                      child: Text(
-                        patient!.fullName[0].toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 36,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onPrimaryContainer,
+      child: Padding(
+        padding: EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Avatar
+                Hero(
+                  tag: 'patient_avatar_${patient!.id}',
+                  child: CircleAvatar(
+                    radius: 32,
+                    backgroundColor: MedicalColors.getStatusColor(
+                      patient!.status.name,
+                    ).withOpacity(0.2),
+                    child: Text(
+                      patient!.fullName[0].toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 28,
+                        color: MedicalColors.getStatusColor(
+                          patient!.status.name,
+                        ),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        patient!.fullName,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: AppSpacing.xs),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.badge_outlined,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          SizedBox(width: AppSpacing.xs),
+                          Expanded(
+                            child: Text(
+                              'ID: ${patient!.id.substring(0, 8)}...',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: patient!.id));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Patient ID copied'),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                            child: Padding(
+                              padding: EdgeInsets.all(AppSpacing.xs),
+                              child: Icon(Icons.copy, size: 16),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Status badge
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  decoration: BoxDecoration(
+                    color: MedicalColors.getStatusColor(patient!.status.name).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(AppRadius.full),
+                    border: Border.all(
+                      color: MedicalColors.getStatusColor(patient!.status.name),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _getStatusIcon(patient!.status),
+                        size: 16,
+                        color: MedicalColors.getStatusColor(patient!.status.name),
+                      ),
+                      SizedBox(width: AppSpacing.xs),
+                      Text(
+                        _getStatusDisplayName(patient!.status),
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: MedicalColors.getStatusColor(patient!.status.name),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Patient name - primary identifier
-                        Text(
-                          patient!.fullName,
-                          style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 4),
-                        // Patient ID - critical for medical record keeping
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.badge_outlined,
-                              size: 16,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'ID: ${patient!.id.substring(0, 8)}...',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                                    fontFamily: 'monospace',
-                                  ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.copy, size: 16),
-                              onPressed: () {
-                                // Copy full ID to clipboard
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Patient ID copied'),
-                                    duration: Duration(seconds: 1),
-                                  ),
-                                );
-                              },
-                              tooltip: 'Copy full ID',
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                ),
+              ],
+            ),
+            SizedBox(height: AppSpacing.md),
+            Divider(),
+            SizedBox(height: AppSpacing.md),
+            // Quick info chips
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                if (patient!.age != null)
+                  _buildInfoChip(Icons.cake_outlined, '${patient!.age} years'),
+                if (patient!.gender != null)
+                  _buildInfoChip(Icons.person_outline, patient!.gender!),
+                if (patient!.phoneNumber != null)
+                  _buildInfoChip(Icons.phone_outlined, patient!.phoneNumber!),
+                if (patient!.lastVisit != null)
+                  _buildInfoChip(
+                    Icons.event_outlined,
+                    'Last: ${DateFormat.yMMMd().format(patient!.lastVisit!)}',
                   ),
-                  // Status badge - color-coded for quick recognition
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(patient!.status),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _getStatusBorderColor(patient!.status),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _getStatusIcon(patient!.status),
-                          size: 16,
-                          color: _getStatusBorderColor(patient!.status),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _getStatusDisplayName(patient!.status),
-                          style: Theme.of(context).textTheme.labelLarge
-                              ?.copyWith(
-                                color: _getStatusBorderColor(patient!.status),
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ],
-                    ),
+              ],
+            ),
+            SizedBox(height: AppSpacing.md),
+            // Status action buttons
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                if (patient!.status != PatientStatus.waiting)
+                  _buildStatusActionChip(
+                    label: 'Move to Waiting',
+                    icon: Icons.schedule,
+                    color: Colors.orange,
+                    onPressed: () => _changePatientStatus(PatientStatus.waiting),
                   ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              // Quick info chips - secondary details in scannable format
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  if (patient!.age != null)
-                    _buildInfoChip(
-                      Icons.cake_outlined,
-                      '${patient!.age} years',
-                      context,
-                    ),
-                  if (patient!.gender != null)
-                    _buildInfoChip(
-                      Icons.person_outline,
-                      patient!.gender!,
-                      context,
-                    ),
-                  if (patient!.phoneNumber != null)
-                    _buildInfoChip(
-                      Icons.phone_outlined,
-                      patient!.phoneNumber!,
-                      context,
-                    ),
-                  if (patient!.lastVisit != null)
-                    _buildInfoChip(
-                      Icons.event_outlined,
-                      'Last visit: ${DateFormat.yMMMd().format(patient!.lastVisit!)}',
-                      context,
-                    ),
-                ],
+                if (patient!.status != PatientStatus.active)
+                  _buildStatusActionChip(
+                    label: 'Start Active',
+                    icon: Icons.medical_services,
+                    color: Colors.blue,
+                    onPressed: () => _changePatientStatus(PatientStatus.active),
+                    filled: true,
+                  ),
+                if (patient!.status != PatientStatus.discharged)
+                  _buildStatusActionChip(
+                    label: 'Discharge',
+                    icon: Icons.check_circle,
+                    color: Colors.green,
+                    onPressed: () => _changePatientStatus(PatientStatus.discharged),
+                  ),
+                if (patient!.status != PatientStatus.archived)
+                  _buildStatusActionChip(
+                    label: 'Archive',
+                    icon: Icons.archive,
+                    color: Colors.grey,
+                    onPressed: () => _changePatientStatus(PatientStatus.archived),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusActionChip({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+    bool filled = false,
+  }) {
+    return Material(
+      color: filled ? color : color.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(AppRadius.full),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: filled ? Colors.white : color),
+              SizedBox(width: AppSpacing.xs),
+              Text(
+                label,
+                style: TextStyle(
+                  color: filled ? Colors.white : color,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
@@ -694,26 +837,28 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     );
   }
 
-  // Helper widget for consistent info chips
-  Widget _buildInfoChip(IconData icon, String label, BuildContext context) {
+  Widget _buildInfoChip(IconData icon, String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             icon,
-            size: 18,
+            size: 16,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(width: 6),
+          SizedBox(width: AppSpacing.xs),
           Text(
             label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
@@ -757,13 +902,15 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  'Medical Information',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                Expanded(
+                  child: Text(
+                    'Medical Information',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 FilledButton.tonalIcon(
                   onPressed: _editDemographics,
                   icon: const Icon(Icons.edit, size: 18),
@@ -857,30 +1004,26 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     bool isEmpty,
   ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: isEmpty
-            ? Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest.withOpacity(0.3)
+            ? Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3)
             : Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: isEmpty
             ? Border.all(
                 color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                width: 1,
-                style: BorderStyle.solid,
               )
             : null,
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
               color: isEmpty
                   ? Theme.of(context).colorScheme.surface
-                  : Theme.of(context).colorScheme.primaryContainer,
+                  : MedicalColors.medicalPrimary.withOpacity(0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -888,10 +1031,10 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               size: 20,
               color: isEmpty
                   ? Theme.of(context).colorScheme.outline
-                  : Theme.of(context).colorScheme.onPrimaryContainer,
+                  : MedicalColors.medicalPrimary,
             ),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -903,7 +1046,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: AppSpacing.xxs),
                 Text(
                   value,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -926,47 +1069,26 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Patient History', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 8),
+        Text('Patient History', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+        SizedBox(height: AppSpacing.xs),
         Text(
-          'Previous sessions and AI-generated documents',
+          'Previous sessions and documents',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: AppSpacing.md),
         if (sessions.isEmpty)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.history,
-                      size: 48,
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No previous sessions',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Start a new session to begin documenting',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          EmptyState(
+            icon: Icons.history,
+            title: 'No Sessions Yet',
+            message: 'Start a new session to begin documenting patient care',
+            actionLabel: 'Start First Session',
+            onAction: _startNewSession,
           )
         else
           _buildSessionsList(),
-        const SizedBox(height: 24),
+        SizedBox(height: AppSpacing.xl),
         _buildAIOutputFolders(),
       ],
     );
@@ -1105,41 +1227,46 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'AI-Generated Documents',
-          style: Theme.of(context).textTheme.titleLarge,
+          'Document Types',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: AppSpacing.xs),
         Text(
-          'Organized by document type',
+          'AI-generated documents organized by type',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
-        const SizedBox(height: 16),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 3,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.2,
-          children: [
-            _buildFolderCard(
-              DocumentType.examinationReport,
-              Icons.assignment,
-              Colors.blue,
-            ),
-            _buildFolderCard(
-              DocumentType.prescription,
-              Icons.medication,
-              Colors.green,
-            ),
-            _buildFolderCard(
-              DocumentType.sessionNote,
-              Icons.notes,
-              Colors.orange,
-            ),
-          ],
+        SizedBox(height: AppSpacing.md),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final crossAxisCount = constraints.maxWidth > 600 ? 3 : 2;
+            return GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: crossAxisCount,
+              mainAxisSpacing: AppSpacing.sm,
+              crossAxisSpacing: AppSpacing.sm,
+              childAspectRatio: 1.3,
+              children: [
+                _buildFolderCard(
+                  DocumentType.examinationReport,
+                  Icons.assignment_outlined,
+                  MedicalColors.medicalAccent1,
+                ),
+                _buildFolderCard(
+                  DocumentType.prescription,
+                  Icons.medication_outlined,
+                  MedicalColors.medicalAccent2,
+                ),
+                _buildFolderCard(
+                  DocumentType.sessionNote,
+                  Icons.notes_outlined,
+                  MedicalColors.medicalWarning,
+                ),
+              ],
+            );
+          },
         ),
       ],
     );
@@ -1148,25 +1275,44 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   Widget _buildFolderCard(DocumentType type, IconData icon, Color color) {
     return Card(
       clipBehavior: Clip.antiAlias,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        side: BorderSide(
+          color: color.withOpacity(0.3),
+          width: 1.5,
+        ),
+      ),
       child: InkWell(
         onTap: () => _openDocumentFolder(type),
-        child: DecoratedBox(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+              colors: [color.withOpacity(0.08), color.withOpacity(0.02)],
             ),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 32, color: color),
-              const SizedBox(height: 8),
+              Container(
+                padding: EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Icon(icon, size: 28, color: color),
+              ),
+              SizedBox(height: AppSpacing.sm),
               Text(
                 type.displayName,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
               ),
             ],
           ),
@@ -1195,10 +1341,12 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     switch (status) {
       case PatientStatus.waiting:
         return 'Waiting';
-      case PatientStatus.inConsultation:
-        return 'In Consultation';
-      case PatientStatus.completed:
-        return 'Completed';
+      case PatientStatus.active:
+        return 'Active';
+      case PatientStatus.discharged:
+        return 'Discharged';
+      case PatientStatus.archived:
+        return 'Archived';
     }
   }
 
@@ -1206,32 +1354,12 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     switch (status) {
       case PatientStatus.waiting:
         return Icons.schedule;
-      case PatientStatus.inConsultation:
+      case PatientStatus.active:
         return Icons.medical_services;
-      case PatientStatus.completed:
+      case PatientStatus.discharged:
         return Icons.check_circle;
-    }
-  }
-
-  Color _getStatusColor(PatientStatus status) {
-    switch (status) {
-      case PatientStatus.waiting:
-        return Colors.orange.withOpacity(0.15);
-      case PatientStatus.inConsultation:
-        return Colors.blue.withOpacity(0.15);
-      case PatientStatus.completed:
-        return Colors.green.withOpacity(0.15);
-    }
-  }
-
-  Color _getStatusBorderColor(PatientStatus status) {
-    switch (status) {
-      case PatientStatus.waiting:
-        return Colors.orange.shade700;
-      case PatientStatus.inConsultation:
-        return Colors.blue.shade700;
-      case PatientStatus.completed:
-        return Colors.green.shade700;
+      case PatientStatus.archived:
+        return Icons.archive;
     }
   }
 }

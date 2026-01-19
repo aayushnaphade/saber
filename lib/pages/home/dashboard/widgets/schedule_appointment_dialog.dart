@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
+import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 
 class ScheduleAppointmentDialog extends StatefulWidget {
@@ -14,7 +16,7 @@ class ScheduleAppointmentDialog extends StatefulWidget {
 class _ScheduleAppointmentDialogState extends State<ScheduleAppointmentDialog> {
   final _formKey = GlobalKey<FormState>();
   Patient? _selectedPatient;
-  String _visitType = 'New Session'; // Default
+  var _visitType = 'New Session'; // Default
   var _isLoading = false;
   List<Patient> _patients = [];
   var _isLoadingPatients = true;
@@ -55,12 +57,68 @@ class _ScheduleAppointmentDialogState extends State<ScheduleAppointmentDialog> {
 
       final time = scheduledTime ?? DateTime.now();
 
+      // Check for conflicts if scheduling
+      if (scheduledTime != null) {
+        final conflicts = await SupabaseDashboardService.checkTimeSlotConflicts(time);
+        if (conflicts.isNotEmpty && mounted) {
+          final shouldContinue = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('⚠️ Scheduling Conflict'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('The following appointments overlap with this time slot:'),
+                  const SizedBox(height: 12),
+                  ...conflicts.map((conflict) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text('• ${conflict.patientName} at ${DateFormat('h:mm a').format(conflict.time)}'),
+                  )),
+                  const SizedBox(height: 12),
+                  const Text('Do you want to schedule anyway?'),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Schedule Anyway'),
+                ),
+              ],
+            ),
+          );
+          
+          if (shouldContinue != true) {
+            setState(() => _isLoading = false);
+            return;
+          }
+        }
+      }
+
+      // Get max queue order
+      final maxOrderResponse = await supabase
+          .from('consultations')
+          .select('queue_order')
+          .eq('doctor_id', currentUserId)
+          .or('status.eq.waiting,status.eq.in_progress')
+          .order('queue_order', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      final nextQueueOrder = (maxOrderResponse?['queue_order'] as int? ?? 0) + 1;
+
       // Create consultation
       await supabase.from('consultations').insert({
         'patient_id': _selectedPatient!.id,
         'doctor_id': currentUserId,
         'status': 'waiting',
-        'created_at': time.toIso8601String(),
+        'scheduled_time': time.toIso8601String(),
+        'appointment_type': scheduledTime != null ? 'scheduled' : 'walk-in',
+        'queue_order': nextQueueOrder,
       });
 
       // Update patient visit type
@@ -139,7 +197,7 @@ class _ScheduleAppointmentDialogState extends State<ScheduleAppointmentDialog> {
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.person_search),
                       ),
-                      value: _selectedPatient,
+                      initialValue: _selectedPatient,
                       items: _patients.map((patient) {
                         return DropdownMenuItem(
                           value: patient,

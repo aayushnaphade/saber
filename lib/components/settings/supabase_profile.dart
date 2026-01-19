@@ -352,10 +352,11 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder(
-      valueListenable: stows.supabaseUserEmail,
-      builder: (context, email, _) {
-        final isLoggedIn = email.isNotEmpty;
+    return StreamBuilder<AuthState>(
+      stream: SupabaseAuthService.onAuthStateChange,
+      builder: (context, snapshot) {
+        final user = SupabaseAuthService.currentUser;
+        final isLoggedIn = user != null;
 
         if (!isLoggedIn) {
           return Card(
@@ -455,7 +456,7 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        email,
+                        user?.email ?? '',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),

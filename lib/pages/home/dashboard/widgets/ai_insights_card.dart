@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:saber/data/models/dashboard_models.dart';
+import 'package:saber/design_system/spacing.dart';
+import 'package:saber/design_system/radius.dart';
+import 'package:saber/components/empty_state/empty_state.dart';
 
 class AIInsightsCard extends StatelessWidget {
   final List<AIInsight> insights;
@@ -13,9 +16,9 @@ class AIInsightsCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: AppRadius.xlRadius,
       ),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(AppSpacing.cardPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -26,7 +29,7 @@ class AIInsightsCard extends StatelessWidget {
                 size: 20,
                 color: theme.colorScheme.primary,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: AppSpacing.sm),
               Text(
                 'AI Insights',
                 style: theme.textTheme.titleMedium?.copyWith(
@@ -35,25 +38,18 @@ class AIInsightsCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: AppSpacing.md),
           if (insights.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  'No new insights',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
+            const CompactEmptyState(
+              icon: Icons.lightbulb_outline,
+              message: 'No new insights available',
             )
           else
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: insights.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              separatorBuilder: (context, index) => SizedBox(height: AppSpacing.md),
               itemBuilder: (context, index) {
                 final insight = insights[index];
                 return _buildInsightItem(context, insight);
@@ -67,10 +63,10 @@ class AIInsightsCard extends StatelessWidget {
   Widget _buildInsightItem(BuildContext context, AIInsight insight) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppRadius.lgRadius,
         border: Border.all(
           color: theme.colorScheme.outlineVariant.withOpacity(0.5),
         ),
@@ -78,14 +74,14 @@ class AIInsightsCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: EdgeInsets.all(AppSpacing.sm + 2),
             decoration: BoxDecoration(
               color: insight.color.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(insight.icon, size: 20, color: insight.color),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

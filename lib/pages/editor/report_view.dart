@@ -51,13 +51,91 @@ class _ReportViewState extends State<ReportView> {
     _pastHistoryController.dispose();
     _familyHistoryController.dispose();
     _diagnosisController.dispose();
-    for (var controller in _mseControllers.values) {
+    for (final controller in _mseControllers.values) {
       controller.dispose();
     }
     super.dispose();
   }
 
-  Widget _buildSection(String title, TextEditingController controller, {int maxLines = 3}) {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Clinical Assessment Report'),
+        actions: [
+          TextButton.icon(
+            onPressed: widget.onVerify,
+            icon: const Icon(Icons.check_circle),
+            label: const Text('Verify & Save'),
+          ),
+        ],
+      ),
+      body: RepaintBoundary(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _ReportSection(
+              title: 'Current Symptoms (HPI)',
+              controller: _currentSymptomsController,
+            ),
+            _ReportSection(
+              title: 'Premorbid Personality',
+              controller: _premorbidPersonalityController,
+            ),
+            _ReportSection(
+              title: 'Past History',
+              controller: _pastHistoryController,
+            ),
+            _ReportSection(
+              title: 'Family History',
+              controller: _familyHistoryController,
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.0),
+              child: Text(
+                'Mental Status Examination',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: _mseControllers.entries.map((entry) {
+                    return _ReportSection(
+                      title: entry.key.replaceAll('_', ' ').toUpperCase(),
+                      controller: entry.value,
+                      maxLines: 1,
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _ReportSection(
+              title: 'Provided Diagnosis',
+              controller: _diagnosisController,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportSection extends StatelessWidget {
+  const _ReportSection({
+    required this.title,
+    required this.controller,
+    this.maxLines = 3,
+  });
+
+  final String title;
+  final TextEditingController controller;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Column(
@@ -82,56 +160,6 @@ class _ReportViewState extends State<ReportView> {
               filled: true,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Clinical Assessment Report'),
-        actions: [
-          TextButton.icon(
-            onPressed: widget.onVerify,
-            icon: const Icon(Icons.check_circle),
-            label: const Text('Verify & Save'),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildSection('Current Symptoms (HPI)', _currentSymptomsController),
-          _buildSection('Premorbid Personality', _premorbidPersonalityController),
-          _buildSection('Past History', _pastHistoryController),
-          _buildSection('Family History', _familyHistoryController),
-          
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8.0),
-            child: Text(
-              'Mental Status Examination',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-          ),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: _mseControllers.entries.map((entry) {
-                  return _buildSection(
-                    entry.key.replaceAll('_', ' ').toUpperCase(),
-                    entry.value,
-                    maxLines: 1,
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          _buildSection('Provided Diagnosis', _diagnosisController),
         ],
       ),
     );

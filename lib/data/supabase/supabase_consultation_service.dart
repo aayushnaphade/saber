@@ -1,0 +1,274 @@
+import 'package:logging/logging.dart';
+import 'package:saber/data/models/dashboard_models.dart';
+import 'package:saber/data/supabase/supabase_client.dart';
+
+/// Service for managing consultations and patient sessions
+class SupabaseConsultationService {
+  static final log = Logger('SupabaseConsultationService');
+
+  /// Fetch all consultations for a specific patient
+  static Future<List<PatientConsultation>> getPatientConsultations(
+    String patientId,
+  ) async {
+    try {
+      final response = await supabase
+          .from('consultations')
+          .select('''
+            id,
+            patient_id,
+            doctor_id,
+            status,
+            created_at,
+            patients!inner(full_name),
+            profiles!inner(full_name)
+          ''')
+          .eq('patient_id', patientId)
+          .order('created_at', ascending: false);
+
+      return (response as List)
+          .map((json) => PatientConsultation.fromJson(json))
+          .toList();
+    } catch (e) {
+      log.severe('Error fetching patient consultations: $e');
+      return [];
+    }
+  }
+
+  /// Fetch all consultations for today for the current doctor
+  static Future<List<PatientConsultation>> getTodayConsultations(
+    String doctorId,
+  ) async {
+    try {
+      final today = DateTime.now();
+      final startOfDay = DateTime(today.year, today.month, today.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
+
+      final response = await supabase
+          .from('consultations')
+          .select('''
+            id,
+            patient_id,
+            doctor_id,
+            status,
+            created_at,
+            scheduled_time,
+            appointment_type,
+            patients!inner(full_name, age, contact_number),
+            profiles!inner(full_name)
+          ''')
+          .eq('doctor_id', doctorId)
+          .gte('scheduled_time', startOfDay.toIso8601String())
+          .lt('scheduled_time', endOfDay.toIso8601String())
+          .order('scheduled_time', ascending: true);
+
+      return (response as List)
+          .map((json) => PatientConsultation.fromJson(json))
+          .toList();
+    } catch (e) {
+      log.severe('Error fetching today consultations: $e');
+      return [];
+    }
+  }
+
+  /// Fetch upcoming consultations for the current doctor
+  static Future<List<PatientConsultation>> getUpcomingConsultations(
+    String doctorId,
+  ) async {
+    try {
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      final startOfTomorrow =
+          DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
+
+      final response = await supabase
+          .from('consultations')
+          .select('''
+            id,
+            patient_id,
+            doctor_id,
+            status,
+            created_at,
+            scheduled_time,
+            appointment_type,
+            patients!inner(full_name, age, contact_number),
+            profiles!inner(full_name)
+          ''')
+          .eq('doctor_id', doctorId)
+          .gte('scheduled_time', startOfTomorrow.toIso8601String())
+          .inFilter('status', ['waiting', 'in_progress'])
+          .order('scheduled_time', ascending: true)
+          .limit(20);
+
+      return (response as List)
+          .map((json) => PatientConsultation.fromJson(json))
+          .toList();
+    } catch (e) {
+      log.severe('Error fetching upcoming consultations: $e');
+      return [];
+    }
+  }
+
+  /// Fetch completed consultations for the current doctor
+  static Future<List<PatientConsultation>> getCompletedConsultations(
+    String doctorId, {
+    int limit = 50,
+  }) async {
+    try {
+      final response = await supabase
+          .from('consultations')
+          .select('''
+            id,
+            patient_id,
+            doctor_id,
+            status,
+            created_at,
+            patients!inner(full_name, age, contact_number),
+            profiles!inner(full_name)
+          ''')
+          .eq('doctor_id', doctorId)
+          .eq('status', 'completed')
+          .order('created_at', ascending: false)
+          .limit(limit);
+
+      return (response as List)
+          .map((json) => PatientConsultation.fromJson(json))
+          .toList();
+    } catch (e) {
+      log.severe('Error fetching completed consultations: $e');
+      return [];
+    }
+  }
+
+  /// Fetch consultations for a specific date range
+  static Future<List<PatientConsultation>> getConsultationsByDateRange(
+    String doctorId,
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    try {
+      final response = await supabase
+          .from('consultations')
+          .select('''
+            id,
+            patient_id,
+            doctor_id,
+            status,
+            created_at,
+            scheduled_time,
+            appointment_type,
+            patients!inner(full_name, age, contact_number),
+            profiles!inner(full_name)
+          ''')
+          .eq('doctor_id', doctorId)
+          .gte('scheduled_time', startDate.toIso8601String())
+          .lt('scheduled_time', endDate.toIso8601String())
+          .order('scheduled_time', ascending: false);
+
+      return (response as List)
+          .map((json) => PatientConsultation.fromJson(json))
+          .toList();
+    } catch (e) {
+      log.severe('Error fetching consultations by date range: $e');
+      return [];
+    }
+  }
+
+  /// Get consultations grouped by date for calendar view
+  static Future<Map<DateTime, List<PatientConsultation>>>
+      getConsultationsGroupedByDate(
+    String doctorId,
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    try {
+      final consultations = await getConsultationsByDateRange(
+        doctorId,
+        startDate,
+        endDate,
+      );
+
+      final grouped = <DateTime, List<PatientConsultation>>{};
+
+      for (final consultation in consultations) {
+        final date = consultation.scheduledTime;
+        final dateKey = DateTime(date.year, date.month, date.day);
+
+        if (!grouped.containsKey(dateKey)) {
+          grouped[dateKey] = [];
+        }
+        grouped[dateKey]!.add(consultation);
+      }
+
+      return grouped;
+    } catch (e) {
+      log.severe('Error grouping consultations by date: $e');
+      return {};
+    }
+  }
+}
+
+/// Model for patient consultation data
+class PatientConsultation {
+  final String id;
+  final String patientId;
+  final String? doctorId;
+  final String status;
+  final DateTime createdAt;
+  final DateTime scheduledTime;
+  final String appointmentType;
+  final String patientName;
+  final String? doctorName;
+  final int? patientAge;
+  final String? patientContact;
+
+  PatientConsultation({
+    required this.id,
+    required this.patientId,
+    this.doctorId,
+    required this.status,
+    required this.createdAt,
+    required this.scheduledTime,
+    required this.appointmentType,
+    required this.patientName,
+    this.doctorName,
+    this.patientAge,
+    this.patientContact,
+  });
+
+  factory PatientConsultation.fromJson(Map<String, dynamic> json) {
+    final createdAtStr = json['created_at'] as String;
+    final scheduledTimeStr = json['scheduled_time'] as String?;
+    
+    return PatientConsultation(
+      id: json['id'] as String,
+      patientId: json['patient_id'] as String,
+      doctorId: json['doctor_id'] as String?,
+      status: json['status'] as String,
+      createdAt: DateTime.parse(createdAtStr),
+      scheduledTime: scheduledTimeStr != null 
+          ? DateTime.parse(scheduledTimeStr) 
+          : DateTime.parse(createdAtStr),
+      appointmentType: json['appointment_type'] as String? ?? 'walk-in',
+      patientName: json['patients']['full_name'] as String,
+      doctorName: json['profiles']?['full_name'] as String?,
+      patientAge: json['patients']?['age'] as int?,
+      patientContact: json['patients']?['contact_number'] as String?,
+    );
+  }
+
+  bool get isScheduled => appointmentType == 'scheduled';
+
+  AppointmentStatus get appointmentStatus {
+    switch (status) {
+      case 'waiting':
+        return AppointmentStatus.upcoming;
+      case 'in_progress':
+        return AppointmentStatus.inProgress;
+      case 'completed':
+        return AppointmentStatus.completed;
+      case 'cancelled':
+        return AppointmentStatus.cancelled;
+      default:
+        return AppointmentStatus.upcoming;
+    }
+  }
+}

@@ -4,6 +4,10 @@ import 'package:intl/intl.dart';
 import 'package:path_to_regexp/path_to_regexp.dart';
 import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/routes.dart';
+import 'package:saber/data/supabase/supabase_auth_service.dart';
+import 'package:saber/data/supabase/supabase_consultation_service.dart';
+import 'package:saber/components/loading/skeleton_loader.dart';
+import 'package:saber/design_system/spacing.dart';
 
 class PatientHistoryCalendar extends StatefulWidget {
   const PatientHistoryCalendar({super.key});
@@ -15,48 +19,78 @@ class PatientHistoryCalendar extends StatefulWidget {
 class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
   var _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  late final Map<DateTime, List<Appointment>> _events;
+  Map<DateTime, List<PatientConsultation>> _events = {};
+  var _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    _events = _generateMockEvents();
+    _loadConsultations();
   }
 
-  Map<DateTime, List<Appointment>> _generateMockEvents() {
-    final events = <DateTime, List<Appointment>>{};
-    final now = DateTime.now();
+  Future<void> _loadConsultations() async {
+    setState(() {
+      _isLoading = true;
+    });
 
-    // Generate some random appointments for the current month and previous month
-    for (var i = 0; i < 10; i++) {
-      final date = now.subtract(Duration(days: i * 2));
-      final dateKey = DateTime(date.year, date.month, date.day);
+    try {
+      final doctorId = SupabaseAuthService.currentUser?.id;
+      if (doctorId == null) {
+        if (mounted) {
+          setState(() {
+            _events = {}; // Clear any mock/old data
+            _isLoading = false;
+          });
+        }
+        return;
+      }
 
-      events[dateKey] = [
-        Appointment(
-          id: 'apt_$i',
-          patientName: 'Patient $i',
-          patientId: 'p_$i',
-          time: date.add(Duration(hours: 9 + (i % 5))),
-          reason: 'Follow-up',
-          status: AppointmentStatus.completed,
-        ),
-        if (i % 3 == 0)
-          Appointment(
-            id: 'apt_${i}_2',
-            patientName: 'Patient ${i}B',
-            patientId: 'p_${i}b',
-            time: date.add(const Duration(hours: 14)),
-            reason: 'Consultation',
-            status: AppointmentStatus.completed,
+      // Load consultations for the current month and previous month
+      final startDate = DateTime(
+        _focusedDay.year,
+        _focusedDay.month - 1,
+        1,
+      );
+      final endDate = DateTime(
+        _focusedDay.year,
+        _focusedDay.month + 2,
+        0,
+      );
+
+      final events = await SupabaseConsultationService
+          .getConsultationsGroupedByDate(
+        doctorId,
+        startDate,
+        endDate,
+      );
+
+      if (mounted) {
+        setState(() {
+          _events = events;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _events = {}; // Clear any old/mock data on error
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading consultations: $e'),
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: _loadConsultations,
+            ),
           ),
-      ];
+        );
+      }
     }
-    return events;
   }
 
-  List<Appointment> _getEventsForDay(DateTime day) {
+  List<PatientConsultation> _getEventsForDay(DateTime day) {
     final dateKey = DateTime(day.year, day.month, day.day);
     return _events[dateKey] ?? [];
   }
@@ -79,16 +113,58 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildHeader(),
-          _buildDaysOfWeek(),
-          _buildCalendarGrid(),
-          const Divider(),
-          _buildEventList(),
-        ],
-      ),
+      child: _isLoading
+          ? Padding(
+              padding: EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                children: [
+                  // Calendar header skeleton
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      SkeletonLoader.rounded(width: 150, height: 32),
+                      Row(
+                        children: [
+                          SkeletonLoader.circle(size: 32),
+                          SizedBox(width: AppSpacing.sm),
+                          SkeletonLoader.circle(size: 32),
+                        ],
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: AppSpacing.lg),
+                  
+                  // Calendar grid skeleton
+                  ...List.generate(5, (rowIndex) => Padding(
+                    padding: EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: List.generate(7, (colIndex) => 
+                        SkeletonLoader.circle(size: 40),
+                      ),
+                    ),
+                  )),
+                  
+                  SizedBox(height: AppSpacing.lg),
+                  
+                  // Event list skeleton
+                  ...List.generate(3, (index) => Padding(
+                    padding: EdgeInsets.only(bottom: AppSpacing.md),
+                    child: SkeletonListTile(lineCount: 2),
+                  )),
+                ],
+              ),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildHeader(),
+                _buildDaysOfWeek(),
+                _buildCalendarGrid(),
+                const Divider(),
+                _buildEventList(),
+              ],
+            ),
     );
   }
 
@@ -104,6 +180,7 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
               setState(() {
                 _focusedDay = DateTime(_focusedDay.year, _focusedDay.month - 1);
               });
+              _loadConsultations(); // Reload data for new month
             },
           ),
           Text(
@@ -116,6 +193,7 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
               setState(() {
                 _focusedDay = DateTime(_focusedDay.year, _focusedDay.month + 1);
               });
+              _loadConsultations(); // Reload data for new month
             },
           ),
         ],
@@ -242,7 +320,7 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
     if (events.isEmpty) {
       return const Padding(
         padding: EdgeInsets.all(16.0),
-        child: Text('No history for this day'),
+        child: Text('No sessions for this day'),
       );
     }
 
@@ -251,34 +329,95 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
       physics: const NeverScrollableScrollPhysics(),
       itemCount: events.length,
       itemBuilder: (context, index) {
-        final event = events[index];
+        final consultation = events[index];
         return ListTile(
           onTap: () {
-            final path = pathToFunction(RoutePaths.patientDetail)({
-              'patientId': event.patientId,
-            });
-            context.push(path);
+            // Validate UUID before navigation
+            try {
+              final path = pathToFunction(RoutePaths.patientDetail)({
+                'patientId': consultation.patientId,
+              });
+              context.push(path);
+            } catch (e) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Invalid patient ID: ${consultation.patientId}'),
+                ),
+              );
+            }
           },
-          leading: CircleAvatar(child: Text(event.patientName[0])),
+          leading: CircleAvatar(
+            child: Text(consultation.patientName[0]),
+          ),
           title: Text(
-            event.patientName,
+            consultation.patientName,
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           subtitle: Text(
-            '${DateFormat.jm().format(event.time)} - ${event.reason}',
+            '${DateFormat.jm().format(consultation.scheduledTime)} - ${_getStatusLabel(consultation.appointmentStatus)}',
           ),
-          trailing: Chip(
-            label: Text(
-              _getStatusLabel(event.status),
-              style: const TextStyle(fontSize: 10),
-            ),
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.surfaceContainerHighest,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (consultation.isScheduled)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 10,
+                        color: Colors.blue,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'Scheduled',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.blue,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Chip(
+                label: Text(
+                  _getStatusLabel(consultation.appointmentStatus),
+                  style: const TextStyle(fontSize: 10),
+                ),
+                backgroundColor: _getStatusColor(
+                  context,
+                  consultation.appointmentStatus,
+                ),
+              ),
+            ],
           ),
         );
       },
     );
+  }
+
+  Color _getStatusColor(BuildContext context, AppointmentStatus status) {
+    switch (status) {
+      case AppointmentStatus.completed:
+        return Colors.green.withOpacity(0.2);
+      case AppointmentStatus.inProgress:
+        return Colors.blue.withOpacity(0.2);
+      case AppointmentStatus.cancelled:
+        return Colors.red.withOpacity(0.2);
+      case AppointmentStatus.upcoming:
+        return Theme.of(context).colorScheme.surfaceContainerHighest;
+    }
   }
 
   String _getStatusLabel(AppointmentStatus status) {

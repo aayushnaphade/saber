@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:saber/design_system/spacing.dart';
+import 'package:saber/design_system/radius.dart';
+import 'package:saber/design_system/colors.dart';
+import 'package:saber/design_system/typography.dart';
+import 'package:saber/design_system/animations.dart';
 
-class StatCard extends StatelessWidget {
+class StatCard extends StatefulWidget {
   final String label;
   final String value;
   final IconData icon;
@@ -19,136 +24,149 @@ class StatCard extends StatelessWidget {
   });
 
   @override
+  State<StatCard> createState() => _StatCardState();
+}
+
+class _StatCardState extends State<StatCard> {
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final baseColor = color ?? theme.colorScheme.primary;
+    final baseColor = widget.color ?? theme.colorScheme.primary;
 
-    return Container(
-      height: 160, // Fixed height for consistency
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: theme.shadowColor.withOpacity(0.06),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: Stack(
-          children: [
-            // Decorative background circles
-            Positioned(
-              right: -24,
-              top: -24,
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: baseColor.withOpacity(0.08),
-                  shape: BoxShape.circle,
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 1.0, end: _isPressed ? AppAnimations.buttonPressScale : 1.0),
+        duration: AppAnimations.buttonPress,
+        curve: AppAnimations.buttonPressCurve,
+        builder: (context, scale, child) => Transform.scale(
+          scale: scale,
+          child: Container(
+            height: 130,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: AppRadius.xxlRadius,
+              boxShadow: [
+                BoxShadow(
+                  color: theme.shadowColor.withOpacity(0.06),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
                 ),
-              ),
-            ),
-            Positioned(
-              right: -12,
-              top: -12,
-              child: Container(
-                width: 70,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: baseColor.withOpacity(0.08),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              ],
+                  ),
+            child: ClipRRect(
+              borderRadius: AppRadius.xxlRadius,
+              child: Stack(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Icon Container
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: baseColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Icon(icon, color: baseColor, size: 24),
+                  // Decorative background circles
+                  Positioned(
+                    right: -16,
+                    top: -16,
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: baseColor.withOpacity(0.08),
+                        shape: BoxShape.circle,
                       ),
+                    ),
+                  ),
+                  Positioned(
+                    right: -8,
+                    top: -8,
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: baseColor.withOpacity(0.08),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
 
-                      // Trend Pill
-                      if (trend != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isPositiveTrend
-                                ? Colors.green.withOpacity(0.08)
-                                : Colors.red.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                isPositiveTrend
-                                    ? Icons.trending_up_rounded
-                                    : Icons.trending_down_rounded,
-                                size: 16,
-                                color: isPositiveTrend
-                                    ? Colors.green
-                                    : Colors.red,
+                  Padding(
+                    padding: EdgeInsets.all(AppSpacing.cardPadding),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Icon Container
+                            Container(
+                              padding: EdgeInsets.all(AppSpacing.iconPadding),
+                              decoration: BoxDecoration(
+                                color: baseColor.withOpacity(0.1),
+                                borderRadius: AppRadius.mdRadius,
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                trend!,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: isPositiveTrend
-                                      ? Colors.green
-                                      : Colors.red,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
+                              child: Icon(widget.icon, color: baseColor, size: 20),
+                            ),
+
+                            // Trend Pill
+                            if (widget.trend != null)
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.sm,
+                                  vertical: AppSpacing.xs,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: widget.isPositiveTrend
+                                      ? MedicalColors.positiveMetric.withOpacity(0.08)
+                                      : MedicalColors.negativeMetric.withOpacity(0.08),
+                                  borderRadius: AppRadius.pillRadius,
+                                      ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      widget.isPositiveTrend
+                                          ? Icons.trending_up_rounded
+                                          : Icons.trending_down_rounded,
+                                      size: 16,
+                                      color: widget.isPositiveTrend
+                                          ? MedicalColors.positiveMetric
+                                          : MedicalColors.negativeMetric,
+                                    ),
+                                    SizedBox(width: AppSpacing.xs),
+                                    Text(
+                                      widget.trend!,
+                                      style: AppTypography.labelSmall(context).copyWith(
+                                        color: widget.isPositiveTrend
+                                            ? MedicalColors.positiveMetric
+                                            : MedicalColors.negativeMetric,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
+                          ],
+                        ),
+                        const Spacer(),
+                        Text(
+                          widget.value,
+                          style: AppTypography.dataValue(context),
+                        ),
+                        SizedBox(height: AppSpacing.xs + 2),
+                        Text(
+                          widget.label,
+                          style: AppTypography.bodyMedium(context).copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Text(
-                    value,
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: theme.colorScheme.onSurface,
-                      height: 1.0,
-                      letterSpacing: -0.5,
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    label,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
+                        ),
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
