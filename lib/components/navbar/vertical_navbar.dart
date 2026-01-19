@@ -100,19 +100,22 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
               ),
             ),
           ),
-          IntrinsicHeight(
-            child: NavigationRail(
-              key: ValueKey(expanded),
-              destinations: widget.destinations,
-              selectedIndex: widget.selectedIndex,
-              backgroundColor: backgroundColor,
-              extended: expanded,
-              minExtendedWidth: 220,
-              onDestinationSelected: widget.onDestinationSelected,
-              useIndicator: true,
+          Expanded(
+            child: SingleChildScrollView(
+              child: IntrinsicHeight(
+                child: NavigationRail(
+                  key: ValueKey(expanded),
+                  destinations: widget.destinations,
+                  selectedIndex: widget.selectedIndex,
+                  backgroundColor: backgroundColor,
+                  extended: expanded,
+                  minExtendedWidth: 220,
+                  onDestinationSelected: widget.onDestinationSelected,
+                  useIndicator: true,
+                ),
+              ),
             ),
           ),
-          const Spacer(),
           Padding(
             padding: const EdgeInsets.all(8),
             child: expanded
