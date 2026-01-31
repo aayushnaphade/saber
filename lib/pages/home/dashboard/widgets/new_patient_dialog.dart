@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
+import 'package:saber/data/supabase/supabase_vitals_service.dart';
 
 class NewPatientDialog extends StatefulWidget {
   const NewPatientDialog({super.key});
@@ -13,6 +14,12 @@ class _NewPatientDialogState extends State<NewPatientDialog> {
   final _nameController = TextEditingController();
   final _ageController = TextEditingController();
   final _phoneController = TextEditingController();
+  // Vitals Controllers
+  final _systolicController = TextEditingController();
+  final _diastolicController = TextEditingController();
+  final _pulseController = TextEditingController();
+  final _weightController = TextEditingController();
+  
   String? _selectedGender;
   var _isLoading = false;
 
@@ -21,6 +28,10 @@ class _NewPatientDialogState extends State<NewPatientDialog> {
     _nameController.dispose();
     _ageController.dispose();
     _phoneController.dispose();
+    _systolicController.dispose();
+    _diastolicController.dispose();
+    _pulseController.dispose();
+    _weightController.dispose();
     super.dispose();
   }
 
@@ -30,12 +41,26 @@ class _NewPatientDialogState extends State<NewPatientDialog> {
     setState(() => _isLoading = true);
 
     try {
-      await SupabasePatientService.createPatient(
+      final patient = await SupabasePatientService.createPatient(
         fullName: _nameController.text.trim(),
         age: int.tryParse(_ageController.text.trim()),
         gender: _selectedGender,
         phoneNumber: _phoneController.text.trim(),
       );
+
+      // Save Vitals if any provided
+      if (_systolicController.text.isNotEmpty ||
+          _diastolicController.text.isNotEmpty ||
+          _pulseController.text.isNotEmpty ||
+          _weightController.text.isNotEmpty) {
+        await SupabaseVitalsService.saveVitals(
+          patientId: patient.id,
+          systolic: int.tryParse(_systolicController.text.trim()),
+          diastolic: int.tryParse(_diastolicController.text.trim()),
+          heartRate: int.tryParse(_pulseController.text.trim()),
+          weight: double.tryParse(_weightController.text.trim()),
+        );
+      }
 
       if (mounted) {
         Navigator.of(context).pop(true); // Return true on success
@@ -127,6 +152,70 @@ class _NewPatientDialogState extends State<NewPatientDialog> {
                   prefixIcon: Icon(Icons.phone_outlined),
                 ),
                 keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Text(
+                  'Vitals (Optional)',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+              Row(
+                children: [
+                   Expanded(
+                    child: TextFormField(
+                      controller: _systolicController,
+                      decoration: const InputDecoration(
+                        labelText: 'Systolic BP',
+                        suffixText: 'mmHg',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('/', style: TextStyle(fontSize: 20, color: Colors.grey)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _diastolicController,
+                      decoration: const InputDecoration(
+                        labelText: 'Diastolic BP',
+                        suffixText: 'mmHg',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _pulseController,
+                      decoration: const InputDecoration(
+                        labelText: 'Pulse',
+                        prefixIcon: Icon(Icons.favorite_outline),
+                        suffixText: 'bpm',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _weightController,
+                      decoration: const InputDecoration(
+                        labelText: 'Weight',
+                        prefixIcon: Icon(Icons.monitor_weight_outlined),
+                        suffixText: 'kg',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

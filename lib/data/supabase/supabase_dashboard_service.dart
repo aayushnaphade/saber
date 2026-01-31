@@ -62,7 +62,7 @@ class SupabaseDashboardService {
         now.year,
         now.month,
         now.day,
-      ).toIso8601String();
+      ).toUtc().toIso8601String();
       final endOfDay = DateTime(
         now.year,
         now.month,
@@ -70,7 +70,7 @@ class SupabaseDashboardService {
         23,
         59,
         59,
-      ).toIso8601String();
+      ).toUtc().toIso8601String();
 
       final response = await supabase
           .from('consultations')
@@ -122,7 +122,7 @@ class SupabaseDashboardService {
         now.year,
         now.month,
         now.day,
-      ).toIso8601String();
+      ).toUtc().toIso8601String();
 
       // Count patients today
       final patientsToday = await supabase
@@ -222,7 +222,7 @@ class SupabaseDashboardService {
   static Future<int> cancelPastPendingSessions() async {
     try {
       final now = DateTime.now();
-      final startOfToday = DateTime(now.year, now.month, now.day).toIso8601String();
+      final startOfToday = DateTime(now.year, now.month, now.day).toUtc().toIso8601String();
 
       final response = await supabase
           .from('consultations')

@@ -24,8 +24,10 @@ import 'package:saber/components/canvas/canvas_image.dart';
 import 'package:saber/components/canvas/canvas_preview.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
 import 'package:saber/components/canvas/save_indicator.dart';
+import 'package:saber/data/models/vitals.dart';
 import 'package:saber/components/intake_form/intake_overlay_card.dart';
 import 'package:saber/components/intake_form/psychiatric_intake_form.dart';
+import 'package:saber/components/intake_form/vitals_overlay_card.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
@@ -49,6 +51,7 @@ import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/data/supabase/supabase_intake_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_prescription_service.dart';
+import 'package:saber/data/supabase/supabase_vitals_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
@@ -191,6 +194,12 @@ class EditorState extends State<Editor> {
   bool _showIntakeOverlay = true;
   bool _hasLoadedIntake = false;
   Offset? _intakeOverlayPosition; // null means use default right-side position
+  
+  // Vitals overlay state
+  List<Vitals> _vitalsHistory = [];
+  bool _showVitalsOverlay = true;
+  Offset? _vitalsOverlayPosition;
+
   String? _doctorName;
   String? _patientId;
 
@@ -281,12 +290,15 @@ class EditorState extends State<Editor> {
         log.info('Loading intake for patient: $patientId');
 
         final intake = await SupabaseIntakeService.getIntake(patientId);
-        if (intake != null && mounted) {
+        final vitals = await SupabaseVitalsService.getVitalsHistory(patientId);
+        
+        if (mounted) {
           setState(() {
-            _patientIntake = intake;
+            if (intake != null) _patientIntake = intake;
+            _vitalsHistory = vitals;
           });
-          log.info('Loaded intake for patient: $patientId');
-        } 
+          log.info('Loaded intake and vitals for patient: $patientId. Vitals count: ${vitals.length}');
+        }  
       }
     } catch (e) {
       log.warning('Failed to load patient intake: $e');
@@ -1471,51 +1483,7 @@ class EditorState extends State<Editor> {
     }
   }
 
-  /// Builds the draggable intake overlay card
-  Widget _buildDraggableIntakeOverlay(BoxConstraints constraints) {
-    return GestureDetector(
-      onPanStart: (details) {
-        // When starting to drag, if we haven't set the position yet,
-        // calculate it from the right side
-        if (_intakeOverlayPosition == null) {
-          final renderBox = context.findRenderObject() as RenderBox?;
-          if (renderBox != null) {
-            // Estimate card width (expanded: 320, collapsed: 200)
-            const estimatedCardWidth = 200.0;
-            setState(() {
-              _intakeOverlayPosition = Offset(
-                constraints.maxWidth - estimatedCardWidth - 16,
-                16,
-              );
-            });
-          }
-        }
-      },
-      onPanUpdate: (details) {
-        setState(() {
-          final newPosition =
-              (_intakeOverlayPosition ?? Offset.zero) + details.delta;
-          // Clamp position to keep the overlay visible
-          _intakeOverlayPosition = Offset(
-            newPosition.dx.clamp(0, constraints.maxWidth - 100),
-            newPosition.dy.clamp(0, constraints.maxHeight - 50),
-          );
-        });
-      },
-      child: MouseRegion(
-        cursor: SystemMouseCursors.move,
-        child: IntakeOverlayCard(
-          intake: _patientIntake!,
-          onEdit: _openIntakeFormEditor,
-          onClose: () {
-            setState(() {
-              _showIntakeOverlay = false;
-            });
-          },
-        ),
-      ),
-    );
-  }
+
 
   @override
 
@@ -1916,10 +1884,11 @@ class EditorState extends State<Editor> {
     );
 
     // Canvas with intake overlay if available
-    final Widget canvasWithOverlay;
+    // Canvas with intake overlay if available
+    Widget finalCanvasWithOverlay;
     if (_patientIntake != null) {
       if (_showIntakeOverlay) {
-        canvasWithOverlay = LayoutBuilder(
+        finalCanvasWithOverlay = LayoutBuilder(
           builder: (context, constraints) {
             return Stack(
               children: [
@@ -1941,14 +1910,14 @@ class EditorState extends State<Editor> {
         );
       } else {
         // Show reopen button when intake overlay is closed
-        canvasWithOverlay = Stack(
+        finalCanvasWithOverlay = Stack(
           children: [
             canvas,
             Positioned(
               right: 16,
               top: 16,
               child: Tooltip(
-                message: 'Show Intake Summary',
+                message: 'Show Intake Form',
                 child: Material(
                   elevation: 4,
                   borderRadius: BorderRadius.circular(20),
@@ -1958,16 +1927,15 @@ class EditorState extends State<Editor> {
                       setState(() {
                         _showIntakeOverlay = true;
                         _intakeOverlayPosition =
-                            null; // Reset to default position
+                            null; // Reset position to default
                       });
                     },
                     borderRadius: BorderRadius.circular(20),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
                       child: Icon(
-                        Icons.assignment_outlined,
+                        Icons.assignment_ind_outlined,
                         size: 20,
-                        color: colorScheme.primary,
                       ),
                     ),
                   ),
@@ -1979,7 +1947,7 @@ class EditorState extends State<Editor> {
       }
     } else if (_patientId != null) {
       // No intake loaded, but we have a patient ID - show button to create/view
-      canvasWithOverlay = Stack(
+      finalCanvasWithOverlay = Stack(
         children: [
           canvas,
           Positioned(
@@ -2009,7 +1977,69 @@ class EditorState extends State<Editor> {
         ],
       );
     } else {
-      canvasWithOverlay = canvas;
+      finalCanvasWithOverlay = canvas;
+    }
+    
+    // Add Vitals Overlay to the stack if we have vitals
+    if (_vitalsHistory.isNotEmpty) {
+      final double defaultTop = _patientIntake != null ? 80 : 16; // Shift down if intake is present
+      
+      Widget vitalsWidget;
+       if (_showVitalsOverlay) {
+        vitalsWidget = LayoutBuilder(
+          builder: (context, constraints) {
+            return _vitalsOverlayPosition != null
+                ? Positioned(
+                    left: _vitalsOverlayPosition!.dx,
+                    top: _vitalsOverlayPosition!.dy,
+                    child: _buildDraggableVitalsOverlay(constraints),
+                  )
+                : Positioned(
+                    right: 16,
+                    top: defaultTop,
+                    child: _buildDraggableVitalsOverlay(constraints),
+                  );
+          },
+        );
+      } else {
+         vitalsWidget = Positioned(
+            right: 16,
+            top: defaultTop,
+            child: Tooltip(
+              message: 'Show Vitals',
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(20),
+                color: colorScheme.surface,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _showVitalsOverlay = true;
+                      _vitalsOverlayPosition = null;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.monitor_heart_outlined,
+                      size: 20,
+                      color: Colors.pink,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+      }
+      
+      // Wrap existing canvasWithOverlay
+      finalCanvasWithOverlay = Stack(
+        children: [
+          finalCanvasWithOverlay,
+          vitalsWidget,
+        ],
+      );
     }
 
     final Widget body;
@@ -2023,7 +2053,7 @@ class EditorState extends State<Editor> {
           Expanded(
             child: Column(
               children: [
-                Expanded(child: canvasWithOverlay),
+                Expanded(child: finalCanvasWithOverlay),
                 if (readonlyBanner != null) readonlyBanner,
               ],
             ),
@@ -2037,7 +2067,7 @@ class EditorState extends State<Editor> {
             ? VerticalDirection.up
             : VerticalDirection.down,
         children: [
-          Expanded(child: canvasWithOverlay),
+          Expanded(child: finalCanvasWithOverlay),
           toolbar,
           if (readonlyBanner != null) readonlyBanner,
         ],
@@ -2795,6 +2825,59 @@ class EditorState extends State<Editor> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDraggableIntakeOverlay(BoxConstraints constraints) {
+    return Draggable(
+      feedback: Opacity(
+        opacity: 0.5,
+        child: Material(
+          child: IntakeOverlayCard(intake: _patientIntake!, isExpanded: false),
+        ),
+      ),
+      childWhenDragging: Container(),
+      onDragEnd: (details) {
+        // Convert global position to local position relative to the stack
+        final RenderBox? box = context.findRenderObject() as RenderBox?;
+        if (box != null) {
+          final localPos = box.globalToLocal(details.offset);
+          setState(() {
+            _intakeOverlayPosition = localPos;
+          });
+        }
+      },
+      child: IntakeOverlayCard(
+        intake: _patientIntake!,
+        isExpanded: true, // Default to expanded or handled internally
+        onClose: () => setState(() => _showIntakeOverlay = false),
+        onEdit: _openIntakeFormEditor,
+      ),
+    );
+  }
+
+  Widget _buildDraggableVitalsOverlay(BoxConstraints constraints) {
+    return Draggable(
+      feedback: Opacity(
+        opacity: 0.5,
+        child: Material(
+          child: VitalsOverlayCard(vitalsHistory: _vitalsHistory, isExpanded: false),
+        ),
+      ),
+      childWhenDragging: Container(),
+      onDragEnd: (details) {
+         final RenderBox? box = context.findRenderObject() as RenderBox?;
+        if (box != null) {
+          final localPos = box.globalToLocal(details.offset);
+          setState(() {
+            _vitalsOverlayPosition = localPos;
+          });
+        }
+      },
+      child: VitalsOverlayCard(
+        vitalsHistory: _vitalsHistory,
+        onClose: () => setState(() => _showVitalsOverlay = false),
       ),
     );
   }
