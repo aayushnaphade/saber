@@ -6,14 +6,17 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/patient.dart';
+import 'package:saber/data/models/psychiatric_intake.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/document_sync_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
+import 'package:saber/data/supabase/supabase_intake_service.dart';
 import 'package:saber/design_system/colors.dart';
 import 'package:saber/design_system/radius.dart';
 import 'package:saber/design_system/spacing.dart';
 import 'package:saber/components/loading/skeleton_loader.dart';
 import 'package:saber/components/empty_state/empty_state.dart';
+import 'package:saber/components/intake_form/psychiatric_intake_form.dart';
 
 /// Patient profile page with demographics, session management, and history
 class PatientProfilePage extends StatefulWidget {
@@ -31,6 +34,10 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   var isLoading = true;
   var isSyncing = false;
   String? error;
+
+  // Psychiatric intake state
+  PsychiatricIntake? _patientIntake;
+  bool _hasCheckedIntake = false;
 
   // Selection mode state
   var _isSelectionMode = false;
@@ -180,9 +187,19 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       // Load previous sessions
       final sessionsList = await _loadSessions(loadedPatient);
 
+      // Load psychiatric intake if not already loaded
+      PsychiatricIntake? intake;
+      if (!_hasCheckedIntake) {
+        intake = await SupabaseIntakeService.getIntake(loadedPatient.id);
+        _hasCheckedIntake = true;
+      } else {
+        intake = _patientIntake;
+      }
+
       setState(() {
         patient = loadedPatient;
         sessions = sessionsList;
+        _patientIntake = intake;
         isLoading = false;
       });
     } catch (e) {
@@ -235,10 +252,62 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     return null;
   }
 
+  /// Show the psychiatric intake form for new patients
+  Future<void> _showIntakeForm() async {
+    if (patient == null) return;
+
+    final result = await Navigator.of(context).push<PsychiatricIntake>(
+      MaterialPageRoute(
+        builder: (context) => PsychiatricIntakeForm(
+          patient: patient!,
+          existingIntake: _patientIntake,
+          onSave: (intake) async {
+            try {
+              final savedIntake = await SupabaseIntakeService.upsertIntake(intake);
+              setState(() {
+                _patientIntake = savedIntake;
+              });
+              if (mounted) {
+                Navigator.of(context).pop(savedIntake);
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to save intake form: $e'),
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                );
+              }
+            }
+          },
+          onCancel: () => Navigator.of(context).pop(),
+        ),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _patientIntake = result;
+      });
+    }
+  }
+
   Future<void> _startNewSession() async {
     if (patient == null) return;
 
     try {
+      // If this is the first session and no intake form exists, show the intake form first
+      if (sessions.isEmpty && _patientIntake == null) {
+        // Show intake form first for new patients
+        await _showIntakeForm();
+        
+        // If intake was cancelled, don't proceed with session
+        if (_patientIntake == null) {
+          return;
+        }
+      }
+
       // If patient is in Waiting Room, move them to Active automatically
       if (patient!.status == PatientStatus.waiting) {
         await _changePatientStatus(PatientStatus.active);
@@ -419,6 +488,8 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                       switch (value) {
                         case 'edit':
                           _editDemographics();
+                        case 'intake':
+                          _showIntakeForm();
                         case 'share':
                           _sharePatientProfile();
                         case 'export':
@@ -431,6 +502,18 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                         child: ListTile(
                           leading: Icon(Icons.edit_outlined),
                           title: Text('Edit Demographics'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'intake',
+                        child: ListTile(
+                          leading: Icon(_patientIntake != null 
+                              ? Icons.assignment_turned_in_outlined 
+                              : Icons.assignment_outlined),
+                          title: Text(_patientIntake != null 
+                              ? 'View/Edit Intake Form' 
+                              : 'Fill Intake Form'),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
@@ -561,6 +644,8 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
           _buildPatientHeader(),
           SizedBox(height: AppSpacing.xl),
           _buildDemographicsCard(),
+          SizedBox(height: AppSpacing.lg),
+          _buildIntakeStatusCard(),
           SizedBox(height: AppSpacing.xl),
           _buildPreviousSessionsSection(),
           SizedBox(height: AppSpacing.xxl * 2), // Space for FAB
@@ -584,6 +669,8 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                 _buildPatientHeader(),
                 SizedBox(height: AppSpacing.xl),
                 _buildDemographicsCard(),
+                SizedBox(height: AppSpacing.lg),
+                _buildIntakeStatusCard(),
               ],
             ),
           ),
@@ -1063,6 +1150,125 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         ],
       ),
     );
+  }
+
+  /// Build the psychiatric intake status card
+  Widget _buildIntakeStatusCard() {
+    final theme = Theme.of(context);
+    final hasIntake = _patientIntake != null;
+    
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: hasIntake 
+              ? MedicalColors.infoBorder 
+              : theme.colorScheme.outlineVariant,
+        ),
+      ),
+      color: hasIntake ? MedicalColors.infoBg : null,
+      child: InkWell(
+        onTap: _showIntakeForm,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: hasIntake 
+                      ? MedicalColors.info.withOpacity(0.2)
+                      : theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  hasIntake 
+                      ? Icons.assignment_turned_in_outlined 
+                      : Icons.assignment_outlined,
+                  color: hasIntake 
+                      ? MedicalColors.info 
+                      : theme.colorScheme.onSurfaceVariant,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Psychiatric Intake Form',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    if (hasIntake) ...[
+                      Text(
+                        'Completed on ${_formatDate(_patientIntake!.createdAt)}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: MedicalColors.info,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // Show symptom categories summary
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: _patientIntake!.getSymptomCategoryCounts()
+                            .entries
+                            .where((e) => e.value > 0)
+                            .take(4)
+                            .map((e) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: theme.colorScheme.outline.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Text(
+                                '${e.key}: ${e.value}',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ))
+                            .toList(),
+                      ),
+                    ] else ...[
+                      Text(
+                        'No intake form on file. Tap to fill out.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: hasIntake 
+                    ? MedicalColors.info 
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  String _formatDate(DateTime date) {
+    return DateFormat('MMM dd, yyyy').format(date);
   }
 
   Widget _buildPreviousSessionsSection() {

@@ -151,6 +151,14 @@ Imp: Anxiety"
       ];
 
       for (var i = 0; i < imageBytesList.length; i++) {
+        final imageSize = imageBytesList[i].length;
+        log.info('Adding page ${i + 1} to request, image size: $imageSize bytes');
+        
+        if (imageSize == 0) {
+          log.warning('Page ${i + 1} has empty image bytes!');
+          continue; // Skip empty images
+        }
+        
         parts.add(GoogleCloudAiplatformV1Part(text: 'Page ${i + 1}:'));
         parts.add(GoogleCloudAiplatformV1Part(
           inlineData: GoogleCloudAiplatformV1Blob(
@@ -159,6 +167,13 @@ Imp: Anxiety"
           ),
         ));
       }
+
+      // Ensure we have at least one valid image
+      if (parts.length <= 1) {
+        throw Exception('No valid images to process - all pages were empty');
+      }
+
+      log.info('Total parts in request: ${parts.length}');
 
       final request = GoogleCloudAiplatformV1GenerateContentRequest(
         systemInstruction: GoogleCloudAiplatformV1Content(
@@ -207,11 +222,28 @@ Imp: Anxiety"
 
       client.close();
 
+      // Check for prompt feedback (safety blocks, etc.)
+      if (response.promptFeedback != null) {
+        log.info('Prompt feedback: ${jsonEncode(response.promptFeedback!.toJson())}');
+        if (response.promptFeedback!.blockReason != null) {
+          throw Exception('Request blocked by Vertex AI: ${response.promptFeedback!.blockReason}');
+        }
+      }
+
       if (response.candidates != null && response.candidates!.isNotEmpty) {
         final candidate = response.candidates!.first;
         
+        log.info('Candidate finish reason: ${candidate.finishReason}');
+        if (candidate.safetyRatings != null) {
+          log.info('Safety ratings: ${candidate.safetyRatings!.map((r) => '${r.category}: ${r.probability}').join(', ')}');
+        }
+        
         if (candidate.finishReason != 'STOP') {
           log.warning('ReportGenerator: Candidate finish reason: ${candidate.finishReason}');
+          // If finish reason indicates an issue, throw with more context
+          if (candidate.finishReason == 'SAFETY' || candidate.finishReason == 'OTHER') {
+            throw Exception('Vertex AI stopped generation. Reason: ${candidate.finishReason}');
+          }
         }
 
         if (candidate.content != null && candidate.content!.parts != null && candidate.content!.parts!.isNotEmpty) {

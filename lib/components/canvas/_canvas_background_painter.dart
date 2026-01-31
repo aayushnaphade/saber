@@ -197,6 +197,165 @@ class CanvasBackgroundPainter extends CustomPainter {
             isLine: true,
           );
         }
+      case .psychiatric:
+        // Psychiatric session notes template
+        // Based on SOAP-like structure optimized for psychiatric assessments
+        
+        final margin = lineHeight * 1.5;
+        final sectionPadding = lineHeight * 0.5;
+        
+        // === HEADER SECTION ===
+        // Patient name line (left half)
+        yield PatternElement(
+          Offset(margin, lineHeight * 1.5),
+          Offset(size.width * 0.45, lineHeight * 1.5),
+          isLine: true,
+        );
+        // Date line (right half)
+        yield PatternElement(
+          Offset(size.width * 0.55, lineHeight * 1.5),
+          Offset(size.width - margin, lineHeight * 1.5),
+          isLine: true,
+        );
+        
+        // Session number / Visit type line
+        yield PatternElement(
+          Offset(margin, lineHeight * 2.5),
+          Offset(size.width * 0.5, lineHeight * 2.5),
+          isLine: true,
+        );
+        
+        // Header separator
+        yield PatternElement(
+          Offset(margin, lineHeight * 3.5),
+          Offset(size.width - margin, lineHeight * 3.5),
+          isLine: true,
+          secondaryColor: true,
+        );
+        
+        // === CHIEF COMPLAINT / HPI SECTION ===
+        // Section label marker (small line on left)
+        yield PatternElement(
+          Offset(margin * 0.5, lineHeight * 4.5),
+          Offset(margin, lineHeight * 4.5),
+          isLine: true,
+          secondaryColor: true,
+        );
+        
+        // Content lines for Chief Complaint (3 lines)
+        for (int i = 0; i < 3; i++) {
+          yield PatternElement(
+            Offset(margin, lineHeight * (5.5 + i)),
+            Offset(size.width - margin, lineHeight * (5.5 + i)),
+            isLine: true,
+          );
+        }
+        
+        // === MENTAL STATUS EXAM SECTION ===
+        final mseTop = lineHeight * 9;
+        
+        // Section marker
+        yield PatternElement(
+          Offset(margin * 0.5, mseTop),
+          Offset(margin, mseTop),
+          isLine: true,
+          secondaryColor: true,
+        );
+        
+        // MSE section divider
+        yield PatternElement(
+          Offset(margin, mseTop + sectionPadding),
+          Offset(size.width - margin, mseTop + sectionPadding),
+          isLine: true,
+          secondaryColor: true,
+        );
+        
+        // Two-column layout for MSE checkboxes area
+        final mseContentTop = mseTop + lineHeight;
+        final centerX = size.width / 2;
+        
+        // Left column lines (Appearance, Behavior, Speech, Mood)
+        for (int i = 0; i < 5; i++) {
+          yield PatternElement(
+            Offset(margin, mseContentTop + lineHeight * i),
+            Offset(centerX - sectionPadding, mseContentTop + lineHeight * i),
+            isLine: true,
+          );
+        }
+        
+        // Right column lines (Affect, Thought Process, Thought Content, Perceptions)
+        for (int i = 0; i < 5; i++) {
+          yield PatternElement(
+            Offset(centerX + sectionPadding, mseContentTop + lineHeight * i),
+            Offset(size.width - margin, mseContentTop + lineHeight * i),
+            isLine: true,
+          );
+        }
+        
+        // Vertical divider for MSE columns
+        yield PatternElement(
+          Offset(centerX, mseContentTop),
+          Offset(centerX, mseContentTop + lineHeight * 4),
+          isLine: true,
+          secondaryColor: true,
+        );
+        
+        // === ASSESSMENT SECTION ===
+        final assessmentTop = mseContentTop + lineHeight * 6;
+        
+        // Section marker
+        yield PatternElement(
+          Offset(margin * 0.5, assessmentTop),
+          Offset(margin, assessmentTop),
+          isLine: true,
+          secondaryColor: true,
+        );
+        
+        // Section divider
+        yield PatternElement(
+          Offset(margin, assessmentTop + sectionPadding),
+          Offset(size.width - margin, assessmentTop + sectionPadding),
+          isLine: true,
+          secondaryColor: true,
+        );
+        
+        // Assessment content lines (4 lines for diagnoses)
+        for (int i = 0; i < 4; i++) {
+          yield PatternElement(
+            Offset(margin, assessmentTop + lineHeight * (1 + i)),
+            Offset(size.width - margin, assessmentTop + lineHeight * (1 + i)),
+            isLine: true,
+          );
+        }
+        
+        // === PLAN SECTION ===
+        final planTop = assessmentTop + lineHeight * 6;
+        
+        // Section marker
+        yield PatternElement(
+          Offset(margin * 0.5, planTop),
+          Offset(margin, planTop),
+          isLine: true,
+          secondaryColor: true,
+        );
+        
+        // Section divider
+        yield PatternElement(
+          Offset(margin, planTop + sectionPadding),
+          Offset(size.width - margin, planTop + sectionPadding),
+          isLine: true,
+          secondaryColor: true,
+        );
+        
+        // Plan content lines (remaining space)
+        final planContentTop = planTop + lineHeight;
+        for (double y = planContentTop; y < size.height - lineHeight; y += lineHeight) {
+          yield PatternElement(
+            Offset(margin, y),
+            Offset(size.width - margin, y),
+            isLine: true,
+          );
+        }
     }
   }
 }
@@ -250,7 +409,11 @@ enum CanvasBackgroundPattern {
   tablature('tablature'),
 
   /// Cornell notes
-  cornell('cornell');
+  cornell('cornell'),
+
+  /// Psychiatric session notes template
+  /// Sections: Patient Info, Chief Complaint, Mental Status, Assessment, Plan
+  psychiatric('psychiatric');
 
   const CanvasBackgroundPattern(this.name, {this.requiresClipping = false});
 
@@ -282,6 +445,8 @@ enum CanvasBackgroundPattern {
         return t.editor.menu.bgPatterns.tablature;
       case .cornell:
         return t.editor.menu.bgPatterns.cornell;
+      case .psychiatric:
+        return t.editor.menu.bgPatterns.psychiatric;
     }
   }
 

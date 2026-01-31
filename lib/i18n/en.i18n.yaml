@@ -345,6 +345,7 @@ editor:
       staffs: Staffs
       tablature: Tablature
       cornell: Cornell
+      psychiatric: Psychiatric Notes
   newerFileFormat: 
     readOnlyMode: Read-only mode
     title: This note was edited using a newer version of Saber

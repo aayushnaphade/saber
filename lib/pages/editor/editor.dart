@@ -24,6 +24,8 @@ import 'package:saber/components/canvas/canvas_image.dart';
 import 'package:saber/components/canvas/canvas_preview.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
 import 'package:saber/components/canvas/save_indicator.dart';
+import 'package:saber/components/intake_form/intake_overlay_card.dart';
+import 'package:saber/components/intake_form/psychiatric_intake_form.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
@@ -41,8 +43,11 @@ import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/extensions/change_notifier_extensions.dart';
 import 'package:saber/data/extensions/matrix4_extensions.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
+import 'package:saber/data/models/psychiatric_intake.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
+import 'package:saber/data/supabase/supabase_intake_service.dart';
+import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
@@ -58,15 +63,19 @@ import 'package:saber/pages/home/whiteboard.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 
-
 typedef _PhotoInfo = ({Uint8List bytes, String extension});
 
 class Editor extends StatefulWidget {
-  Editor({super.key, String? path, this.customTitle, this.pdfPath, this.consultationId})
-    : initialPath = path != null
-          ? Future.value(path)
-          : FileManager.newFilePath('/'),
-      needsNaming = path == null;
+  Editor({
+    super.key,
+    String? path,
+    this.customTitle,
+    this.pdfPath,
+    this.consultationId,
+  }) : initialPath = path != null
+           ? Future.value(path)
+           : FileManager.newFilePath('/'),
+       needsNaming = path == null;
 
   final Future<String> initialPath;
   final bool needsNaming;
@@ -171,6 +180,12 @@ class EditorState extends State<Editor> {
   Timer? _delayedSaveTimer;
   Timer? _watchServerTimer;
 
+  // Psychiatric intake overlay state
+  PsychiatricIntake? _patientIntake;
+  bool _showIntakeOverlay = true;
+  bool _hasLoadedIntake = false;
+  Offset? _intakeOverlayPosition; // null means use default right-side position
+
   // used to prevent accidentally drawing when pinch zooming
   var lastSeenPointerCount = 0;
   Timer? _lastSeenPointerCountTimer;
@@ -206,8 +221,43 @@ class EditorState extends State<Editor> {
 
     await _initStrokes();
 
+    // Load psychiatric intake for patient if applicable
+    await _loadPatientIntake();
+
     if (widget.pdfPath != null) {
       await importPdfFromFilePath(widget.pdfPath!);
+    }
+  }
+
+  /// Extracts patient ID from file path and loads their intake data
+  Future<void> _loadPatientIntake() async {
+    if (_hasLoadedIntake) return;
+    _hasLoadedIntake = true;
+
+    try {
+      // Extract patient ID from file path
+      // Path format: patients/{patient_id}/session_notes/session_X/...
+      String filePath = coreInfo.filePath;
+      if (filePath.startsWith('/')) {
+        filePath = filePath.substring(1);
+      }
+
+      final parts = filePath.split('/');
+      if (parts.length >= 2 && parts[0] == 'patients') {
+        final patientId = parts[1];
+        log.info('Loading intake for patient: $patientId');
+
+        final intake = await SupabaseIntakeService.getIntake(patientId);
+        if (intake != null && mounted) {
+          setState(() {
+            _patientIntake = intake;
+          });
+          log.info('Loaded intake for patient: $patientId');
+        }
+      }
+    } catch (e) {
+      log.warning('Failed to load patient intake: $e');
+      // Don't fail the editor if intake can't be loaded
     }
   }
 
@@ -945,7 +995,9 @@ class EditorState extends State<Editor> {
       // Mark consultation as completed if this is a session note
       if (widget.consultationId != null) {
         try {
-          await SupabaseDashboardService.completeConsultation(widget.consultationId!);
+          await SupabaseDashboardService.completeConsultation(
+            widget.consultationId!,
+          );
           log.info('Consultation ${widget.consultationId} marked as completed');
         } catch (e) {
           log.warning('Failed to mark consultation as completed: $e');
@@ -1337,6 +1389,114 @@ class EditorState extends State<Editor> {
     );
   }
 
+  /// Opens the intake form for editing
+  Future<void> _openIntakeFormEditor() async {
+    if (_patientIntake == null) return;
+
+    try {
+      // Extract patient ID from file path
+      String filePath = coreInfo.filePath;
+      if (filePath.startsWith('/')) {
+        filePath = filePath.substring(1);
+      }
+
+      final parts = filePath.split('/');
+      if (parts.length < 2 || parts[0] != 'patients') return;
+
+      final patientId = parts[1];
+      final patient = await SupabasePatientService.getPatient(patientId);
+      if (patient == null || !mounted) return;
+
+      final result = await Navigator.of(context).push<PsychiatricIntake>(
+        MaterialPageRoute(
+          builder: (context) => PsychiatricIntakeForm(
+            patient: patient,
+            existingIntake: _patientIntake,
+            onSave: (intake) async {
+              try {
+                final savedIntake = await SupabaseIntakeService.upsertIntake(
+                  intake,
+                );
+                if (mounted) {
+                  Navigator.of(context).pop(savedIntake);
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to save intake form: $e'),
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                    ),
+                  );
+                }
+              }
+            },
+            onCancel: () => Navigator.of(context).pop(),
+          ),
+        ),
+      );
+
+      if (result != null && mounted) {
+        setState(() {
+          _patientIntake = result;
+        });
+      }
+    } catch (e) {
+      log.warning('Failed to open intake form: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to open intake form: $e')),
+        );
+      }
+    }
+  }
+
+  /// Builds the draggable intake overlay card
+  Widget _buildDraggableIntakeOverlay(BoxConstraints constraints) {
+    return GestureDetector(
+      onPanStart: (details) {
+        // When starting to drag, if we haven't set the position yet,
+        // calculate it from the right side
+        if (_intakeOverlayPosition == null) {
+          final renderBox = context.findRenderObject() as RenderBox?;
+          if (renderBox != null) {
+            // Estimate card width (expanded: 320, collapsed: 200)
+            const estimatedCardWidth = 200.0;
+            setState(() {
+              _intakeOverlayPosition = Offset(
+                constraints.maxWidth - estimatedCardWidth - 16,
+                16,
+              );
+            });
+          }
+        }
+      },
+      onPanUpdate: (details) {
+        setState(() {
+          final newPosition =
+              (_intakeOverlayPosition ?? Offset.zero) + details.delta;
+          // Clamp position to keep the overlay visible
+          _intakeOverlayPosition = Offset(
+            newPosition.dx.clamp(0, constraints.maxWidth - 100),
+            newPosition.dy.clamp(0, constraints.maxHeight - 50),
+          );
+        });
+      },
+      child: MouseRegion(
+        cursor: SystemMouseCursors.move,
+        child: IntakeOverlayCard(
+          intake: _patientIntake!,
+          onEdit: _openIntakeFormEditor,
+          onClose: () {
+            setState(() {
+              _showIntakeOverlay = false;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = ColorScheme.of(context);
@@ -1597,7 +1757,7 @@ class EditorState extends State<Editor> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                       lottie_pkg.Lottie.asset(
+                      lottie_pkg.Lottie.asset(
                         'assets/saber.json',
                         width: 250,
                         height: 250,
@@ -1608,7 +1768,9 @@ class EditorState extends State<Editor> {
                       const Text(
                         'Digitizing clinical notes...',
                         style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -1620,45 +1782,77 @@ class EditorState extends State<Editor> {
               // Loop through all pages
               for (var i = 0; i < coreInfo.pages.length; i++) {
                 final page = coreInfo.pages[i];
-                final previewHeight = page.previewHeight(lineHeight: coreInfo.lineHeight);
+                final previewHeight = page.previewHeight(
+                  lineHeight: coreInfo.lineHeight,
+                );
                 final targetSize = Size(page.size.width, page.size.height);
 
+                log.info(
+                  'Capturing page ${i + 1}/${coreInfo.pages.length} with size: $targetSize',
+                );
+
                 final imageBytes = await screenshotController.captureFromWidget(
-                  Theme(
-                    data: ThemeData(
-                      brightness: Brightness.light,
-                      colorScheme: const ColorScheme.light(
-                        primary: EditorExporter.primaryColor,
-                        secondary: EditorExporter.secondaryColor,
-                      ),
+                  MediaQuery(
+                    // Provide consistent MediaQuery data regardless of device orientation
+                    data: MediaQueryData(
+                      size: targetSize,
+                      devicePixelRatio: 2.0,
+                      padding: EdgeInsets.zero,
+                      viewInsets: EdgeInsets.zero,
+                      viewPadding: EdgeInsets.zero,
                     ),
-                    child: Localizations.override(
-                      context: context,
-                      child: SizedBox(
-                        width: targetSize.width,
-                        height: targetSize.height,
-                        child: FittedBox(
-                          child: pageBuilderForScreenshot(
-                            context,
-                            pageIndex: i,
-                            previewHeight: previewHeight,
+                    child: Theme(
+                      data: ThemeData(
+                        brightness: Brightness.light,
+                        colorScheme: const ColorScheme.light(
+                          primary: EditorExporter.primaryColor,
+                          secondary: EditorExporter.secondaryColor,
+                        ),
+                      ),
+                      child: Localizations.override(
+                        context: context,
+                        child: SizedBox(
+                          width: targetSize.width,
+                          height: targetSize.height,
+                          child: FittedBox(
+                            child: pageBuilderForScreenshot(
+                              context,
+                              pageIndex: i,
+                              previewHeight: previewHeight,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
+                  delay: const Duration(
+                    milliseconds: 100,
+                  ), // Allow time for rendering
                   pixelRatio: 2.0, // Higher quality for OCR
                   context: context,
                   targetSize: targetSize,
                 );
+
+                log.info(
+                  'Captured page ${i + 1}, image size: ${imageBytes.length} bytes',
+                );
+
+                if (imageBytes.isEmpty) {
+                  throw Exception(
+                    'Failed to capture page ${i + 1}: empty image bytes',
+                  );
+                }
+
                 imageBytesList.add(imageBytes);
               }
 
               // 2. Send to API
               // ignore: use_build_context_synchronously
               if (!context.mounted) return;
-              
-              final reportData = await ReportGenerator.generateReport(imageBytesList);
+
+              final reportData = await ReportGenerator.generateReport(
+                imageBytesList,
+              );
 
               // 3. Show Split Screen / Report View
               // ignore: use_build_context_synchronously
@@ -1682,7 +1876,8 @@ class EditorState extends State<Editor> {
                           child: ListView.separated(
                             padding: const EdgeInsets.all(16),
                             itemCount: imageBytesList.length,
-                            separatorBuilder: (context, index) => const SizedBox(height: 16),
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 16),
                             itemBuilder: (context, index) {
                               return RepaintBoundary(
                                 child: Image.memory(
@@ -1706,30 +1901,46 @@ class EditorState extends State<Editor> {
                               final sb = StringBuffer();
                               sb.writeln('# Clinical Assessment Report');
                               sb.writeln();
-                              sb.writeln('**Date:** ${DateFormat.yMMMd().format(DateTime.now())}');
+                              sb.writeln(
+                                '**Date:** ${DateFormat.yMMMd().format(DateTime.now())}',
+                              );
                               sb.writeln();
-                              
+
                               sb.writeln('## Current Symptoms');
-                              sb.writeln(reportData['current_symptoms'] ?? 'Not mentioned');
+                              sb.writeln(
+                                reportData['current_symptoms'] ??
+                                    'Not mentioned',
+                              );
                               sb.writeln();
 
                               sb.writeln('## Premorbid Personality');
-                              sb.writeln(reportData['premorbid_personality'] ?? 'Not mentioned');
+                              sb.writeln(
+                                reportData['premorbid_personality'] ??
+                                    'Not mentioned',
+                              );
                               sb.writeln();
 
                               sb.writeln('## Past History');
-                              sb.writeln(reportData['past_history'] ?? 'Not mentioned');
+                              sb.writeln(
+                                reportData['past_history'] ?? 'Not mentioned',
+                              );
                               sb.writeln();
 
                               sb.writeln('## Family History');
-                              sb.writeln(reportData['family_history'] ?? 'Not mentioned');
+                              sb.writeln(
+                                reportData['family_history'] ?? 'Not mentioned',
+                              );
                               sb.writeln();
 
                               sb.writeln('## Mental Status Examination');
-                              final mse = reportData['mental_status_examination'];
+                              final mse =
+                                  reportData['mental_status_examination'];
                               if (mse is Map) {
                                 mse.forEach((key, value) {
-                                  final formattedKey = key.toString().replaceAll('_', ' ').toUpperCase();
+                                  final formattedKey = key
+                                      .toString()
+                                      .replaceAll('_', ' ')
+                                      .toUpperCase();
                                   sb.writeln('- **$formattedKey:** $value');
                                 });
                               } else if (mse is String) {
@@ -1740,27 +1951,36 @@ class EditorState extends State<Editor> {
                               sb.writeln();
 
                               sb.writeln('## Diagnosis');
-                              sb.writeln(reportData['provided_diagnosis'] ?? 'Not mentioned');
+                              sb.writeln(
+                                reportData['provided_diagnosis'] ??
+                                    'Not mentioned',
+                              );
 
                               // Determine path
                               String filePath = coreInfo.filePath;
                               String? patientId;
-                              
+
                               // Ensure we have a valid absolute path
                               // If the path is just '/patients/...' on mobile, it's likely relative to the app sandbox
-                              if (!File(filePath).isAbsolute || (Platform.isAndroid || Platform.isIOS) && filePath.startsWith('/patients')) {
+                              if (!File(filePath).isAbsolute ||
+                                  (Platform.isAndroid || Platform.isIOS) &&
+                                      filePath.startsWith('/patients')) {
                                 if (filePath.startsWith('/')) {
                                   filePath = filePath.substring(1);
                                 }
-                                
+
                                 // Attempt to extract patient ID from path "patients/{id}/..."
                                 final parts = filePath.split('/');
-                                if (parts.length >= 2 && parts[0] == 'patients') {
+                                if (parts.length >= 2 &&
+                                    parts[0] == 'patients') {
                                   patientId = parts[1];
                                 }
 
                                 // Use FileManager.documentsDirectory to ensure we are in the 'Saber' subfolder
-                                filePath = p.join(FileManager.documentsDirectory, filePath);
+                                filePath = p.join(
+                                  FileManager.documentsDirectory,
+                                  filePath,
+                                );
                               }
 
                               // Submit to Supabase if we found a patient ID
@@ -1772,37 +1992,66 @@ class EditorState extends State<Editor> {
                                     markdownContent: sb.toString(),
                                     sourceDocumentPath: coreInfo.filePath,
                                   );
-                                  log.info('Report saved to Supabase for patient $patientId');
+                                  log.info(
+                                    'Report saved to Supabase for patient $patientId',
+                                  );
                                 } catch (dbError) {
-                                  log.severe('Failed to save report to DB', dbError);
+                                  log.severe(
+                                    'Failed to save report to DB',
+                                    dbError,
+                                  );
                                   // Don't block local file save if DB fails
                                 }
                               }
 
                               // coreInfo.filePath is like .../patients/{id}/session_notes/session_X/notes
-                              final currentDir = p.dirname(filePath); // .../session_X
-                              final sessionName = p.basename(currentDir); // session_X
-                              final sessionNotesDir = p.dirname(currentDir); // .../session_notes
-                              final patientDir = p.dirname(sessionNotesDir); // .../patients/{id}
-                              
-                              final targetDir = p.join(patientDir, 'examination_reports');
+                              final currentDir = p.dirname(
+                                filePath,
+                              ); // .../session_X
+                              final sessionName = p.basename(
+                                currentDir,
+                              ); // session_X
+                              final sessionNotesDir = p.dirname(
+                                currentDir,
+                              ); // .../session_notes
+                              final patientDir = p.dirname(
+                                sessionNotesDir,
+                              ); // .../patients/{id}
+
+                              final targetDir = p.join(
+                                patientDir,
+                                'examination_reports',
+                              );
                               log.info('Saving report to: $targetDir');
 
-                              await Directory(targetDir).create(recursive: true);
-                              
-                              final targetFile = p.join(targetDir, 'report_$sessionName.md');
-                              await File(targetFile).writeAsString(sb.toString());
+                              await Directory(
+                                targetDir,
+                              ).create(recursive: true);
+
+                              final targetFile = p.join(
+                                targetDir,
+                                'report_$sessionName.md',
+                              );
+                              await File(
+                                targetFile,
+                              ).writeAsString(sb.toString());
 
                               if (context.mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Report saved to $targetFile')),
+                                  SnackBar(
+                                    content: Text(
+                                      'Report saved to $targetFile',
+                                    ),
+                                  ),
                                 );
                               }
                             } catch (e) {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Failed to save report: $e')),
+                                  SnackBar(
+                                    content: Text('Failed to save report: $e'),
+                                  ),
                                 );
                               }
                             }
@@ -1813,8 +2062,6 @@ class EditorState extends State<Editor> {
                   ),
                 ),
               );
-
-
             } catch (e) {
               // ignore: use_build_context_synchronously
               if (context.mounted) {
@@ -1826,9 +2073,74 @@ class EditorState extends State<Editor> {
             }
           },
         ),
-
       ),
     );
+
+    // Canvas with intake overlay if available
+    final Widget canvasWithOverlay;
+    if (_patientIntake != null) {
+      if (_showIntakeOverlay) {
+        canvasWithOverlay = LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
+              children: [
+                canvas,
+                _intakeOverlayPosition != null
+                    ? Positioned(
+                        left: _intakeOverlayPosition!.dx,
+                        top: _intakeOverlayPosition!.dy,
+                        child: _buildDraggableIntakeOverlay(constraints),
+                      )
+                    : Positioned(
+                        right: 16,
+                        top: 16,
+                        child: _buildDraggableIntakeOverlay(constraints),
+                      ),
+              ],
+            );
+          },
+        );
+      } else {
+        // Show reopen button when intake overlay is closed
+        canvasWithOverlay = Stack(
+          children: [
+            canvas,
+            Positioned(
+              right: 16,
+              top: 16,
+              child: Tooltip(
+                message: 'Show Intake Summary',
+                child: Material(
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(20),
+                  color: colorScheme.surface,
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _showIntakeOverlay = true;
+                        _intakeOverlayPosition =
+                            null; // Reset to default position
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Icon(
+                        Icons.assignment_outlined,
+                        size: 20,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      }
+    } else {
+      canvasWithOverlay = canvas;
+    }
 
     final Widget body;
     if (isToolbarVertical) {
@@ -1841,7 +2153,7 @@ class EditorState extends State<Editor> {
           Expanded(
             child: Column(
               children: [
-                Expanded(child: canvas),
+                Expanded(child: canvasWithOverlay),
                 if (readonlyBanner != null) readonlyBanner,
               ],
             ),
@@ -1855,7 +2167,7 @@ class EditorState extends State<Editor> {
             ? VerticalDirection.up
             : VerticalDirection.down,
         children: [
-          Expanded(child: canvas),
+          Expanded(child: canvasWithOverlay),
           toolbar,
           if (readonlyBanner != null) readonlyBanner,
         ],
