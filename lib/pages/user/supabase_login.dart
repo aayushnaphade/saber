@@ -50,15 +50,16 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
       onError: (error) {
         if (mounted) {
           String message = 'Authentication error occurred';
-          if (error is AuthException) {
+          final errorString = error.toString();
+          
+          if (errorString.contains('SocketException') || 
+              errorString.contains('Failed host lookup') || 
+              errorString.contains('Network is unreachable')) {
+            message = 'Network error. Please check your internet connection.';
+          } else if (error is AuthException) {
             message = error.message;
-          } else {
-            final errorString = error.toString();
-            if (errorString.contains('SocketException') || 
-                errorString.contains('Failed host lookup')) {
-              message = 'Network error. Please check your internet connection.';
-            }
           }
+          
           _showErrorSnackBar(message);
         }
       },

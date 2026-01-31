@@ -48,13 +48,13 @@ class DashboardStats {
   final int patientsToday;
   final int pendingReports;
   final int completedSessions;
-  final double averageTimePerPatient; // in minutes
+  final int totalConsultationMinutes;
 
   const DashboardStats({
     required this.patientsToday,
     required this.pendingReports,
     required this.completedSessions,
-    required this.averageTimePerPatient,
+    required this.totalConsultationMinutes,
   });
 }
 
@@ -122,7 +122,7 @@ class MockDashboardData {
       patientsToday: 12,
       pendingReports: 3,
       completedSessions: 5,
-      averageTimePerPatient: 18.5,
+      totalConsultationMinutes: 45,
     );
   }
 

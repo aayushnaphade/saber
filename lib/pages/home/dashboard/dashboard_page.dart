@@ -34,7 +34,7 @@ class _DashboardPageState extends State<DashboardPage> {
     patientsToday: 0,
     pendingReports: 0,
     completedSessions: 0,
-    averageTimePerPatient: 0,
+    totalConsultationMinutes: 0,
   );
   List<QueueItem> _queue = [];
   List<Appointment> _appointments = [];
@@ -143,7 +143,10 @@ class _DashboardPageState extends State<DashboardPage> {
       // 1. Update status to in_progress
       await supabase
           .from('consultations')
-          .update({'status': 'in_progress'})
+          .update({
+            'status': 'in_progress',
+            'session_start_time': DateTime.now().toIso8601String(),
+          })
           .eq('id', item.id);
 
       // 2. Create Session Files
@@ -423,11 +426,11 @@ class _DashboardPageState extends State<DashboardPage> {
         const SizedBox(width: 12),
         Expanded(
           child: StatCard(
-            label: 'Avg. Time',
-            value: '${stats.averageTimePerPatient}m',
+            label: 'Total Time',
+            value: '${stats.totalConsultationMinutes}m',
             icon: Icons.timer_outlined,
             color: Colors.orange,
-            trend: '-2m',
+            // trend: '-2m', // Trend logic removed for now
             isPositiveTrend: true,
           ),
         ),

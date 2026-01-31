@@ -79,4 +79,15 @@ class SupabaseReportService {
     
     return (response as List).map((e) => ClinicalReport.fromJson(e)).toList();
   }
+
+  static Future<ClinicalReport?> getReportBySourcePath(String sourcePath) async {
+    final response = await supabase
+        .from('clinical_reports')
+        .select()
+        .eq('source_document_path', sourcePath)
+        .maybeSingle();
+    
+    if (response == null) return null;
+    return ClinicalReport.fromJson(response);
+  }
 }

@@ -130,12 +130,24 @@ class SupabaseDashboardService {
           .count(CountOption.exact)
           .gte('created_at', startOfDay);
 
-      // Count completed sessions
-      final completedSessions = await supabase
+      final completedSessionsData = await supabase
           .from('consultations')
-          .count(CountOption.exact)
+          .select('session_start_time, session_end_time')
           .gte('created_at', startOfDay)
           .eq('status', 'completed');
+
+      final completedSessions = (completedSessionsData as List).length;
+
+      int totalMinutes = 0;
+      for (final session in completedSessionsData as List) {
+        final startStr = session['session_start_time'] as String?;
+        final endStr = session['session_end_time'] as String?;
+        if (startStr != null && endStr != null) {
+          final start = DateTime.parse(startStr);
+          final end = DateTime.parse(endStr);
+          totalMinutes += end.difference(start).inMinutes;
+        }
+      }
 
       // Count pending (waiting)
       final pending = await supabase
@@ -148,7 +160,7 @@ class SupabaseDashboardService {
         patientsToday: patientsToday,
         pendingReports: pending, // Using pending consultations as proxy
         completedSessions: completedSessions,
-        averageTimePerPatient: completedSessions > 0 ? 15.0 : 0.0, // Mock value until we have duration data
+        totalConsultationMinutes: totalMinutes,
       );
     } catch (e) {
       log.severe('Error fetching stats: $e');
@@ -156,7 +168,7 @@ class SupabaseDashboardService {
         patientsToday: 0,
         pendingReports: 0,
         completedSessions: 0,
-        averageTimePerPatient: 0,
+        totalConsultationMinutes: 0,
       );
     }
   }
@@ -193,7 +205,10 @@ class SupabaseDashboardService {
     try {
       await supabase
           .from('consultations')
-          .update({'status': 'completed'})
+          .update({
+            'status': 'completed',
+            'session_end_time': DateTime.now().toIso8601String(),
+          })
           .eq('id', consultationId);
       log.info('Consultation $consultationId marked as completed');
     } catch (e) {

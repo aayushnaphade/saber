@@ -322,12 +322,12 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     if (patient == null) return;
 
     try {
-      // If this is the first session and no intake form exists, show the intake form first
-      if (sessions.isEmpty && _patientIntake == null) {
+      // If this is the first session, show the intake form first
+      if (sessions.isEmpty) {
         // Show intake form first for new patients
         await _showIntakeForm();
         
-        // If intake was cancelled, don't proceed with session
+        // If intake was cancelled and we don't have an intake, don't proceed with session
         if (_patientIntake == null) {
           return;
         }
@@ -353,9 +353,51 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       final documentName = 'session_${nextSessionNumber}_notes';
       final documentPath = '$sessionPath/$documentName.sbn';
 
+      // Create consultation record to mark doctor as busy
+      String? consultationId;
+      try {
+        final user = supabase.auth.currentUser;
+        if (user != null) {
+          // Get max queue order to maintain consistency
+          final maxOrderResponse = await supabase
+              .from('consultations')
+              .select('queue_order')
+              .eq('doctor_id', user.id)
+              .or('status.eq.waiting,status.eq.in_progress')
+              .order('queue_order', ascending: false)
+              .limit(1)
+              .maybeSingle();
+
+          final nextQueueOrder =
+              (maxOrderResponse?['queue_order'] as int? ?? 0) + 1;
+
+          final response = await supabase
+              .from('consultations')
+              .insert({
+                'patient_id': patient!.id,
+                'doctor_id': user.id,
+                'status': 'in_progress', // Immediately mark as busy/in-progress
+                'scheduled_time': DateTime.now().toIso8601String(),
+                'appointment_type': 'walk-in',
+                'queue_order': nextQueueOrder,
+              })
+              .select()
+              .single();
+          consultationId = response['id'];
+        }
+      } catch (e) {
+        debugPrint('Failed to create consultation record: $e');
+        // Proceed anyway so the doctor can still take notes
+      }
+
       // Navigate to editor with new document
       if (mounted) {
-        context.go(RoutePaths.editFilePath(documentPath));
+        context.go(
+          RoutePaths.editFilePath(
+            documentPath,
+            consultationId: consultationId,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
