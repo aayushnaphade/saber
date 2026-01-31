@@ -200,10 +200,10 @@ class CanvasBackgroundPainter extends CustomPainter {
       case .psychiatric:
         // Psychiatric session notes template
         // Based on SOAP-like structure optimized for psychiatric assessments
-        
+
         final margin = lineHeight * 1.5;
         final sectionPadding = lineHeight * 0.5;
-        
+
         // === HEADER SECTION ===
         // Patient name line (left half)
         yield PatternElement(
@@ -217,14 +217,14 @@ class CanvasBackgroundPainter extends CustomPainter {
           Offset(size.width - margin, lineHeight * 1.5),
           isLine: true,
         );
-        
+
         // Session number / Visit type line
         yield PatternElement(
           Offset(margin, lineHeight * 2.5),
           Offset(size.width * 0.5, lineHeight * 2.5),
           isLine: true,
         );
-        
+
         // Header separator
         yield PatternElement(
           Offset(margin, lineHeight * 3.5),
@@ -232,7 +232,7 @@ class CanvasBackgroundPainter extends CustomPainter {
           isLine: true,
           secondaryColor: true,
         );
-        
+
         // === CHIEF COMPLAINT / HPI SECTION ===
         // Section label marker (small line on left)
         yield PatternElement(
@@ -241,7 +241,7 @@ class CanvasBackgroundPainter extends CustomPainter {
           isLine: true,
           secondaryColor: true,
         );
-        
+
         // Content lines for Chief Complaint (3 lines)
         for (int i = 0; i < 3; i++) {
           yield PatternElement(
@@ -250,10 +250,10 @@ class CanvasBackgroundPainter extends CustomPainter {
             isLine: true,
           );
         }
-        
+
         // === MENTAL STATUS EXAM SECTION ===
-        final mseTop = lineHeight * 9;
-        
+        final mseTop = lineHeight * 9.0;
+
         // Section marker
         yield PatternElement(
           Offset(margin * 0.5, mseTop),
@@ -261,7 +261,7 @@ class CanvasBackgroundPainter extends CustomPainter {
           isLine: true,
           secondaryColor: true,
         );
-        
+
         // MSE section divider
         yield PatternElement(
           Offset(margin, mseTop + sectionPadding),
@@ -269,40 +269,40 @@ class CanvasBackgroundPainter extends CustomPainter {
           isLine: true,
           secondaryColor: true,
         );
-        
+
         // Two-column layout for MSE checkboxes area
-        final mseContentTop = mseTop + lineHeight;
+        final mseContentTop = mseTop + lineHeight.toDouble();
         final centerX = size.width / 2;
-        
+
         // Left column lines (Appearance, Behavior, Speech, Mood)
         for (int i = 0; i < 5; i++) {
           yield PatternElement(
-            Offset(margin, mseContentTop + lineHeight * i),
-            Offset(centerX - sectionPadding, mseContentTop + lineHeight * i),
+            Offset(margin, mseContentTop + lineHeight * i.toDouble()),
+            Offset(centerX - sectionPadding, mseContentTop + lineHeight * i.toDouble()),
             isLine: true,
           );
         }
-        
+
         // Right column lines (Affect, Thought Process, Thought Content, Perceptions)
         for (int i = 0; i < 5; i++) {
           yield PatternElement(
-            Offset(centerX + sectionPadding, mseContentTop + lineHeight * i),
-            Offset(size.width - margin, mseContentTop + lineHeight * i),
+            Offset(centerX + sectionPadding, mseContentTop + lineHeight * i.toDouble()),
+            Offset(size.width - margin, mseContentTop + lineHeight * i.toDouble()),
             isLine: true,
           );
         }
-        
+
         // Vertical divider for MSE columns
         yield PatternElement(
           Offset(centerX, mseContentTop),
-          Offset(centerX, mseContentTop + lineHeight * 4),
+          Offset(centerX, mseContentTop + lineHeight * 4.0),
           isLine: true,
           secondaryColor: true,
         );
-        
+
         // === ASSESSMENT SECTION ===
-        final assessmentTop = mseContentTop + lineHeight * 6;
-        
+        final assessmentTop = mseContentTop + lineHeight * 6.0;
+
         // Section marker
         yield PatternElement(
           Offset(margin * 0.5, assessmentTop),
@@ -310,7 +310,7 @@ class CanvasBackgroundPainter extends CustomPainter {
           isLine: true,
           secondaryColor: true,
         );
-        
+
         // Section divider
         yield PatternElement(
           Offset(margin, assessmentTop + sectionPadding),
@@ -318,19 +318,19 @@ class CanvasBackgroundPainter extends CustomPainter {
           isLine: true,
           secondaryColor: true,
         );
-        
+
         // Assessment content lines (4 lines for diagnoses)
         for (int i = 0; i < 4; i++) {
           yield PatternElement(
-            Offset(margin, assessmentTop + lineHeight * (1 + i)),
-            Offset(size.width - margin, assessmentTop + lineHeight * (1 + i)),
+            Offset(margin, assessmentTop + lineHeight * (1.0 + i)),
+            Offset(size.width - margin, assessmentTop + lineHeight * (1.0 + i)),
             isLine: true,
           );
         }
-        
+
         // === PLAN SECTION ===
-        final planTop = assessmentTop + lineHeight * 6;
-        
+        final planTop = assessmentTop + lineHeight * 6.0;
+
         // Section marker
         yield PatternElement(
           Offset(margin * 0.5, planTop),
@@ -338,7 +338,7 @@ class CanvasBackgroundPainter extends CustomPainter {
           isLine: true,
           secondaryColor: true,
         );
-        
+
         // Section divider
         yield PatternElement(
           Offset(margin, planTop + sectionPadding),
@@ -346,10 +346,14 @@ class CanvasBackgroundPainter extends CustomPainter {
           isLine: true,
           secondaryColor: true,
         );
-        
+
         // Plan content lines (remaining space)
-        final planContentTop = planTop + lineHeight;
-        for (double y = planContentTop; y < size.height - lineHeight; y += lineHeight) {
+        final planContentTop = planTop + lineHeight.toDouble();
+        for (
+          double y = planContentTop;
+          y < size.height - lineHeight;
+          y += lineHeight
+        ) {
           yield PatternElement(
             Offset(margin, y),
             Offset(size.width - margin, y),

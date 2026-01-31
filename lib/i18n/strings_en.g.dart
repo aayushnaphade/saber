@@ -326,8 +326,8 @@ class TranslationsHomeTabsEn {
 
 	// Translations
 
-	/// en: 'Home'
-	String get home => 'Home';
+	/// en: 'History'
+	String get home => 'History';
 
 	/// en: 'Browse'
 	String get browse => 'Browse';
@@ -347,8 +347,8 @@ class TranslationsHomeTitlesEn {
 
 	// Translations
 
-	/// en: 'Recent notes'
-	String get home => 'Recent notes';
+	/// en: 'History'
+	String get home => 'History';
 
 	/// en: 'Browse'
 	String get browse => 'Browse';
@@ -1500,4 +1500,7 @@ class TranslationsEditorMenuBgPatternsEn {
 
 	/// en: 'Cornell'
 	String get cornell => 'Cornell';
+
+	/// en: 'Psychiatric Notes'
+	String get psychiatric => 'Psychiatric Notes';
 }
