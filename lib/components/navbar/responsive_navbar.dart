@@ -10,11 +10,11 @@ class ResponsiveNavbar extends StatefulWidget {
   const ResponsiveNavbar({
     super.key,
     required this.body,
-    this.selectedIndex = 0,
+    this.selectedIndex,
   });
 
   final Widget body;
-  final int selectedIndex;
+  final int? selectedIndex;
 
   @override
   State<ResponsiveNavbar> createState() => _ResponsiveNavbarState();

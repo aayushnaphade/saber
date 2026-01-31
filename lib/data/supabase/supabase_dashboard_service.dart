@@ -301,6 +301,52 @@ class SupabaseDashboardService {
     }
   }
 
+  /// Fetches consultation history for a given date range
+  static Future<List<Appointment>> getConsultationHistory(
+      DateTime start, DateTime end) async {
+    try {
+      final response = await supabase
+          .from('consultations')
+          .select('*, patients(full_name, visit_type)')
+          .gte('created_at', start.toIso8601String())
+          .lte('created_at', end.toIso8601String())
+          .order('created_at', ascending: false);
+
+      return (response as List).map((item) {
+        final patient = item['patients'];
+        final patientName = patient != null ? patient['full_name'] : 'Unknown';
+        final visitType = patient != null ? patient['visit_type'] : null;
+        final statusStr = item['status'] as String;
+        final appointmentTypeStr = item['appointment_type'] as String?;
+
+        AppointmentStatus status;
+        switch (statusStr) {
+          case 'completed':
+            status = AppointmentStatus.completed;
+          case 'cancelled':
+            status = AppointmentStatus.cancelled;
+          case 'in_progress':
+            status = AppointmentStatus.inProgress;
+          default:
+            status = AppointmentStatus.upcoming;
+        }
+
+        return Appointment(
+          id: item['id'],
+          patientName: patientName,
+          patientId: item['patient_id'],
+          time: DateTime.parse(item['created_at']),
+          reason: visitType ?? 'General Consultation',
+          status: status,
+          appointmentType: appointmentTypeStr ?? 'walk-in',
+        );
+      }).toList();
+    } catch (e) {
+      log.severe('Error fetching consultation history: $e');
+      return [];
+    }
+  }
+
   /// Generate mock AI insights (until we have real analysis backend)
   static Future<List<AIInsight>> getInsights() async {
     // In a real app, this would fetch from an 'insights' table or an Edge Function

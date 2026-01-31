@@ -50,7 +50,6 @@ class Toolbar extends StatefulWidget {
     required this.exportAsSba,
     required this.exportAsPdf,
     required this.exportAsPng,
-    required this.generateReport,
   });
 
   final bool readOnly;
@@ -80,7 +79,6 @@ class Toolbar extends StatefulWidget {
   final Future Function(BuildContext)? exportAsSba;
   final Future Function(BuildContext)? exportAsPdf;
   final Future Function(BuildContext)? exportAsPng;
-  final Future Function(BuildContext)? generateReport;
 
   @override
   State<Toolbar> createState() => _ToolbarState();
@@ -346,7 +344,8 @@ class _ToolbarState extends State<Toolbar> {
                   }
                 },
                 padding: buttonPadding,
-                child: FaIcon(Pen.currentPen.icon, size: 16),
+                customColor: Colors.blue[700],
+                child: FaIcon(Pen.currentPen.icon, size: 24),
               ),
               ToolbarIconButton(
                 tooltip: t.editor.pens.pencil,
@@ -365,7 +364,8 @@ class _ToolbarState extends State<Toolbar> {
                   }
                 },
                 padding: buttonPadding,
-                child: const FaIcon(Pencil.pencilIcon, size: 16),
+                customColor: Colors.orange[800],
+                child: const FaIcon(Pencil.pencilIcon, size: 24),
               ),
               ToolbarIconButton(
                 tooltip: t.editor.pens.highlighter,
@@ -384,16 +384,10 @@ class _ToolbarState extends State<Toolbar> {
                   }
                 },
                 padding: buttonPadding,
-                child: const FaIcon(Highlighter.highlighterIcon, size: 16),
+                customColor: Colors.amber[800],
+                child: const FaIcon(Highlighter.highlighterIcon, size: 24),
               ),
-              ToolbarIconButton(
-                tooltip: 'Finish Session & Generate Report',
-                selected: false,
-                enabled: !widget.readOnly,
-                onPressed: () => widget.generateReport?.call(context),
-                padding: buttonPadding,
-                child: const Icon(Icons.auto_awesome, size: 20),
-              ),
+
               ValueListenableBuilder(
                 valueListenable: showColorOptions,
                 builder: (context, showColorOptions, child) {
@@ -433,6 +427,7 @@ class _ToolbarState extends State<Toolbar> {
                   widget.setTool(Select.currentSelect);
                 },
                 padding: buttonPadding,
+                customColor: Colors.indigo,
                 child: Icon(
                   CupertinoIcons.lasso,
                   shadows: !widget.readOnly
@@ -457,6 +452,7 @@ class _ToolbarState extends State<Toolbar> {
                   widget.setTool(LaserPointer.currentLaserPointer);
                 },
                 padding: buttonPadding,
+                customColor: Colors.red,
                 child: const Icon(Symbols.stylus_laser_pointer),
               ),
               ToolbarIconButton(
@@ -465,28 +461,8 @@ class _ToolbarState extends State<Toolbar> {
                 enabled: !widget.readOnly,
                 onPressed: toggleEraser,
                 padding: buttonPadding,
-                child: const FaIcon(FontAwesomeIcons.eraser, size: 16),
-              ),
-              ToolbarIconButton(
-                tooltip: t.editor.toolbar.photo,
-                enabled: !widget.readOnly,
-                onPressed: widget.pickPhoto,
-                padding: buttonPadding,
-                child: const AdaptiveIcon(
-                  icon: Icons.photo,
-                  cupertinoIcon: CupertinoIcons.photo,
-                ),
-              ),
-              ToolbarIconButton(
-                tooltip: t.editor.toolbar.text,
-                selected: widget.textEditing,
-                enabled: !widget.readOnly,
-                onPressed: widget.toggleTextEditing,
-                padding: buttonPadding,
-                child: const AdaptiveIcon(
-                  icon: Icons.text_fields,
-                  cupertinoIcon: CupertinoIcons.text_cursor,
-                ),
+                customColor: Colors.pink[400],
+                child: const FaIcon(FontAwesomeIcons.eraser, size: 24),
               ),
               if (!stows.hideFingerDrawingToggle.value)
                 ValueListenableBuilder(
@@ -502,21 +478,6 @@ class _ToolbarState extends State<Toolbar> {
                     );
                   },
                 ),
-              ToolbarIconButton(
-                tooltip: t.editor.toolbar.fullscreen,
-                selected: DynamicMaterialApp.isFullscreen,
-                enabled: !widget.readOnly,
-                onPressed: toggleFullscreen,
-                padding: buttonPadding,
-                child: AdaptiveIcon(
-                  icon: DynamicMaterialApp.isFullscreen
-                      ? Icons.fullscreen_exit
-                      : Icons.fullscreen,
-                  cupertinoIcon: DynamicMaterialApp.isFullscreen
-                      ? CupertinoIcons.fullscreen_exit
-                      : CupertinoIcons.fullscreen,
-                ),
-              ),
               Wrap(
                 direction: isToolbarVertical ? Axis.vertical : Axis.horizontal,
                 children: [
@@ -541,23 +502,6 @@ class _ToolbarState extends State<Toolbar> {
                     ),
                   ),
                 ],
-              ),
-              ValueListenableBuilder(
-                valueListenable: showExportOptions,
-                builder: (context, showExportOptions, child) {
-                  return ToolbarIconButton(
-                    tooltip: t.editor.toolbar.export,
-                    selected: showExportOptions,
-                    enabled: !widget.readOnly,
-                    onPressed: toggleExportBar,
-                    padding: buttonPadding,
-                    child: child!,
-                  );
-                },
-                child: const AdaptiveIcon(
-                  icon: Icons.share,
-                  cupertinoIcon: CupertinoIcons.share,
-                ),
               ),
             ],
           ),

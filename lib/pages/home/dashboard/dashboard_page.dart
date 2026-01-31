@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/dashboard_models.dart';
+import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
@@ -277,7 +278,8 @@ class _DashboardPageState extends State<DashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                WelcomeHeader(doctorName: _doctorName, avatarUrl: _avatarUrl),
+                WelcomeHeader(
+                    doctorName: _doctorName, avatarUrl: _avatarUrl),
                 const SizedBox(height: 32),
 
                 // Main Grid Layout
@@ -288,14 +290,12 @@ class _DashboardPageState extends State<DashboardPage> {
                         _stats,
                         _queue,
                         _appointments,
-                        _insights,
                       );
                     } else {
                       return _buildMobileLayout(
                         _stats,
                         _queue,
                         _appointments,
-                        _insights,
                       );
                     }
                   },
@@ -312,7 +312,6 @@ class _DashboardPageState extends State<DashboardPage> {
     DashboardStats stats,
     List<QueueItem> queue,
     List<Appointment> appointments,
-    List<AIInsight> insights,
   ) {
     final waitingCount = queue.isEmpty ? 0 : queue.length - 1;
     final currentPatient = queue.isNotEmpty ? queue.first : null;
@@ -336,11 +335,7 @@ class _DashboardPageState extends State<DashboardPage> {
               : null,
         ),
         const SizedBox(height: 24),
-        const QuickActions(),
-        const SizedBox(height: 24),
         _buildStatsGrid(stats),
-        const SizedBox(height: 24),
-        AIInsightsCard(insights: insights),
         const SizedBox(height: 24),
         AppointmentTimeline(
           appointments: appointments,
@@ -355,7 +350,6 @@ class _DashboardPageState extends State<DashboardPage> {
     DashboardStats stats,
     List<QueueItem> queue,
     List<Appointment> appointments,
-    List<AIInsight> insights,
   ) {
     final waitingCount = queue.isEmpty ? 0 : queue.length - 1;
     final currentPatient = queue.isNotEmpty ? queue.first : null;
@@ -395,18 +389,6 @@ class _DashboardPageState extends State<DashboardPage> {
             ],
           ),
         ),
-        const SizedBox(width: 24),
-        // Right Column (Quick Actions & Insights)
-        Expanded(
-          flex: 1,
-          child: Column(
-            children: [
-              const QuickActions(),
-              const SizedBox(height: 24),
-              AIInsightsCard(insights: insights),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -434,7 +416,47 @@ class _DashboardPageState extends State<DashboardPage> {
             isPositiveTrend: true,
           ),
         ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildHistoryButton(context),
+        ),
       ],
+    );
+  }
+
+  Widget _buildHistoryButton(BuildContext context) {
+    return Material(
+      color: Colors.purple.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () => context.go('/home/history'),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          height: 100, // Approximate height to match StatCard
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.history, color: Colors.purple),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'History',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

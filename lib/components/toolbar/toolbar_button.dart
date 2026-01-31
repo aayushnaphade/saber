@@ -9,6 +9,7 @@ class ToolbarIconButton extends StatelessWidget {
     required this.onPressed,
     required this.padding,
     required this.child,
+    this.customColor,
   });
 
   final String? tooltip;
@@ -18,6 +19,7 @@ class ToolbarIconButton extends StatelessWidget {
 
   final EdgeInsets padding;
   final Widget child;
+  final Color? customColor;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +38,7 @@ class ToolbarIconButton extends StatelessWidget {
       if (states.contains(WidgetState.selected)) {
         return colorScheme.onPrimary;
       }
-      return colorScheme.primary;
+      return customColor ?? colorScheme.onSurface;
     });
     final buttonStyle = ButtonStyle(
       backgroundColor: backgroundColor,

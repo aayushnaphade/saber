@@ -9,12 +9,12 @@ class HorizontalNavbar extends StatelessWidget {
   const HorizontalNavbar({
     super.key,
     required this.destinations,
-    this.selectedIndex = 0,
+    this.selectedIndex,
     this.onDestinationSelected,
   });
 
   final List<NavigationDestination> destinations;
-  final int selectedIndex;
+  final int? selectedIndex;
   final ValueChanged<int>? onDestinationSelected;
 
   /// The height that should be cleared at the bottom of the screen,

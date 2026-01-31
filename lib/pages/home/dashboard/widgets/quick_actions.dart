@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:saber/pages/home/dashboard/widgets/new_patient_dialog.dart';
 import 'package:saber/pages/home/dashboard/widgets/schedule_appointment_dialog.dart';
 import 'package:saber/design_system/spacing.dart';
@@ -23,34 +24,19 @@ class QuickActions extends StatelessWidget {
         },
       ),
       (
-        label: 'Schedule',
-        icon: Icons.calendar_today_outlined,
+        label: 'Follow Patient',
+        icon: Icons.people_outline,
         color: Colors.green,
         onTap: () {
-          showDialog(
-            context: context,
-            builder: (context) => const ScheduleAppointmentDialog(),
-          );
+          context.go('/home/browse');
         },
       ),
       (
-        label: 'Upload Scan',
-        icon: Icons.upload_file_outlined,
+        label: 'History',
+        icon: Icons.history_outlined,
         color: Colors.purple,
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Document scanning coming soon')),
-          );
-        },
-      ),
-      (
-        label: 'Voice Note',
-        icon: Icons.mic_none_outlined,
-        color: Colors.orange,
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Voice dictation coming soon')),
-          );
+          context.go('/home/history');
         },
       ),
     ];

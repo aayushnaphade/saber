@@ -192,6 +192,7 @@ class EditorState extends State<Editor> {
   bool _hasLoadedIntake = false;
   Offset? _intakeOverlayPosition; // null means use default right-side position
   String? _doctorName;
+  String? _patientId;
 
   // used to prevent accidentally drawing when pinch zooming
   var lastSeenPointerCount = 0;
@@ -272,9 +273,11 @@ class EditorState extends State<Editor> {
         filePath = filePath.substring(1);
       }
 
-      final parts = filePath.split('/');
+       final parts = filePath.split('/');
       if (parts.length >= 2 && parts[0] == 'patients') {
         final patientId = parts[1];
+        _patientId = patientId; // Store patient ID for potential intake creation
+        
         log.info('Loading intake for patient: $patientId');
 
         final intake = await SupabaseIntakeService.getIntake(patientId);
@@ -283,7 +286,7 @@ class EditorState extends State<Editor> {
             _patientIntake = intake;
           });
           log.info('Loaded intake for patient: $patientId');
-        }
+        } 
       }
     } catch (e) {
       log.warning('Failed to load patient intake: $e');
@@ -1413,19 +1416,13 @@ class EditorState extends State<Editor> {
 
   /// Opens the intake form for editing
   Future<void> _openIntakeFormEditor() async {
-    if (_patientIntake == null) return;
+    // If we have a patient intake, we can open it.
+    // If we don't have one, we need at least the patient ID to create one.
+    if (_patientIntake == null && _patientId == null) return;
+    
+    final patientId = _patientIntake?.patientId ?? _patientId!;
 
     try {
-      // Extract patient ID from file path
-      String filePath = coreInfo.filePath;
-      if (filePath.startsWith('/')) {
-        filePath = filePath.substring(1);
-      }
-
-      final parts = filePath.split('/');
-      if (parts.length < 2 || parts[0] != 'patients') return;
-
-      final patientId = parts[1];
       final patient = await SupabasePatientService.getPatient(patientId);
       if (patient == null || !mounted) return;
 
@@ -1521,6 +1518,159 @@ class EditorState extends State<Editor> {
   }
 
   @override
+
+  Future<void> _generateReport(BuildContext context) async {
+    // 0. Check for existing report first
+    ClinicalReport? existingReport;
+    try {
+      existingReport = await SupabaseReportService.getReportBySourcePath(coreInfo.filePath);
+    } catch (e) {
+      log.warning('Failed to check for existing report: $e');
+    }
+
+    if (existingReport != null) {
+      // Show existing report without generating new one
+      if (!context.mounted) return;
+      _showReportDialog(context, existingReport.structuredData, <Uint8List>[]);
+      return;
+    }
+
+    // 1. Capture Screenshots of ALL pages
+    final screenshotController = ScreenshotController();
+    final imageBytesList = <Uint8List>[];
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              lottie_pkg.Lottie.asset(
+                'assets/saber.json',
+                width: 250,
+                height: 250,
+                errorBuilder: (context, error, stackTrace) =>
+                    const CircularProgressIndicator(),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Digitizing clinical notes...',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // Loop through all pages
+      for (var i = 0; i < coreInfo.pages.length; i++) {
+        final page = coreInfo.pages[i];
+        final previewHeight = page.previewHeight(
+          lineHeight: coreInfo.lineHeight,
+        );
+        final targetSize = Size(page.size.width, page.size.height);
+
+        log.info(
+          'Capturing page ${i + 1}/${coreInfo.pages.length} with size: $targetSize',
+        );
+
+        final imageBytes = await screenshotController.captureFromWidget(
+          MediaQuery(
+            // Provide consistent MediaQuery data regardless of device orientation
+            data: MediaQueryData(
+              size: targetSize,
+              devicePixelRatio: 2.0,
+              padding: EdgeInsets.zero,
+              viewInsets: EdgeInsets.zero,
+              viewPadding: EdgeInsets.zero,
+            ),
+            child: Theme(
+              data: ThemeData(
+                brightness: Brightness.light,
+                colorScheme: const ColorScheme.light(
+                  primary: EditorExporter.primaryColor,
+                  secondary: EditorExporter.secondaryColor,
+                ),
+              ),
+              child: Localizations.override(
+                context: context,
+                child: SizedBox(
+                  width: targetSize.width,
+                  height: targetSize.height,
+                  child: FittedBox(
+                    child: pageBuilderForScreenshot(
+                      context,
+                      pageIndex: i,
+                      previewHeight: previewHeight,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          delay: const Duration(
+            milliseconds: 100,
+          ), // Allow time for rendering
+          pixelRatio: 2.0, // Higher quality for OCR
+          context: context,
+          targetSize: targetSize,
+        );
+
+        log.info(
+          'Captured page ${i + 1}, image size: ${imageBytes.length} bytes',
+        );
+
+        if (imageBytes.isEmpty) {
+          throw Exception(
+            'Failed to capture page ${i + 1}: empty image bytes',
+          );
+        }
+
+        imageBytesList.add(imageBytes);
+      }
+
+      // 2. Send to API
+      // ignore: use_build_context_synchronously
+      if (!context.mounted) return;
+
+      final reportData = await ReportGenerator.generateReport(
+        imageBytesList,
+      );
+
+      // 3. Show Split Screen / Report View
+      // ignore: use_build_context_synchronously
+      if (!context.mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      // Calculate total height for the scrollable preview
+      // We'll just stack them vertically in a ListView
+      // No need to stitch bytes manually, the UI can just list them.
+
+      _showReportDialog(context, reportData, imageBytesList);
+    } catch (e) {
+      // ignore: use_build_context_synchronously
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating report: $e')),
+        );
+      }
+    }
+  }
+
   Widget build(BuildContext context) {
     final colorScheme = ColorScheme.of(context);
     final platform = Theme.of(context).platform;
@@ -1761,157 +1911,6 @@ class EditorState extends State<Editor> {
           exportAsSba: exportAsSba,
           exportAsPdf: exportAsPdf,
           exportAsPng: null,
-          generateReport: (context) async {
-            // 0. Check for existing report first
-            ClinicalReport? existingReport;
-            try {
-              existingReport = await SupabaseReportService.getReportBySourcePath(coreInfo.filePath);
-            } catch (e) {
-              log.warning('Failed to check for existing report: $e');
-            }
-
-            if (existingReport != null) {
-              // Show existing report without generating new one
-              if (!context.mounted) return;
-              _showReportDialog(context, existingReport.structuredData, <Uint8List>[]);
-              return;
-            }
-
-            // 1. Capture Screenshots of ALL pages
-            final screenshotController = ScreenshotController();
-            final imageBytesList = <Uint8List>[];
-
-            // Show loading indicator
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => Center(
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      lottie_pkg.Lottie.asset(
-                        'assets/saber.json',
-                        width: 250,
-                        height: 250,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const CircularProgressIndicator(),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Digitizing clinical notes...',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-
-            try {
-              // Loop through all pages
-              for (var i = 0; i < coreInfo.pages.length; i++) {
-                final page = coreInfo.pages[i];
-                final previewHeight = page.previewHeight(
-                  lineHeight: coreInfo.lineHeight,
-                );
-                final targetSize = Size(page.size.width, page.size.height);
-
-                log.info(
-                  'Capturing page ${i + 1}/${coreInfo.pages.length} with size: $targetSize',
-                );
-
-                final imageBytes = await screenshotController.captureFromWidget(
-                  MediaQuery(
-                    // Provide consistent MediaQuery data regardless of device orientation
-                    data: MediaQueryData(
-                      size: targetSize,
-                      devicePixelRatio: 2.0,
-                      padding: EdgeInsets.zero,
-                      viewInsets: EdgeInsets.zero,
-                      viewPadding: EdgeInsets.zero,
-                    ),
-                    child: Theme(
-                      data: ThemeData(
-                        brightness: Brightness.light,
-                        colorScheme: const ColorScheme.light(
-                          primary: EditorExporter.primaryColor,
-                          secondary: EditorExporter.secondaryColor,
-                        ),
-                      ),
-                      child: Localizations.override(
-                        context: context,
-                        child: SizedBox(
-                          width: targetSize.width,
-                          height: targetSize.height,
-                          child: FittedBox(
-                            child: pageBuilderForScreenshot(
-                              context,
-                              pageIndex: i,
-                              previewHeight: previewHeight,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  delay: const Duration(
-                    milliseconds: 100,
-                  ), // Allow time for rendering
-                  pixelRatio: 2.0, // Higher quality for OCR
-                  context: context,
-                  targetSize: targetSize,
-                );
-
-                log.info(
-                  'Captured page ${i + 1}, image size: ${imageBytes.length} bytes',
-                );
-
-                if (imageBytes.isEmpty) {
-                  throw Exception(
-                    'Failed to capture page ${i + 1}: empty image bytes',
-                  );
-                }
-
-                imageBytesList.add(imageBytes);
-              }
-
-              // 2. Send to API
-              // ignore: use_build_context_synchronously
-              if (!context.mounted) return;
-
-              final reportData = await ReportGenerator.generateReport(
-                imageBytesList,
-              );
-
-              // 3. Show Split Screen / Report View
-              // ignore: use_build_context_synchronously
-              if (!context.mounted) return;
-              Navigator.pop(context); // Close loading dialog
-
-              // Calculate total height for the scrollable preview
-              // We'll just stack them vertically in a ListView
-              // No need to stitch bytes manually, the UI can just list them.
-
-              _showReportDialog(context, reportData, imageBytesList);
-            } catch (e) {
-              // ignore: use_build_context_synchronously
-              if (context.mounted) {
-                Navigator.pop(context); // Close loading dialog
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error generating report: $e')),
-                );
-              }
-            }
-          },
         ),
       ),
     );
@@ -1978,6 +1977,37 @@ class EditorState extends State<Editor> {
           ],
         );
       }
+    } else if (_patientId != null) {
+      // No intake loaded, but we have a patient ID - show button to create/view
+      canvasWithOverlay = Stack(
+        children: [
+          canvas,
+          Positioned(
+            right: 16,
+            top: 16,
+            child: Tooltip(
+              message: 'Fill Intake Form',
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(20),
+                color: colorScheme.surface,
+                child: InkWell(
+                  onTap: _openIntakeFormEditor,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.assignment_outlined,
+                      size: 20,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
     } else {
       canvasWithOverlay = canvas;
     }
@@ -2061,6 +2091,29 @@ class EditorState extends State<Editor> {
                   triggerSave: saveToFile,
                 ),
                 actions: [
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.blue.shade400, Colors.blue.shade700],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withValues(alpha: 0.4),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.auto_awesome, color: Colors.white),
+                      tooltip: 'Finish Session & Generate Report',
+                      onPressed: () => _generateReport(context),
+                    ),
+                  ),
                   IconButton(
                     icon: const AdaptiveIcon(
                       icon: Icons.insert_page_break,

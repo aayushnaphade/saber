@@ -9,12 +9,12 @@ class VerticalNavbar extends StatefulWidget {
   const VerticalNavbar({
     super.key,
     required this.destinations,
-    this.selectedIndex = 0,
+    this.selectedIndex,
     this.onDestinationSelected,
   });
 
   final List<NavigationRailDestination> destinations;
-  final int selectedIndex;
+  final int? selectedIndex;
   final ValueChanged<int>? onDestinationSelected;
 
   @override

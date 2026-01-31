@@ -5,6 +5,7 @@ import 'package:saber/components/navbar/responsive_navbar.dart';
 import 'package:saber/components/settings/update_manager.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/pages/home/dashboard/dashboard_page.dart';
+import 'package:saber/pages/home/dashboard/consultation_history_page.dart';
 import 'package:saber/pages/home/patient_browse.dart';
 import 'package:saber/pages/home/recent_notes.dart';
 import 'package:saber/pages/home/settings.dart';
@@ -24,6 +25,7 @@ class HomePage extends StatefulWidget {
   static const browseSubpage = 'browse';
   static const whiteboardSubpage = 'whiteboard';
   static const settingsSubpage = 'settings';
+  static const historySubpage = 'history';
   static const List<String> subpages = [
     dashboardSubpage,
     recentSubpage,
@@ -61,6 +63,7 @@ class _HomePageState extends State<HomePage> {
           HomePage.browseSubpage => const PatientBrowsePage(),
           HomePage.whiteboardSubpage => const Whiteboard(),
           HomePage.settingsSubpage => const SettingsPage(),
+          HomePage.historySubpage => const ConsultationHistoryPage(),
           _ => const RecentPage(),
         },
       ),
@@ -75,8 +78,9 @@ class _HomePageState extends State<HomePage> {
       return body;
     }
 
+    final index = HomePage.subpages.indexOf(widget.subpage);
     return ResponsiveNavbar(
-      selectedIndex: HomePage.subpages.indexOf(widget.subpage),
+      selectedIndex: index == -1 ? null : index,
       body: body,
     );
   }
