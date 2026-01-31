@@ -11,6 +11,7 @@ import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/document_sync_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_intake_service.dart';
+import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/design_system/colors.dart';
 import 'package:saber/design_system/radius.dart';
 import 'package:saber/design_system/spacing.dart';
@@ -38,6 +39,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   // Psychiatric intake state
   PsychiatricIntake? _patientIntake;
   bool _hasCheckedIntake = false;
+  String? _doctorName;
 
   // Selection mode state
   var _isSelectionMode = false;
@@ -47,6 +49,28 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   void initState() {
     super.initState();
     _loadPatientData();
+    _fetchDoctorProfile();
+  }
+
+  Future<void> _fetchDoctorProfile() async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
+      final data = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (data != null && mounted) {
+        setState(() {
+          _doctorName = data['full_name'] as String?;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching doctor profile: $e');
+    }
   }
 
   void _toggleSelection(String sessionId) {
@@ -261,6 +285,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         builder: (context) => PsychiatricIntakeForm(
           patient: patient!,
           existingIntake: _patientIntake,
+          doctorName: _doctorName,
           onSave: (intake) async {
             try {
               final savedIntake = await SupabaseIntakeService.upsertIntake(intake);

@@ -48,6 +48,7 @@ import 'package:saber/data/prefs.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/data/supabase/supabase_intake_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
+import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
@@ -185,6 +186,7 @@ class EditorState extends State<Editor> {
   bool _showIntakeOverlay = true;
   bool _hasLoadedIntake = false;
   Offset? _intakeOverlayPosition; // null means use default right-side position
+  String? _doctorName;
 
   // used to prevent accidentally drawing when pinch zooming
   var lastSeenPointerCount = 0;
@@ -226,6 +228,29 @@ class EditorState extends State<Editor> {
 
     if (widget.pdfPath != null) {
       await importPdfFromFilePath(widget.pdfPath!);
+    }
+
+    _fetchDoctorProfile();
+  }
+
+  Future<void> _fetchDoctorProfile() async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
+      final data = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (data != null && mounted) {
+        setState(() {
+          _doctorName = data['full_name'] as String?;
+        });
+      }
+    } catch (e) {
+      log.warning('Error fetching doctor profile: $e');
     }
   }
 
@@ -1412,6 +1437,7 @@ class EditorState extends State<Editor> {
           builder: (context) => PsychiatricIntakeForm(
             patient: patient,
             existingIntake: _patientIntake,
+            doctorName: _doctorName,
             onSave: (intake) async {
               try {
                 final savedIntake = await SupabaseIntakeService.upsertIntake(

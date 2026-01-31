@@ -12,18 +12,20 @@ import 'package:intl/intl.dart';
 /// This form is displayed for new patients with no previous sessions
 /// to gather comprehensive psychiatric evaluation data
 class PsychiatricIntakeForm extends StatefulWidget {
-  final Patient patient;
-  final PsychiatricIntake? existingIntake;
-  final Function(PsychiatricIntake) onSave;
-  final VoidCallback? onCancel;
-
   const PsychiatricIntakeForm({
     super.key,
     required this.patient,
     this.existingIntake,
     required this.onSave,
     this.onCancel,
+    this.doctorName,
   });
+
+  final Patient patient;
+  final PsychiatricIntake? existingIntake;
+  final Function(PsychiatricIntake) onSave;
+  final VoidCallback? onCancel;
+  final String? doctorName;
 
   @override
   State<PsychiatricIntakeForm> createState() => _PsychiatricIntakeFormState();
@@ -467,7 +469,9 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Dr. Monisha Dass',
+                    widget.doctorName != null && widget.doctorName!.isNotEmpty 
+                        ? 'Dr. ${widget.doctorName}' 
+                        : 'Doctor',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
