@@ -50,6 +50,7 @@ import 'package:saber/data/supabase/supabase_intake_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
+import 'package:saber/data/supabase/supabase_prescription_service.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
 import 'package:saber/data/tools/highlighter.dart';
@@ -1981,6 +1982,21 @@ class EditorState extends State<Editor> {
                                 reportData['provided_diagnosis'] ??
                                     'Not mentioned',
                               );
+                              sb.writeln();
+
+                              sb.writeln('## Medications');
+                              final meds = reportData['medications'];
+                              if (meds is List && meds.isNotEmpty) {
+                                sb.writeln('| Medication | Frequency |');
+                                sb.writeln('| --- | --- |');
+                                for (final m in meds) {
+                                  if (m is Map) {
+                                    sb.writeln('| ${m['name']} | ${m['frequency']} |');
+                                  }
+                                }
+                              } else {
+                                sb.writeln('None prescribed or not mentioned.');
+                              }
 
                               // Determine path
                               String filePath = coreInfo.filePath;
@@ -2026,9 +2042,62 @@ class EditorState extends State<Editor> {
                                     'Failed to save report to DB',
                                     dbError,
                                   );
-                                  // Don't block local file save if DB fails
+                                    // Don't block local file save if DB fails
+                                  }
+
+                                  // Send medications to Pharmacy (prescriptions table)
+                                  try {
+                                    final medications =
+                                        reportData['medications'];
+                                    if (medications is List &&
+                                        medications.isNotEmpty) {
+                                      // Fetch patient name if possible for the pharmacy
+                                      String? patientName;
+                                      try {
+                                        final pData =
+                                            await SupabasePatientService
+                                                .getPatient(patientId);
+                                        patientName = pData?.fullName;
+                                      } catch (e) {
+                                        log.warning(
+                                          'Could not fetch patient name for prescription',
+                                          e,
+                                        );
+                                      }
+
+                                      final List<Map<String, String>>
+                                      medList = [];
+                                      for (final m in medications) {
+                                        if (m is Map) {
+                                          medList.add({
+                                            'name':
+                                                m['name']?.toString() ?? '',
+                                            'frequency':
+                                                m['frequency']?.toString() ??
+                                                '',
+                                          });
+                                        }
+                                      }
+
+                                      await SupabasePrescriptionService
+                                          .createPrescription(
+                                            patientId: patientId,
+                                            consultationId:
+                                                widget.consultationId,
+                                            medications: medList,
+                                            patientName: patientName,
+                                          );
+                                      log.info(
+                                        'Prescription sent to pharmacy for patient $patientId',
+                                      );
+                                    }
+                                  } catch (pharmacyError) {
+                                    log.severe(
+                                      'Failed to send prescription to pharmacy',
+                                      pharmacyError,
+                                    );
+                                  }
                                 }
-                              }
 
                               // coreInfo.filePath is like .../patients/{id}/session_notes/session_X/notes
                               final currentDir = p.dirname(

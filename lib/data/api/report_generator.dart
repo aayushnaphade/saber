@@ -37,7 +37,8 @@ You must output a single valid JSON object containing exactly these six keys. Do
 3.  `past_history`: (String) Previous episodes, medical history, or past treatments.
 4.  `family_history`: (String) Descriptions of family mental health or the family tree/genogram details.
 5.  `mental_status_examination`: (Object) Break this down into sub-fields based on the notes (e.g., "appearance", "mood", "affect", "thought", "perception", "insight").
-6.  `provided_diagnosis`: (String) The diagnosis or impression (Imp/∆) written by the doctor. Also include any medications, prescriptions (Rx), or treatment plans mentioned.
+6.  `provided_diagnosis`: (String) The diagnosis or impression (Imp/∆) written by the doctor.
+7.  `medications`: (Array of Objects) List of prescribed medicines found in the notes (Rx/Adv). Each object must have `name` (String) and `frequency` (String). If none, return empty array `[]`.
 
 **Critical Rules:**
 1.  **Missing Information:** If a specific section is not found in the notes, the value must be the string "Not mentioned". Do not hallucinate or infer missing data.
@@ -59,7 +60,8 @@ You must output a single valid JSON object containing exactly these six keys. Do
     "mood": "Anxious",
     "affect": "Restricted"
   },
-  "provided_diagnosis": "Not mentioned"
+  "provided_diagnosis": "Not mentioned",
+  "medications": []
 }
 ''';
 
@@ -91,6 +93,7 @@ Return a single JSON object with these 6 keys. Values must be **Strings**.
 * `family_history`: (String) Content related to FHx, family tree.
 * `mental_status_examination`: (String) Content related to MSE, appearance, mood, affect.
 * `provided_diagnosis`: (String) Content related to Imp, Δ, or diagnosis.
+* `medications`: (Array) List of objects `{"name": "...", "frequency": "..."}`.
 
 **Handling Missing Data:**
 If a section is empty in the source notes, use the string `"Not mentioned"`.
@@ -110,7 +113,8 @@ Imp: Anxiety"
   "past_history": "Nil",
   "family_history": "Not mentioned",
   "mental_status_examination": "Co-op. Mood-ok.",
-  "provided_diagnosis": "Anxiety"
+  "provided_diagnosis": "Anxiety",
+  "medications": []
 }
 ''';
 
@@ -189,7 +193,7 @@ Imp: Anxiety"
         ],
         generationConfig: GoogleCloudAiplatformV1GenerationConfig(
           temperature: 0.4,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 8192,
           topP: 0.8,
           topK: 40,
         ),

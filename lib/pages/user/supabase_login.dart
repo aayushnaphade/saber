@@ -49,11 +49,17 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
       },
       onError: (error) {
         if (mounted) {
-          _showErrorSnackBar(
-            error is AuthException
-                ? error.message
-                : 'Authentication error occurred',
-          );
+          String message = 'Authentication error occurred';
+          if (error is AuthException) {
+            message = error.message;
+          } else {
+            final errorString = error.toString();
+            if (errorString.contains('SocketException') || 
+                errorString.contains('Failed host lookup')) {
+              message = 'Network error. Please check your internet connection.';
+            }
+          }
+          _showErrorSnackBar(message);
         }
       },
     );
@@ -103,12 +109,26 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
       }
     } on AuthException catch (e) {
       if (mounted) {
-        _showErrorSnackBar(e.message);
+        final errorString = e.toString();
+        if (errorString.contains('SocketException') || 
+            errorString.contains('Failed host lookup') || 
+            errorString.contains('Network is unreachable')) {
+          _showErrorSnackBar('Network error. Please check your internet connection.');
+        } else {
+          _showErrorSnackBar(e.message);
+        }
       }
     } catch (e) {
       log.severe('Authentication error', e);
       if (mounted) {
-        _showErrorSnackBar('An unexpected error occurred. Please try again.');
+        final errorString = e.toString();
+        if (errorString.contains('SocketException') || 
+            errorString.contains('Failed host lookup') || 
+            errorString.contains('Network is unreachable')) {
+          _showErrorSnackBar('Network error. Please check your internet connection.');
+        } else {
+          _showErrorSnackBar('An unexpected error occurred. Please try again.');
+        }
       }
     } finally {
       if (mounted && !_showOtpInput) {
@@ -138,12 +158,25 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
       }
     } on AuthException catch (e) {
       if (mounted) {
-        _showErrorSnackBar(e.message);
+        final errorString = e.toString();
+        if (errorString.contains('SocketException') || 
+            errorString.contains('Failed host lookup') || 
+            errorString.contains('Network is unreachable')) {
+          _showErrorSnackBar('Network error. Please check your internet connection.');
+        } else {
+          _showErrorSnackBar(e.message);
+        }
       }
     } catch (e) {
       log.severe('OTP verification error', e);
       if (mounted) {
-        _showErrorSnackBar('Failed to verify OTP. Please try again.');
+        final errorString = e.toString();
+        if (errorString.contains('SocketException') || 
+            errorString.contains('Failed host lookup')) {
+          _showErrorSnackBar('Network error. Please check your internet connection.');
+        } else {
+          _showErrorSnackBar('Failed to verify OTP. Please try again.');
+        }
       }
     } finally {
       if (mounted) {
@@ -172,12 +205,25 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
       }
     } on AuthException catch (e) {
       if (mounted) {
-        _showErrorSnackBar(e.message);
+        final errorString = e.toString();
+        if (errorString.contains('SocketException') || 
+            errorString.contains('Failed host lookup') || 
+            errorString.contains('Network is unreachable')) {
+          _showErrorSnackBar('Network error. Please check your internet connection.');
+        } else {
+          _showErrorSnackBar(e.message);
+        }
       }
     } catch (e) {
       log.severe('Password reset error', e);
       if (mounted) {
-        _showErrorSnackBar('Failed to send password reset email.');
+        final errorString = e.toString();
+        if (errorString.contains('SocketException') || 
+            errorString.contains('Failed host lookup')) {
+          _showErrorSnackBar('Network error. Please check your internet connection.');
+        } else {
+          _showErrorSnackBar('Failed to send password reset email.');
+        }
       }
     } finally {
       if (mounted) {
