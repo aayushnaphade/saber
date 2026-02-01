@@ -910,82 +910,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                   ),
               ],
             ),
-            SizedBox(height: AppSpacing.md),
-            // Status action buttons
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                if (patient!.status != PatientStatus.waiting)
-                  _buildStatusActionChip(
-                    label: 'Move to Waiting',
-                    icon: Icons.schedule,
-                    color: Colors.orange,
-                    onPressed: () => _changePatientStatus(PatientStatus.waiting),
-                  ),
-                if (patient!.status != PatientStatus.active)
-                  _buildStatusActionChip(
-                    label: 'Start Active',
-                    icon: Icons.medical_services,
-                    color: Colors.blue,
-                    onPressed: () => _changePatientStatus(PatientStatus.active),
-                    filled: true,
-                  ),
-                if (patient!.status != PatientStatus.discharged)
-                  _buildStatusActionChip(
-                    label: 'Discharge',
-                    icon: Icons.check_circle,
-                    color: Colors.green,
-                    onPressed: () => _changePatientStatus(PatientStatus.discharged),
-                  ),
-                if (patient!.status != PatientStatus.archived)
-                  _buildStatusActionChip(
-                    label: 'Archive',
-                    icon: Icons.archive,
-                    color: Colors.grey,
-                    onPressed: () => _changePatientStatus(PatientStatus.archived),
-                  ),
-              ],
-            ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusActionChip({
-    required String label,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onPressed,
-    bool filled = false,
-  }) {
-    return Material(
-      color: filled ? color : color.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(AppRadius.full),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppRadius.full),
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: filled ? Colors.white : color),
-              SizedBox(width: AppSpacing.xs),
-              Text(
-                label,
-                style: TextStyle(
-                  color: filled ? Colors.white : color,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -1648,15 +1573,29 @@ class _DemographicsDialog extends StatefulWidget {
 }
 
 class _DemographicsDialogState extends State<_DemographicsDialog> {
+  late TextEditingController nameController;
+  late TextEditingController ageController;
+  late TextEditingController phoneController;
+  late TextEditingController emailController;
   late TextEditingController weightController;
   late TextEditingController bloodGroupController;
   late TextEditingController allergiesController;
   late TextEditingController addressController;
+  String? selectedGender;
+  
   final formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
     super.initState();
+    nameController = TextEditingController(text: widget.patient.fullName);
+    ageController = TextEditingController(
+      text: widget.patient.age?.toString() ?? '',
+    );
+    phoneController = TextEditingController(
+      text: widget.patient.phoneNumber ?? '',
+    );
+    emailController = TextEditingController(text: widget.patient.email ?? '');
     weightController = TextEditingController(
       text: widget.patient.weight?.toString() ?? '',
     );
@@ -1669,10 +1608,15 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
     addressController = TextEditingController(
       text: widget.patient.address ?? '',
     );
+    selectedGender = widget.patient.gender;
   }
 
   @override
   void dispose() {
+    nameController.dispose();
+    ageController.dispose();
+    phoneController.dispose();
+    emailController.dispose();
     weightController.dispose();
     bloodGroupController.dispose();
     allergiesController.dispose();
@@ -1725,38 +1669,172 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextFormField(
-                        controller: weightController,
-                        decoration: InputDecoration(
-                          labelText: 'Weight (kg)',
-                          hintText: 'Enter weight',
-                          border: const OutlineInputBorder(),
-                          prefixIcon: const Icon(Icons.monitor_weight_outlined),
-                          filled: true,
-                          fillColor: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest
-                              .withOpacity(0.3),
-                        ),
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
+                      // Section 1: Basic Information
+                      Text(
+                        'Basic Information',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
-                        controller: bloodGroupController,
+                        controller: nameController,
                         decoration: InputDecoration(
-                          labelText: 'Blood Group',
-                          hintText: 'e.g., A+, B-, O+',
-                          border: const OutlineInputBorder(),
-                          prefixIcon: const Icon(Icons.bloodtype),
+                          labelText: 'Full Name',
+                          prefixIcon: const Icon(Icons.person_outline),
                           filled: true,
                           fillColor: Theme.of(context)
                               .colorScheme
                               .surfaceContainerHighest
                               .withOpacity(0.3),
+                          border: const OutlineInputBorder(),
                         ),
-                        textCapitalization: TextCapitalization.characters,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Full name is required';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: ageController,
+                              decoration: InputDecoration(
+                                labelText: 'Age',
+                                prefixIcon: const Icon(Icons.calendar_today),
+                                filled: true,
+                                fillColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withOpacity(0.3),
+                                border: const OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: selectedGender,
+                              decoration: InputDecoration(
+                                labelText: 'Gender',
+                                prefixIcon: const Icon(Icons.wc),
+                                filled: true,
+                                fillColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withOpacity(0.3),
+                                border: const OutlineInputBorder(),
+                              ),
+                              items: const [
+                                DropdownMenuItem(value: 'Male', child: Text('Male')),
+                                DropdownMenuItem(
+                                  value: 'Female',
+                                  child: Text('Female'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Other',
+                                  child: Text('Other'),
+                                ),
+                              ],
+                              onChanged: (value) => setState(() => selectedGender = value),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: phoneController,
+                              decoration: InputDecoration(
+                                labelText: 'Phone Number',
+                                prefixIcon: const Icon(Icons.phone_outlined),
+                                filled: true,
+                                fillColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withOpacity(0.3),
+                                border: const OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.phone,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: emailController,
+                              decoration: InputDecoration(
+                                labelText: 'Email',
+                                prefixIcon: const Icon(Icons.email_outlined),
+                                filled: true,
+                                fillColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withOpacity(0.3),
+                                border: const OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.emailAddress,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      
+                      // Section 2: Medical Details
+                      Text(
+                        'Medical Details',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: weightController,
+                              decoration: InputDecoration(
+                                labelText: 'Weight (kg)',
+                                hintText: 'Enter weight',
+                                border: const OutlineInputBorder(),
+                                prefixIcon: const Icon(Icons.monitor_weight_outlined),
+                                filled: true,
+                                fillColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withOpacity(0.3),
+                              ),
+                              keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: bloodGroupController,
+                              decoration: InputDecoration(
+                                labelText: 'Blood Group',
+                                hintText: 'e.g., A+, B-, O+',
+                                border: const OutlineInputBorder(),
+                                prefixIcon: const Icon(Icons.bloodtype),
+                                filled: true,
+                                fillColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withOpacity(0.3),
+                              ),
+                              textCapitalization: TextCapitalization.characters,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -1805,19 +1883,37 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                   const SizedBox(width: 12),
                   FilledButton.icon(
                     onPressed: () {
-                      final updatedPatient = widget.patient.copyWith(
-                        weight: weightController.text.isNotEmpty
-                            ? double.tryParse(weightController.text)
-                            : null,
-                        bloodGroup: bloodGroupController.text.isNotEmpty
-                            ? bloodGroupController.text
-                            : null,
-                        address: addressController.text.isNotEmpty
-                            ? addressController.text
-                            : null,
-                        allergies: allergiesController.text.isNotEmpty
-                            ? allergiesController.text
-                            : null,
+                      if (!formKey.currentState!.validate()) return;
+                      
+                      final updatedPatient = Patient(
+                        id: widget.patient.id,
+                        createdAt: widget.patient.createdAt,
+                        fullName: nameController.text.trim(),
+                        age: int.tryParse(ageController.text.trim()),
+                        gender: selectedGender,
+                        status: widget.patient.status,
+                        lastVisit: widget.patient.lastVisit,
+                        doctorId: widget.patient.doctorId,
+                        phoneNumber: phoneController.text.trim().isEmpty 
+                            ? null 
+                            : phoneController.text.trim(),
+                        email: emailController.text.trim().isEmpty 
+                            ? null 
+                            : emailController.text.trim(),
+                        medicalHistory: widget.patient.medicalHistory,
+                        isActive: widget.patient.isActive,
+                        weight: weightController.text.isEmpty
+                            ? null
+                            : double.tryParse(weightController.text),
+                        bloodGroup: bloodGroupController.text.isEmpty
+                            ? null
+                            : bloodGroupController.text,
+                        allergies: allergiesController.text.isEmpty
+                            ? null
+                            : allergiesController.text,
+                        address: addressController.text.isEmpty
+                            ? null
+                            : addressController.text,
                       );
                       Navigator.pop(context, updatedPatient);
                     },

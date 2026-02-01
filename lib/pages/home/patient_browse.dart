@@ -9,6 +9,7 @@ import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
+import 'package:saber/pages/home/dashboard/widgets/vitals_dialog.dart';
 
 /// Patient-centric browse page showing patients and their documents
 class PatientBrowsePage extends StatefulWidget {
@@ -369,6 +370,16 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Patient "${patient.fullName}" created')),
+          );
+
+          // Show Vitals Dialog
+          await showDialog(
+            context: context,
+            builder: (context) => VitalsDialog(
+              patientId: patient.id,
+              patientName: patient.fullName,
+              isNewPatient: true,
+            ),
           );
         }
 

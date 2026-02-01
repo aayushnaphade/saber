@@ -10,8 +10,8 @@ import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/pages/home/dashboard/widgets/ai_insights_card.dart';
-import 'package:saber/pages/home/dashboard/widgets/appointment_timeline.dart';
 import 'package:saber/pages/home/dashboard/widgets/live_queue_card.dart';
+import 'package:saber/pages/home/dashboard/widgets/live_queue_list.dart';
 import 'package:saber/pages/home/dashboard/widgets/quick_actions.dart';
 import 'package:saber/pages/home/dashboard/widgets/stat_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/welcome_header.dart';
@@ -337,10 +337,10 @@ class _DashboardPageState extends State<DashboardPage> {
         const SizedBox(height: 24),
         _buildStatsGrid(stats),
         const SizedBox(height: 24),
-        AppointmentTimeline(
-          appointments: appointments,
-          onCancel: _handleCancelAppointment,
-          onReschedule: _handleRescheduleAppointment,
+        LiveQueueList(
+          queue: queue,
+          onStartSession: _handleStartSession,
+          onCancel: (item) => _handleCancelAppointment(item.id),
         ),
       ],
     );
@@ -381,10 +381,10 @@ class _DashboardPageState extends State<DashboardPage> {
               const SizedBox(height: 24),
               _buildStatsGrid(stats),
               const SizedBox(height: 24),
-              AppointmentTimeline(
-                appointments: appointments,
-                onCancel: _handleCancelAppointment,
-                onReschedule: _handleRescheduleAppointment,
+              LiveQueueList(
+                queue: queue,
+                onStartSession: _handleStartSession,
+                onCancel: (item) => _handleCancelAppointment(item.id),
               ),
             ],
           ),

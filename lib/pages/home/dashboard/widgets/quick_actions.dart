@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:saber/data/models/patient.dart';
 import 'package:saber/pages/home/dashboard/widgets/new_patient_dialog.dart';
 import 'package:saber/pages/home/dashboard/widgets/schedule_appointment_dialog.dart';
+import 'package:saber/pages/home/dashboard/widgets/vitals_dialog.dart';
 import 'package:saber/design_system/spacing.dart';
 import 'package:saber/design_system/radius.dart';
 import 'package:saber/design_system/animations.dart';
@@ -16,11 +18,22 @@ class QuickActions extends StatelessWidget {
         label: 'New Patient',
         icon: Icons.person_add_outlined,
         color: Colors.blue,
-        onTap: () {
-          showDialog(
+        onTap: () async {
+          final patient = await showDialog<Patient>(
             context: context,
             builder: (context) => const NewPatientDialog(),
           );
+
+          if (patient != null && context.mounted) {
+            await showDialog(
+              context: context,
+              builder: (context) => VitalsDialog(
+                patientId: patient.id,
+                patientName: patient.fullName,
+                isNewPatient: true,
+              ),
+            );
+          }
         },
       ),
       (

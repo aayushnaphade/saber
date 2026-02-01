@@ -244,7 +244,7 @@ class Stroke {
       // Ensure we don't simulate pressure again
       options.simulatePressure = false;
       // Remove points that are too close together
-      optimisePoints();
+      // optimisePoints();
     }
 
     return polygon;

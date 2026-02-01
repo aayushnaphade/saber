@@ -4,6 +4,7 @@ import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
+import 'package:saber/pages/home/dashboard/widgets/vitals_dialog.dart';
 
 class ScheduleAppointmentDialog extends StatefulWidget {
   const ScheduleAppointmentDialog({super.key});
@@ -48,6 +49,26 @@ class _ScheduleAppointmentDialogState extends State<ScheduleAppointmentDialog> {
 
   Future<void> _submit({DateTime? scheduledTime}) async {
     if (!_formKey.currentState!.validate() || _selectedPatient == null) return;
+
+    if (scheduledTime == null) {
+      // Collect vitals for immediate sessions (queue)
+      final vitalsResult = await showDialog(
+        context: context,
+        builder: (context) => VitalsDialog(
+          patientId: _selectedPatient!.id,
+          patientName: _selectedPatient!.fullName,
+          isNewPatient: _visitType == 'New Session',
+        ),
+      );
+
+      // If user cancelled vitals, do we stop? 
+      // Assuming yes, to ensure vitals are taken.
+      // But VitalsDialog might return null if cancelled.
+      // Let's assume user must save to proceed, or if they cancel, we abort queueing.
+      // However, VitalsDialog action is "Save & Continue" which pops(true).
+      // "Cancel" pops(null).
+      if (vitalsResult != true) return;
+    }
 
     setState(() => _isLoading = true);
 

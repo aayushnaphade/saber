@@ -198,6 +198,7 @@ class EditorState extends State<Editor> {
   // Vitals overlay state
   List<Vitals> _vitalsHistory = [];
   bool _showVitalsOverlay = true;
+  bool _isVitalsExpanded = true;
   Offset? _vitalsOverlayPosition;
 
   String? _doctorName;
@@ -276,18 +277,26 @@ class EditorState extends State<Editor> {
 
     try {
       // Extract patient ID from file path
-      // Path format: patients/{patient_id}/session_notes/session_X/...
+      // Path format: .../patients/{patient_id}/session_notes/session_X/...
       String filePath = coreInfo.filePath;
-      if (filePath.startsWith('/')) {
-        filePath = filePath.substring(1);
+      log.info('Attempting to load intake. Raw FilePath: $filePath');
+      
+      String? patientId;
+      
+      // Normalize path separators
+      final normalizedPath = filePath.replaceAll('\\', '/');
+      final parts = normalizedPath.split('/');
+      
+      // Find 'patients' segment and get the next segment
+      final patientsIndex = parts.indexOf('patients');
+      if (patientsIndex != -1 && patientsIndex + 1 < parts.length) {
+        patientId = parts[patientsIndex + 1];
       }
 
-       final parts = filePath.split('/');
-      if (parts.length >= 2 && parts[0] == 'patients') {
-        final patientId = parts[1];
+      if (patientId != null) {
         _patientId = patientId; // Store patient ID for potential intake creation
         
-        log.info('Loading intake for patient: $patientId');
+        log.info('Found patient ID: $patientId. Loading intake and vitals...');
 
         final intake = await SupabaseIntakeService.getIntake(patientId);
         final vitals = await SupabaseVitalsService.getVitalsHistory(patientId);
@@ -296,12 +305,18 @@ class EditorState extends State<Editor> {
           setState(() {
             if (intake != null) _patientIntake = intake;
             _vitalsHistory = vitals;
+            // Force show overlay if we have data
+            if (vitals.isNotEmpty) {
+                 _showVitalsOverlay = true;
+            }
           });
           log.info('Loaded intake and vitals for patient: $patientId. Vitals count: ${vitals.length}');
         }  
+      } else {
+        log.warning('Could not extract patient ID from path: $filePath');
       }
-    } catch (e) {
-      log.warning('Failed to load patient intake: $e');
+    } catch (e, stack) {
+      log.warning('Failed to load patient intake: $e', e, stack);
       // Don't fail the editor if intake can't be loaded
     }
   }
@@ -1982,7 +1997,7 @@ class EditorState extends State<Editor> {
     
     // Add Vitals Overlay to the stack if we have vitals
     if (_vitalsHistory.isNotEmpty) {
-      final double defaultTop = _patientIntake != null ? 80 : 16; // Shift down if intake is present
+      final double defaultTop = (_patientIntake != null || _patientId != null) ? 80 : 16; // Shift down if intake is present or create button exists
       
       Widget vitalsWidget;
        if (_showVitalsOverlay) {
@@ -2862,7 +2877,10 @@ class EditorState extends State<Editor> {
       feedback: Opacity(
         opacity: 0.5,
         child: Material(
-          child: VitalsOverlayCard(vitalsHistory: _vitalsHistory, isExpanded: false),
+          child: VitalsOverlayCard(
+            vitalsHistory: _vitalsHistory,
+            isExpanded: false,
+          ),
         ),
       ),
       childWhenDragging: Container(),
@@ -2877,6 +2895,8 @@ class EditorState extends State<Editor> {
       },
       child: VitalsOverlayCard(
         vitalsHistory: _vitalsHistory,
+        isExpanded: _isVitalsExpanded,
+        onExpandChanged: (expanded) => setState(() => _isVitalsExpanded = expanded),
         onClose: () => setState(() => _showVitalsOverlay = false),
       ),
     );

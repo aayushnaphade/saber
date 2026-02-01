@@ -7,6 +7,7 @@ class VitalsOverlayCard extends StatefulWidget {
   final List<Vitals> vitalsHistory;
   final VoidCallback? onTap;
   final VoidCallback? onClose;
+  final ValueChanged<bool>? onExpandChanged;
   final bool isExpanded;
 
   const VitalsOverlayCard({
@@ -14,6 +15,7 @@ class VitalsOverlayCard extends StatefulWidget {
     required this.vitalsHistory,
     this.onTap,
     this.onClose,
+    this.onExpandChanged,
     this.isExpanded = false,
   });
 
@@ -64,14 +66,18 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
   }
 
   void _toggleExpand() {
-    setState(() {
-      _isExpanded = !_isExpanded;
-      if (_isExpanded) {
-        _animationController.forward();
-      } else {
-        _animationController.reverse();
-      }
-    });
+    if (widget.onExpandChanged != null) {
+      widget.onExpandChanged!(!_isExpanded);
+    } else {
+      setState(() {
+        _isExpanded = !_isExpanded;
+        if (_isExpanded) {
+          _animationController.forward();
+        } else {
+          _animationController.reverse();
+        }
+      });
+    }
     widget.onTap?.call();
   }
 
@@ -147,6 +153,21 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
               ),
             ),
           ),
+          if (widget.onClose != null) ...[
+            const SizedBox(width: 4),
+            InkWell(
+              onTap: widget.onClose,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  Icons.close,
+                  size: 16,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -188,8 +209,10 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
   }
 
   Widget _buildExpandedDetails(ThemeData theme) {
-    // Only show last 5 records for clarity
-    final history = widget.vitalsHistory.take(5).toList();
+    // Only show last 5 records for clarity in the list
+    final historyList = widget.vitalsHistory.take(5).toList();
+    // Use last 10 for trends
+    final trendData = widget.vitalsHistory.take(10).toList().reversed.toList();
 
     return Container(
       constraints: const BoxConstraints(maxHeight: 400),
@@ -198,9 +221,9 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (widget.vitalsHistory.length > 1) ...[
-               Text(
-                'Trends',
+            if (widget.vitalsHistory.isNotEmpty) ...[
+              Text(
+                'Blood Pressure Trends',
                 style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
@@ -209,8 +232,26 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
                 width: double.infinity,
                 child: CustomPaint(
                   painter: TrendsPainter(
-                    vitals: widget.vitalsHistory.take(10).toList().reversed.toList(),
+                    vitals: trendData,
                     color: Colors.pink,
+                    type: _TrendType.bloodPressure,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Weight Trends',
+                style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 80,
+                width: double.infinity,
+                child: CustomPaint(
+                  painter: TrendsPainter(
+                    vitals: trendData,
+                    color: Colors.blue,
+                    type: _TrendType.weight,
                   ),
                 ),
               ),
@@ -221,7 +262,7 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
               style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            ...history.map((v) => _buildHistoryRow(theme, v)),
+            ...historyList.map((v) => _buildHistoryRow(theme, v)),
           ],
         ),
       ),
@@ -264,53 +305,142 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
   }
 }
 
+enum _TrendType { bloodPressure, weight }
+
 class TrendsPainter extends CustomPainter {
   final List<Vitals> vitals;
   final Color color;
+  final _TrendType type;
 
-  TrendsPainter({required this.vitals, required this.color});
+  TrendsPainter({
+    required this.vitals,
+    required this.color,
+    required this.type,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (vitals.length < 2) return;
+    if (vitals.isEmpty) return;
 
-    final paint = Paint()
+    final paintStroke = Paint()
       ..color = color.withOpacity(0.5)
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
-    final dotPaint = Paint()
+    final paintDot = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
-
-    // Draw BP (Systolic) line
-    // Find min/max for normalization
-    final systolics = vitals.where((v) => v.systolic != null).map((v) => v.systolic!).toList();
-    if (systolics.isEmpty) return;
-    
-    final minVal = systolics.reduce((a, b) => a < b ? a : b).toDouble();
-    final maxVal = systolics.reduce((a, b) => a > b ? a : b).toDouble();
-    final range = maxVal - minVal == 0 ? 10 : maxVal - minVal;
-
-    final path = Path();
-    final spacing = size.width / (vitals.length - 1);
-
-    for (int i = 0; i < vitals.length; i++) {
-      if (vitals[i].systolic == null) continue;
       
-      final x = i * spacing;
-      final y = size.height - ((vitals[i].systolic! - minVal) / range * size.height);
-      
-      if (i == 0) {
-        path.moveTo(x, y);
+    final paintFill = Paint()
+      ..color = color.withOpacity(0.1)
+      ..style = PaintingStyle.fill;
+
+    // Filter valid data points based on type
+    final validVitals = vitals.where((v) {
+      if (type == _TrendType.bloodPressure) {
+        return v.systolic != null && v.diastolic != null;
       } else {
-        path.lineTo(x, y);
+        return v.weight != null;
       }
-      
-      canvas.drawCircle(Offset(x, y), 3, dotPaint);
+    }).toList();
+
+    if (validVitals.isEmpty) return;
+
+    // Calculate Y-axis range
+    double minVal, maxVal;
+    if (type == _TrendType.bloodPressure) {
+      final allValues = [
+        ...validVitals.map((v) => v.systolic!),
+        ...validVitals.map((v) => v.diastolic!)
+      ];
+      minVal = allValues.reduce((a, b) => a < b ? a : b).toDouble();
+      maxVal = allValues.reduce((a, b) => a > b ? a : b).toDouble();
+      // Add padding
+      minVal -= 10;
+      maxVal += 10;
+    } else {
+      final weights = validVitals.map((v) => v.weight!).toList();
+      minVal = weights.reduce((a, b) => a < b ? a : b).toDouble();
+      maxVal = weights.reduce((a, b) => a > b ? a : b).toDouble();
+       // Add padding
+      minVal -= 2;
+      maxVal += 2;
     }
 
-    canvas.drawPath(path, paint);
+    // Ensure range is at least something to avoid divide by zero
+    double range = maxVal - minVal;
+    if (range <= 0) range = 10;
+
+    final spacing = size.width / (validVitals.length > 1 ? validVitals.length - 1 : 1);
+    
+    // Draw logic
+    if (type == _TrendType.bloodPressure) {
+      _drawBPGraph(canvas, size, validVitals, minVal, range, spacing, paintStroke, paintDot, paintFill);
+    } else {
+      _drawWeightGraph(canvas, size, validVitals, minVal, range, spacing, paintStroke, paintDot);
+    }
+  }
+
+  void _drawBPGraph(
+    Canvas canvas,
+    Size size,
+    List<Vitals> data,
+    double minVal,
+    double range,
+    double spacing,
+    Paint strokePaint,
+    Paint dotPaint,
+    Paint fillPaint,
+  ) {
+    // Draw shaded area between systolic and diastolic
+    final path = Path();
+    
+    for (int i = 0; i < data.length; i++) {
+        final x = (data.length == 1) ? size.width / 2 : i * spacing;
+        final ySys = size.height - ((data[i].systolic! - minVal) / range * size.height);
+        final yDia = size.height - ((data[i].diastolic! - minVal) / range * size.height);
+
+        // Draw vertical connector
+        canvas.drawLine(Offset(x, ySys), Offset(x, yDia), strokePaint..strokeWidth = 1);
+
+        // Draw dots
+        canvas.drawCircle(Offset(x, ySys), 3, dotPaint);
+        canvas.drawCircle(Offset(x, yDia), 3, dotPaint);
+        
+        // Connect lines if not first point and we have multiple points
+        if (i > 0) {
+             final prevX = (i - 1) * spacing;
+             final prevYSys = size.height - ((data[i-1].systolic! - minVal) / range * size.height);
+             final prevYDia = size.height - ((data[i-1].diastolic! - minVal) / range * size.height);
+             
+             canvas.drawLine(Offset(prevX, prevYSys), Offset(x, ySys), strokePaint..strokeWidth = 2);
+             canvas.drawLine(Offset(prevX, prevYDia), Offset(x, yDia), strokePaint..strokeWidth = 2);
+        }
+    }
+  }
+
+  void _drawWeightGraph(
+    Canvas canvas,
+    Size size,
+    List<Vitals> data,
+    double minVal,
+    double range,
+    double spacing,
+    Paint strokePaint,
+    Paint dotPaint,
+  ) {
+      for (int i = 0; i < data.length; i++) {
+          final x = (data.length == 1) ? size.width / 2 : i * spacing;
+          final y = size.height - ((data[i].weight! - minVal) / range * size.height);
+
+          canvas.drawCircle(Offset(x, y), 3, dotPaint);
+          
+          if (i > 0) {
+              final prevX = (i - 1) * spacing;
+              final prevY = size.height - ((data[i-1].weight! - minVal) / range * size.height);
+              canvas.drawLine(Offset(prevX, prevY), Offset(x, y), strokePaint);
+          }
+      }
   }
 
   @override
