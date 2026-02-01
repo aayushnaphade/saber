@@ -169,7 +169,7 @@ Output ONLY the JSON list.
 
       const projectId = 'synapseai-production';
       const location = 'asia-south1';
-      const modelId = 'gemini-1.5-flash-preview'; // Flash is fast and good for this
+      const modelId = 'gemini-3-flash-preview'; // Flash is fast and good for this
       final parent = 'projects/$projectId/locations/$location/publishers/google/models/$modelId';
 
       final request = GoogleCloudAiplatformV1GenerateContentRequest(

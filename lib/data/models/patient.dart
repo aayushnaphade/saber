@@ -17,7 +17,7 @@ class Patient {
 
   // Demographic fields
   final double? weight; // in kg
-  final String? bloodGroup;
+
   final String? allergies;
   final String? address;
 
@@ -35,7 +35,7 @@ class Patient {
     this.medicalHistory,
     this.isActive = true,
     this.weight,
-    this.bloodGroup,
+
     this.allergies,
     this.address,
   });
@@ -62,7 +62,7 @@ class Patient {
       weight: json['weight'] != null
           ? (json['weight'] as num).toDouble()
           : null,
-      bloodGroup: json['blood_group']?.toString(),
+
       allergies: json['allergies']?.toString(),
       address: json['address']?.toString(),
     );
@@ -84,7 +84,7 @@ class Patient {
       'medical_history': medicalHistory,
       'is_active': isActive,
       'weight': weight,
-      'blood_group': bloodGroup,
+
       'allergies': allergies,
       'address': address,
     };
@@ -104,7 +104,7 @@ class Patient {
       'medical_history': medicalHistory,
       'is_active': isActive,
       'weight': weight,
-      'blood_group': bloodGroup,
+
       'allergies': allergies,
       'address': address,
     };
@@ -133,7 +133,7 @@ class Patient {
     Map<String, dynamic>? medicalHistory,
     bool? isActive,
     double? weight,
-    String? bloodGroup,
+
     String? allergies,
     String? address,
   }) {
@@ -151,7 +151,6 @@ class Patient {
       medicalHistory: medicalHistory ?? this.medicalHistory,
       isActive: isActive ?? this.isActive,
       weight: weight ?? this.weight,
-      bloodGroup: bloodGroup ?? this.bloodGroup,
       allergies: allergies ?? this.allergies,
       address: address ?? this.address,
     );
@@ -211,4 +210,19 @@ enum DocumentType {
       orElse: () => DocumentType.sessionNote,
     );
   }
+}
+
+/// Session information model
+class SessionInfo {
+  final int sessionNumber;
+  final String folderName;
+  final int fileCount;
+  final DateTime createdDate;
+
+  SessionInfo({
+    required this.sessionNumber,
+    required this.folderName,
+    required this.fileCount,
+    required this.createdDate,
+  });
 }

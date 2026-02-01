@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'package:saber/data/prefs.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 
 class WelcomeHeader extends StatefulWidget {
@@ -102,7 +103,9 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
                 ),
               ),
               Text(
-                widget.doctorName.isNotEmpty ? 'Dr. ${widget.doctorName}' : 'Doctor',
+                widget.doctorName.isNotEmpty 
+                  ? (stows.userRole.value == 'doctor' ? 'Dr. ${widget.doctorName}' : widget.doctorName)
+                  : (stows.userRole.value == 'doctor' ? 'Doctor' : 'User'),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.onSurface,

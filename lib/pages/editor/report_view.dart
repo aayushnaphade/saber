@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:saber/i18n/strings.g.dart';
 
 class ReportView extends StatefulWidget {
@@ -7,11 +8,13 @@ class ReportView extends StatefulWidget {
     required this.reportData,
     required this.onVerify,
     this.onRegenerate,
+    this.readonly = false,
   });
 
   final Map<String, dynamic> reportData;
   final VoidCallback onVerify;
   final VoidCallback? onRegenerate;
+  final bool readonly;
 
   @override
   State<ReportView> createState() => _ReportViewState();
@@ -79,6 +82,10 @@ class _ReportViewState extends State<ReportView> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.readonly) {
+      return _buildBentoLayout(context);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Clinical Assessment Report'),
@@ -93,108 +100,265 @@ class _ReportViewState extends State<ReportView> {
               ),
             ),
           TextButton.icon(
-            onPressed: () {
-                // Update reportData with current values before verifying
-                widget.reportData['current_symptoms'] = _currentSymptomsController.text;
-                widget.reportData['premorbid_personality'] = _premorbidPersonalityController.text;
-                widget.reportData['past_history'] = _pastHistoryController.text;
-                widget.reportData['family_history'] = _familyHistoryController.text;
-                widget.reportData['provided_diagnosis'] = _diagnosisController.text;
-                widget.reportData['mental_status_examination'] = Map.fromEntries(
-                  _mseControllers.entries.map((e) => MapEntry(e.key, e.value.text)),
-                );
-                widget.reportData['medications'] = _medications;
-                widget.onVerify();
-            },
+            onPressed: _syncAndVerify,
             icon: const Icon(Icons.check_circle),
             label: const Text('Verify & Save'),
           ),
         ],
       ),
-      body: RepaintBoundary(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _ReportSection(
-              title: 'Current Symptoms (HPI)',
-              controller: _currentSymptomsController,
-            ),
-            _ReportSection(
-              title: 'Premorbid Personality',
-              controller: _premorbidPersonalityController,
-            ),
-            _ReportSection(
-              title: 'Past History',
-              controller: _pastHistoryController,
-            ),
-            _ReportSection(
-              title: 'Family History',
-              controller: _familyHistoryController,
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8.0),
-              child: Text(
-                'Mental Status Examination',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      body: _buildBentoLayout(context),
+    );
+  }
+
+  void _syncAndVerify() {
+    // Sync logic remains the same as controllers are updated in real-time
+    widget.reportData['current_symptoms'] = _currentSymptomsController.text;
+    widget.reportData['premorbid_personality'] = _premorbidPersonalityController.text;
+    widget.reportData['past_history'] = _pastHistoryController.text;
+    widget.reportData['family_history'] = _familyHistoryController.text;
+    widget.reportData['provided_diagnosis'] = _diagnosisController.text;
+    widget.reportData['mental_status_examination'] = Map.fromEntries(
+      _mseControllers.entries.map((e) => MapEntry(e.key, e.value.text)),
+    );
+    widget.reportData['medications'] = _medications;
+    widget.onVerify();
+  }
+
+  Widget _buildBentoLayout(BuildContext context) {
+    // Theme Awareness
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Bento Colors (Light/Dark variants)
+    final diagnosisColor = isDark 
+        ? Colors.deepPurple.shade900.withOpacity(0.3) 
+        : Colors.purple.shade50;
+    final symptomsColor = isDark 
+        ? Colors.blue.shade900.withOpacity(0.3) 
+        : Colors.blue.shade50;
+    final medicationsColor = isDark 
+        ? Colors.green.shade900.withOpacity(0.3) 
+        : Colors.green.shade50;
+    final mseColor = isDark 
+        ? Colors.teal.shade900.withOpacity(0.3) 
+        : Colors.teal.shade50;
+    final premorbidColor = isDark
+        ? Colors.orange.shade900.withOpacity(0.3)
+        : Colors.orange.shade50;
+    
+    // New Colors for History Sections
+    final pastHistoryColor = isDark
+        ? Colors.amber.shade900.withOpacity(0.3)
+        : Colors.amber.shade50;
+    final familyHistoryColor = isDark
+        ? Colors.pink.shade900.withOpacity(0.3)
+        : Colors.pink.shade50;
+
+    // Helpers
+    bool hasText(TextEditingController c) => c.text.trim().isNotEmpty;
+    final isEditing = !widget.readonly;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: StaggeredGrid.count(
+        crossAxisCount: 2,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
+        children: [
+          // Diagnosis (Full Width)
+          if (isEditing || hasText(_diagnosisController))
+            StaggeredGridTile.fit(
+              crossAxisCellCount: 2,
+              child: _BentoCard(
+                title: 'Diagnosis',
+                controller: _diagnosisController,
+                readOnly: widget.readonly,
+                color: diagnosisColor,
+                icon: Icons.local_hospital,
+                iconColor: isDark ? Colors.purple.shade200 : Colors.purple.shade300,
+                isLarge: true,
               ),
             ),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
+          
+          // Symptoms (Half Width)
+          if (isEditing || hasText(_currentSymptomsController))
+            StaggeredGridTile.fit(
+              crossAxisCellCount: 1,
+              child: _BentoCard(
+                title: 'Symptoms',
+                controller: _currentSymptomsController,
+                readOnly: widget.readonly,
+                color: symptomsColor,
+                icon: Icons.sick,
+                iconColor: isDark ? Colors.blue.shade200 : Colors.blue.shade300,
+              ),
+            ),
+          
+          // Medications (Half Width)
+          if (isEditing || _medications.isNotEmpty)
+            StaggeredGridTile.fit(
+              crossAxisCellCount: 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: medicationsColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                     if (!isDark)
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                  ],
+                  border: isDark ? Border.all(color: Colors.white10) : null,
+                ),
+                padding: const EdgeInsets.all(20),
                 child: Column(
-                  children: _mseControllers.entries.map((entry) {
-                    return _ReportSection(
-                      title: entry.key.replaceAll('_', ' ').toUpperCase(),
-                      controller: entry.value,
-                      maxLines: 1,
-                    );
-                  }).toList(),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.medication, 
+                             color: isDark ? Colors.green.shade200 : Colors.green.shade300, 
+                             size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Plan / Medications',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: isDark ? Colors.white70 : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _buildMedicationChips(readonly: widget.readonly, isDark: isDark),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            _ReportSection(
-              title: 'Provided Diagnosis',
-              controller: _diagnosisController,
+
+          // MSE (Full Width)
+          if (isEditing || _mseControllers.isNotEmpty)
+             StaggeredGridTile.fit(
+              crossAxisCellCount: 2,
+              child: _BentoCard(
+                title: 'Mental Status',
+                content: widget.readonly ? _mseControllers.entries
+                    .map((e) => '${e.key.replaceAll('_', ' ').toUpperCase()}: ${e.value.text}')
+                    .join('\n') : null,
+                customChild: !widget.readonly ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                   children: _mseControllers.entries.map((e) => Padding(
+                     padding: const EdgeInsets.only(bottom: 8.0),
+                     child: TextField(
+                       controller: e.value,
+                       style: theme.textTheme.bodyMedium,
+                       decoration: InputDecoration(
+                         labelText: e.key.replaceAll('_', ' ').toUpperCase(),
+                         labelStyle: TextStyle(color: isDark ? Colors.white60 : Colors.black54),
+                         border: const UnderlineInputBorder(),
+                         isDense: true,
+                         enabledBorder: UnderlineInputBorder(
+                           borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black12),
+                         ),
+                       ),
+                     ),
+                   )).toList(),
+                ) : null,
+                readOnly: widget.readonly,
+                color: mseColor,
+                icon: Icons.psychology,
+                iconColor: isDark ? Colors.teal.shade200 : Colors.teal.shade300,
+              ),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Prescribed Medications',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+
+          // Past History & Family History (Split or Full depending on content)
+          if (isEditing || hasText(_pastHistoryController))
+            StaggeredGridTile.fit(
+              crossAxisCellCount: (isEditing || hasText(_familyHistoryController)) ? 1 : 2,
+              child: _BentoCard(
+                title: 'Past History',
+                controller: _pastHistoryController,
+                readOnly: widget.readonly,
+                color: pastHistoryColor,
+                icon: Icons.history,
+                iconColor: isDark ? Colors.amber.shade200 : Colors.amber.shade600,
+              ),
             ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8.0,
-              runSpacing: 8.0,
-              children: [
-                ..._medications.map((med) {
-                  final summary = StringBuffer(med['name'] ?? '');
-                  if (med['frequency']?.isNotEmpty == true) summary.write(' (${med['frequency']})');
-                  if (med['duration']?.isNotEmpty == true && med['duration'] != 'Not mentioned') summary.write(' - ${med['duration']}');
-                  return InputChip(
-                    label: Text(summary.toString()),
-                    onDeleted: () {
-                      setState(() {
-                        _medications.remove(med);
-                      });
-                    },
-                    onPressed: () => _editMedication(med),
-                    backgroundColor: Colors.blue.shade100,
-                  );
-                }),
-                ActionChip(
-                  label: const Text('Add Medication'),
-                  avatar: const Icon(Icons.add),
-                  onPressed: _addNewMedication,
-                ),
-              ],
+            
+          if (isEditing || hasText(_familyHistoryController))
+            StaggeredGridTile.fit(
+              crossAxisCellCount: (isEditing || hasText(_pastHistoryController)) ? 1 : 2,
+              child: _BentoCard(
+                title: 'Family History',
+                controller: _familyHistoryController,
+                readOnly: widget.readonly,
+                color: familyHistoryColor,
+                icon: Icons.family_restroom,
+                iconColor: isDark ? Colors.pink.shade200 : Colors.pink.shade300,
+              ),
             ),
-            const SizedBox(height: 32),
-          ],
-        ),
+            
+           // Premorbid Personality
+           if (isEditing || hasText(_premorbidPersonalityController))
+            StaggeredGridTile.fit(
+               crossAxisCellCount: 2,
+               child: _BentoCard(
+                 title: 'Premorbid Personality',
+                 controller: _premorbidPersonalityController,
+                 readOnly: widget.readonly,
+                 color: premorbidColor,
+                 icon: Icons.person_outline,
+                 iconColor: isDark ? Colors.orange.shade200 : Colors.orange.shade300,
+               )
+            ),
+        ],
       ),
     );
   }
+
+  Widget _buildMedicationChips({required bool readonly, required bool isDark}) {
+    return Wrap(
+      spacing: 8.0,
+      runSpacing: 8.0,
+      children: [
+        ..._medications.map((med) {
+          final summary = StringBuffer(med['name'] ?? '');
+          if (med['frequency']?.isNotEmpty == true) summary.write(' (${med['frequency']})');
+          if (med['duration']?.isNotEmpty == true && med['duration'] != 'Not mentioned') summary.write(' - ${med['duration']}');
+          return InputChip(
+            label: Text(
+              summary.toString(), 
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+            ),
+            onDeleted: readonly ? null : () {
+              setState(() {
+                _medications.remove(med);
+              });
+            },
+            onPressed: readonly ? null : () => _editMedication(med),
+            backgroundColor: isDark ? Colors.white10 : Colors.white,
+            deleteIconColor: isDark ? Colors.white70 : null,
+            elevation: isDark ? 0 : 1,
+            shadowColor: Colors.black.withOpacity(0.1),
+            side: isDark ? BorderSide.none : null,
+          );
+        }),
+        if (!readonly)
+          ActionChip(
+            label: Text('Add', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
+            avatar: Icon(Icons.add, size: 16, color: isDark ? Colors.white70 : Colors.black87),
+            onPressed: _addNewMedication,
+            backgroundColor: isDark ? Colors.white10 : Colors.white,
+            elevation: isDark ? 0 : 1,
+            side: isDark ? BorderSide.none : null,
+          ),
+      ],
+    );
+  }
+
 
   Future<void> _editMedication(Map<String, String> med) async {
     final nameController = TextEditingController(text: med['name']);
@@ -298,7 +462,7 @@ class _ReportViewState extends State<ReportView> {
                     'frequency': freqController.text,
                     'duration': durationController.text,
                     'remarks': remarksController.text,
-                  });
+                    });
                 });
               }
               Navigator.pop(context);
@@ -311,43 +475,94 @@ class _ReportViewState extends State<ReportView> {
   }
 }
 
-class _ReportSection extends StatelessWidget {
-  const _ReportSection({
+class _BentoCard extends StatelessWidget {
+  const _BentoCard({
     required this.title,
-    required this.controller,
-    this.maxLines = 3,
+    this.content,
+    this.controller,
+    required this.color,
+    required this.icon,
+    required this.iconColor,
+    this.isLarge = false,
+    this.readOnly = true,
+    this.customChild,
   });
 
   final String title;
-  final TextEditingController controller;
-  final int maxLines;
+  final String? content;
+  final TextEditingController? controller;
+  final Color color;
+  final IconData icon;
+  final Color iconColor;
+  final bool isLarge;
+  final bool readOnly;
+  final Widget? customChild;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+        ],
+        border: isDark ? Border.all(color: Colors.white10) : null,
+      ),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: controller,
-            maxLines: maxLines,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+          Row(
+            children: [
+              Icon(icon, color: iconColor, size: isLarge ? 24 : 20),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isLarge ? 18 : 16,
+                  color: isDark ? Colors.white70 : Colors.grey.shade800,
+                ),
               ),
-              filled: true,
-            ),
+            ],
           ),
+          const SizedBox(height: 12),
+          if (customChild != null)
+            customChild!
+          else if (!readOnly && controller != null)
+             TextField(
+               controller: controller,
+               maxLines: null, // Allow multiline growth
+               style: theme.textTheme.bodyMedium?.copyWith(
+                  fontSize: isLarge ? 16 : 14,
+                  height: 1.5,
+               ),
+               decoration: InputDecoration(
+                 border: InputBorder.none,
+                 isDense: true,
+                 contentPadding: EdgeInsets.zero,
+                 hintText: 'Type to add content...',
+                 hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.grey),
+               ),
+             )
+          else
+            Text(
+              (content != null && content!.isNotEmpty) ? content! : (controller?.text.isNotEmpty == true ? controller!.text : 'Not mentioned'),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: isLarge ? 16 : 14,
+                height: 1.5,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
         ],
       ),
     );

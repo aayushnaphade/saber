@@ -85,6 +85,8 @@ class SupabaseReportService {
         .from('clinical_reports')
         .select()
         .eq('source_document_path', sourcePath)
+        .order('created_at', ascending: false)
+        .limit(1)
         .maybeSingle();
     
     if (response == null) return null;

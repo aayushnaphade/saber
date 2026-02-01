@@ -10,6 +10,7 @@ import 'package:saber/pages/home/patient_browse.dart';
 import 'package:saber/pages/home/recent_notes.dart';
 import 'package:saber/pages/home/settings.dart';
 import 'package:saber/pages/home/whiteboard.dart';
+import 'package:saber/pages/home/dashboard/team_management_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.subpage, required this.path});
@@ -26,6 +27,7 @@ class HomePage extends StatefulWidget {
   static const whiteboardSubpage = 'whiteboard';
   static const settingsSubpage = 'settings';
   static const historySubpage = 'history';
+  static const teamManagementSubpage = 'team';
   static const List<String> subpages = [
     dashboardSubpage,
     recentSubpage,
@@ -64,6 +66,7 @@ class _HomePageState extends State<HomePage> {
           HomePage.whiteboardSubpage => const Whiteboard(),
           HomePage.settingsSubpage => const SettingsPage(),
           HomePage.historySubpage => const ConsultationHistoryPage(),
+          HomePage.teamManagementSubpage => const TeamManagementPage(),
           _ => const RecentPage(),
         },
       ),

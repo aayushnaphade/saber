@@ -23,6 +23,10 @@ class ResponsiveNavbar extends StatefulWidget {
 }
 
 class _ResponsiveNavbarState extends State<ResponsiveNavbar> {
+  DateTime? _lastTapTime;
+  static const _tapDebounceMs = 300;
+  bool _isNavigating = false;
+
   @override
   void initState() {
     stows.locale.addListener(onChange);
@@ -38,7 +42,26 @@ class _ResponsiveNavbarState extends State<ResponsiveNavbar> {
   void onDestinationSelected(int index) {
     if (index == widget.selectedIndex) return;
 
+    // Prevent navigation if already navigating
+    if (_isNavigating) return;
+
+    // Debounce rapid taps to prevent double visual feedback
+    final now = DateTime.now();
+    if (_lastTapTime != null &&
+        now.difference(_lastTapTime!).inMilliseconds < _tapDebounceMs) {
+      return;
+    }
+    _lastTapTime = now;
+
+    _isNavigating = true;
     context.go(HomeRoutes.getRoute(index));
+    
+    // Reset navigation flag after a short delay
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _isNavigating = false;
+      }
+    });
   }
 
   @override

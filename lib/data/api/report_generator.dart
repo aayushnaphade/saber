@@ -52,7 +52,7 @@ You must output a single valid JSON object containing exactly these six keys. Do
     - `name` (String): Name of the medicine + dosage.
     - `frequency` (String): Frequency (e.g., "BD", "1-0-1").
     - `duration` (String): Duration if mentioned (e.g., "5 days", "1 month").
-    - `remarks` (String): Any special instructions (e.g., "after food", "empty stomach").
+    - `remarks` (String): Any special instructions or administration notes (e.g., "after food", "empty stomach", "at night"). Look for text written below or next to the medication.
     If no medications are found, return empty array `[]`.
 
 **Critical Rules:**
@@ -93,67 +93,6 @@ You must output a single valid JSON object containing exactly these six keys. Do
 }
 ''';
 
-  static const _exactExtractionSystemPrompt = '''
-**Role:**
-You are a Precision Clinical Data Extractor. Your job is to digitize handwritten psychiatric session notes into a JSON format.
-
-**Core Directive:**
-Segment the raw text into six specific clinical sections. Within those sections, you must preserve the **exact phrasing, abbreviations, and symbols** used by the doctor. Do not expand abbreviations (e.g., keep "c/o", do not change to "complains of"). Do not translate Hinglish terms (e.g., keep "Ghabrahat").
-
-**Input Processing Rules:**
-1.  **Verbatim Extraction:** Extract words exactly as written. If the doctor writes "Sad +", output "Sad +".
-2.  **Symbol Handling:**
-    * Convert arrow drawings to Unicode: Use `↑` for up-arrow/increase, `↓` for down-arrow/decrease.
-    * Keep `+`, `-`, `Δ` (delta) exactly as shown.
-3.  **Diagram Handling:** If a section contains a drawing (like a Family Tree/Genogram) and no text, replace the content with the tag: `[Diagram: Genogram]`.
-4.  **Grouping Logic (The Bracket Rule):**
-    * If multiple items are grouped by a bracket `}` or line to a single duration/cause (e.g., "Symptom A, Symptom B } 2 months"), **distribute the modifier** to each item to preserve the meaning.
-    * *Example Conversion:* "Ghabrahat, ↓ sleep } 2 mths" → "Ghabrahat (2 mths), ↓ sleep (2 mths)"
-5.  **Implicit Headers:** If the doctor omits a header (e.g., skips writing "MSE:") but strictly lists MSE observations (e.g., "Conscious, Orient"), automatically place that text into the `mental_status_examination` field.
-6.  **Typo Correction:** Fix obvious OCR/handwriting slips (e.g., "5ad" → "Sad", "m0ths" → "mths"), but do **not** fix grammatical errors or clinical shorthand.
-
-**JSON Output Structure:**
-Return a single JSON object with these 6 keys. Values must be **Strings**.
-
-* `current_symptoms`: (String) Content related to c/o, presenting complaints.
-* `premorbid_personality`: (String) Content related to personality before illness.
-* `past_history`: (String) Content related to PHx, past episodes.
-* `family_history`: (String) Content related to FHx, family tree.
-* `mental_status_examination`: (String) Content related to MSE, appearance, mood, affect.
-* `provided_diagnosis`: (String) Content related to Imp, Δ, or diagnosis.
-* `medications`: (Array) List of objects `{"name": "...", "frequency": "...", "duration": "...", "remarks": "..."}`.
-
-**Handling Missing Data:**
-If a section is empty in the source notes, use the string `"Not mentioned"`.
-
-**Example:**
-
-*Input Note:*
-"c/o: Ghabrahat, Low mood } 2 wks.
-PHx: Nil.
-MSE: Co-op. Mood-ok.
-Imp: Anxiety
-Rx: Tab Foo 10mg BD 5 days (after food)"
-
-*Output JSON:*
-{
-  "current_symptoms": "Ghabrahat (2 wks), Low mood (2 wks)",
-  "premorbid_personality": "Not mentioned",
-  "past_history": "Nil",
-  "family_history": "Not mentioned",
-  "mental_status_examination": "Co-op. Mood-ok.",
-  "provided_diagnosis": "Anxiety",
-  "medications": [
-    {
-      "name": "Tab Foo 10mg",
-      "frequency": "BD",
-      "duration": "5 days",
-      "remarks": "after food"
-    }
-  ]
-}
-''';
-
   static Future<Map<String, dynamic>> generateReport(List<Uint8List> imageBytesList) async {
     try {
       if (imageBytesList.isEmpty) {
@@ -181,9 +120,7 @@ Rx: Tab Foo 10mg BD 5 days (after food)"
       
       log.info('Sending request to Vertex AI ($parent)...');
 
-      final systemPrompt = stows.exactExtraction.value
-          ? _exactExtractionSystemPrompt
-          : _defaultSystemPrompt;
+      final systemPrompt = _defaultSystemPrompt;
 
       // Create parts for all pages
       final parts = <GoogleCloudAiplatformV1Part>[
@@ -308,6 +245,9 @@ Rx: Tab Foo 10mg BD 5 days (after food)"
 
     } catch (e) {
       log.severe('Error generating report', e);
+      if (e.toString().contains('SocketException') || e.toString().contains('Connection timed out')) {
+        throw Exception('Network error: Unable to reach Google services. Please check your internet connection or hospital firewall settings.');
+      }
       rethrow;
     }
   }

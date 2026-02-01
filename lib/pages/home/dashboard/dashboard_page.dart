@@ -314,7 +314,7 @@ class _DashboardPageState extends State<DashboardPage> {
     List<QueueItem> queue,
     List<Appointment> appointments,
   ) {
-    final waitingCount = queue.isEmpty ? 0 : queue.length - 1;
+    final waitingCount = queue.where((item) => item.status.toLowerCase() == 'waiting').length;
     final currentPatient = queue.isNotEmpty ? queue.first : null;
 
     return Column(
@@ -352,7 +352,7 @@ class _DashboardPageState extends State<DashboardPage> {
     List<QueueItem> queue,
     List<Appointment> appointments,
   ) {
-    final waitingCount = queue.isEmpty ? 0 : queue.length - 1;
+    final waitingCount = queue.where((item) => item.status.toLowerCase() == 'waiting').length;
     final currentPatient = queue.isNotEmpty ? queue.first : null;
 
     return Row(

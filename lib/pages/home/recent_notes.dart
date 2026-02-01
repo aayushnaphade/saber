@@ -158,39 +158,13 @@ class _RecentPageState extends State<RecentPage> {
                     ),
                     PatientHistoryCalendar(),
                     SizedBox(height: 24),
-                    Text(
-                      'History',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 8),
                   ],
                 ),
               ),
             ),
-            if (failed) ...[
-              const SliverSafeArea(
-                sliver: SliverToBoxAdapter(child: Welcome()),
-              ),
-            ] else ...[
-              SliverSafeArea(
-                minimum: const .only(
-                  // Allow space for the FloatingActionButton
-                  bottom: 70,
-                ),
-                sliver: MasonryFiles(
-                  crossAxisCount: crossAxisCount,
-                  files: [for (final filePath in filePaths) filePath],
-                  selectedFiles: selectedFiles,
-                ),
-              ),
-            ],
           ],
         ),
       ),
-      floatingActionButton: NewNoteButton(cupertino: platform.isCupertino),
       persistentFooterButtons: selectedFiles.value.isEmpty
           ? null
           : [

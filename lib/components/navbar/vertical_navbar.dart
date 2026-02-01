@@ -76,27 +76,59 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: backgroundColor,
-        border: theme.platform == .linux
-            ? BoxBorder.fromSTEB(end: BorderSide(color: theme.dividerColor))
+        gradient: theme.brightness == Brightness.light
+            ? LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  backgroundColor,
+                  Color.alphaBlend(
+                    theme.colorScheme.primary.withAlpha(10),
+                    backgroundColor,
+                  ),
+                ],
+              )
             : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(theme.brightness == Brightness.light ? 10 : 30),
+            blurRadius: 10,
+            offset: const Offset(2, 0),
+          ),
+        ],
+        border: theme.platform == TargetPlatform.linux
+            ? Border(right: BorderSide(color: theme.dividerColor))
+            : Border(
+                right: BorderSide(
+                  color: theme.colorScheme.outlineVariant.withAlpha(80),
+                ),
+              ),
       ),
       child: Column(
-        crossAxisAlignment: .start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: kToolbarHeight),
           Padding(
-            padding: const .symmetric(vertical: 10, horizontal: 12),
-            child: TextButton(
-              onPressed: () {
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
                 setState(() {
                   expanded = !expanded;
                 });
               },
-              child: AdaptiveIcon(
-                icon: expanded ? Icons.chevron_left : Icons.chevron_right,
-                cupertinoIcon: expanded
-                    ? CupertinoIcons.chevron_left
-                    : CupertinoIcons.chevron_right,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: AnimatedRotation(
+                  duration: const Duration(milliseconds: 300),
+                  turns: expanded ? 0.5 : 0,
+                  child: AdaptiveIcon(
+                    icon: Icons.chevron_right,
+                    cupertinoIcon: CupertinoIcons.chevron_right,
+                    size: 28,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
               ),
             ),
           ),
@@ -104,14 +136,22 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
             child: SingleChildScrollView(
               child: IntrinsicHeight(
                 child: NavigationRail(
-                  key: ValueKey(expanded),
                   destinations: widget.destinations,
                   selectedIndex: widget.selectedIndex,
-                  backgroundColor: backgroundColor,
+                  backgroundColor: Colors.transparent,
                   extended: expanded,
-                  minExtendedWidth: 220,
+                  minExtendedWidth: 240,
                   onDestinationSelected: widget.onDestinationSelected,
                   useIndicator: true,
+                  indicatorColor: theme.colorScheme.primary.withAlpha(40),
+                  unselectedLabelTextStyle: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  selectedLabelTextStyle: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
               ),
             ),
@@ -119,22 +159,32 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
           Padding(
             padding: const EdgeInsets.all(8),
             child: expanded
-                ? FilledButton.icon(
-                    onPressed: _handleLogout,
-                    icon: const Icon(Icons.logout, size: 20),
-                    label: const Text('Sign Out'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.errorContainer,
-                      foregroundColor: Theme.of(
-                        context,
-                      ).colorScheme.onErrorContainer,
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: FilledButton.icon(
+                      onPressed: _handleLogout,
+                      icon: const Icon(Icons.logout_rounded, size: 20),
+                      label: const Text(
+                        'Sign Out',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: theme.colorScheme.error,
+                        foregroundColor: theme.colorScheme.onError,
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
                   )
                 : IconButton(
                     onPressed: _handleLogout,
-                    icon: const Icon(Icons.logout, size: 20),
+                    icon: Icon(
+                      Icons.logout_rounded,
+                      size: 24,
+                      color: theme.colorScheme.error,
+                    ),
                     tooltip: 'Sign Out',
                   ),
           ),

@@ -28,8 +28,10 @@ import 'package:saber/pages/editor/editor.dart';
 import 'package:saber/pages/home/home.dart';
 import 'package:saber/pages/home/patient_browse.dart';
 import 'package:saber/pages/home/patient_profile.dart';
+import 'package:saber/pages/home/widgets/session_viewer.dart';
 import 'package:saber/pages/logs.dart';
 import 'package:saber/pages/user/supabase_login.dart';
+import 'package:saber/data/models/patient.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
 
@@ -193,11 +195,24 @@ class App extends StatefulWidget {
         return RoutePaths.login;
       }
 
-      // If authenticated and on login page, redirect to home
-      if (isAuthenticated && isLoginRoute) {
-        return pathToFunction(RoutePaths.home)({
-          'subpage': HomePage.dashboardSubpage,
-        });
+      // If authenticated, check role for tablet access
+      if (isAuthenticated) {
+        final role = stows.userRole.value;
+        // Note: For existing sessions, role might be empty initially 
+        // until tryRestoreSession completes, but the router refresh
+        // will trigger again once the role is synced.
+        if (role.isNotEmpty && role != 'doctor') {
+          // Force logout and redirect if not a doctor
+          SupabaseAuthService.signOut();
+          return RoutePaths.login;
+        }
+
+        // If authenticated and on login page, redirect to home
+        if (isLoginRoute) {
+          return pathToFunction(RoutePaths.home)({
+            'subpage': HomePage.dashboardSubpage,
+          });
+        }
       }
 
       // No redirect needed
@@ -243,6 +258,7 @@ class App extends StatefulWidget {
           path: state.uri.queryParameters['path'],
           pdfPath: state.uri.queryParameters['pdfPath'],
           consultationId: state.uri.queryParameters['consultation_id'],
+          readOnly: state.uri.queryParameters['readOnly'] == 'true',
         ),
       ),
       GoRoute(
@@ -253,6 +269,22 @@ class App extends StatefulWidget {
       GoRoute(
         path: RoutePaths.logs,
         builder: (context, state) => const LogsPage(),
+      ),
+      GoRoute(
+        path: RoutePaths.sessionViewer,
+        builder: (context, state) {
+          final patientId = state.pathParameters['patientId']!;
+          final sessionNumber =
+              int.parse(state.pathParameters['sessionNumber']!);
+          final extra = state.extra as Map<String, dynamic>;
+          final allSessions = extra['allSessions'] as List<SessionInfo>;
+
+          return SessionViewerPage(
+            patientId: patientId,
+            initialSessionNumber: sessionNumber,
+            allSessions: allSessions,
+          );
+        },
       ),
     ],
   );

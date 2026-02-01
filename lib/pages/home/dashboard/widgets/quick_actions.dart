@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:saber/data/prefs.dart';
 import 'package:saber/data/models/patient.dart';
 import 'package:saber/pages/home/dashboard/widgets/new_patient_dialog.dart';
 import 'package:saber/pages/home/dashboard/widgets/schedule_appointment_dialog.dart';
@@ -53,6 +54,17 @@ class QuickActions extends StatelessWidget {
         },
       ),
     ];
+
+    if (stows.userRole.value == 'doctor') {
+      actions.add((
+        label: 'Team',
+        icon: Icons.manage_accounts_outlined,
+        color: Colors.orange,
+        onTap: () {
+          context.go('/home/team');
+        },
+      ));
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {

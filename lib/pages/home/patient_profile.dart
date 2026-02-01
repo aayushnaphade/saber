@@ -292,6 +292,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
           patient: patient!,
           existingIntake: _patientIntake,
           doctorName: _doctorName,
+          readOnly: _patientIntake != null, // Read-only if viewing existing intake
           onSave: (intake) async {
             try {
               final savedIntake = await SupabaseIntakeService.upsertIntake(intake);
@@ -321,6 +322,36 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       setState(() {
         _patientIntake = result;
       });
+    }
+  }
+
+  Future<void> _confirmAndStartNewSession() async {
+    if (patient == null) return;
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Start New Session'),
+        content: Text(
+          'Are you sure you want to start a new session for ${patient!.fullName}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Start Session'),
+          ),
+        ],
+      ),
+    );
+
+    // If confirmed, proceed with starting the session
+    if (confirmed == true) {
+      await _startNewSession();
     }
   }
 
@@ -671,7 +702,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
             ),
       floatingActionButton: patient != null
           ? FloatingActionButton.extended(
-              onPressed: _startNewSession,
+              onPressed: _confirmAndStartNewSession,
               icon: const Icon(Icons.add),
               label: const Text('Start Session'),
             )
@@ -1100,13 +1131,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               Icons.monitor_weight_outlined,
               patient!.weight == null,
             ),
-            const SizedBox(height: 12),
-            _buildVitalCard(
-              'Blood Group',
-              patient!.bloodGroup ?? '--',
-              Icons.bloodtype_outlined,
-              patient!.bloodGroup == null,
-            ),
+
             const SizedBox(height: 12),
             _buildVitalCard(
               'Address',
@@ -1312,10 +1337,10 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Patient History', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+        Text('Clinical Records', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
         SizedBox(height: AppSpacing.xs),
         Text(
-          'Previous sessions and documents',
+          'Detailed logs and AI reports for each session',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
@@ -1327,12 +1352,11 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
             title: 'No Sessions Yet',
             message: 'Start a new session to begin documenting patient care',
             actionLabel: 'Start First Session',
-            onAction: _startNewSession,
+            onAction: _confirmAndStartNewSession,
           )
         else
           _buildSessionsList(),
         SizedBox(height: AppSpacing.xl),
-        _buildAIOutputFolders(),
       ],
     );
   }
@@ -1420,11 +1444,19 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
           },
           child: Card(
             margin: const EdgeInsets.only(bottom: 12),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).dividerColor.withOpacity(0.1),
+                width: isSelected ? 2 : 1,
+              ),
+            ),
             color: isSelected
-                ? Theme.of(
-                    context,
-                  ).colorScheme.primaryContainer.withOpacity(0.3)
-                : null,
+                ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                : Theme.of(context).colorScheme.surface,
             child: InkWell(
               onLongPress: () {
                 setState(() {
@@ -1440,21 +1472,75 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                 }
               },
               borderRadius: BorderRadius.circular(12),
-              child: ListTile(
-                leading: _isSelectionMode
-                    ? Checkbox(
-                        value: isSelected,
-                        onChanged: (value) =>
-                            _toggleSelection(session.folderName),
-                      )
-                    : CircleAvatar(child: Text('${session.sessionNumber}')),
-                title: Text('Session ${session.sessionNumber}'),
-                subtitle: Text(
-                  '${session.fileCount} ${session.fileCount == 1 ? 'file' : 'files'} • ${DateFormat.yMMMd().format(session.createdDate)}',
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: ListTile(
+                  leading: _isSelectionMode
+                      ? Checkbox(
+                          value: isSelected,
+                          onChanged: (value) =>
+                              _toggleSelection(session.folderName),
+                        )
+                      : Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            '${session.sessionNumber}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                  title: Text(
+                    'Session ${session.sessionNumber}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Row(
+                    children: [
+                      const Icon(Icons.calendar_today, size: 12, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Text(
+                        DateFormat.yMMMd().format(session.createdDate),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(width: 12),
+                      const Icon(Icons.description_outlined, size: 12, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${session.fileCount} pages',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                   trailing: _isSelectionMode
+                      ? null
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // AI Report Icon
+                            IconButton(
+                              icon: const Icon(Icons.auto_awesome, color: Colors.blue),
+                              onPressed: () => _openSession(session),
+                              tooltip: 'View AI Report',
+                            ),
+                            // View Notes Icon
+                            IconButton(
+                              icon: const Icon(Icons.visibility_outlined),
+                              onPressed: () {
+                                final sessionPath = '${patient!.documentFolderPath(DocumentType.sessionNote)}/${session.folderName}';
+                                final documentPath = '$sessionPath/${session.folderName}_notes.sbn';
+                                context.push(RoutePaths.editFilePath(documentPath, readOnly: true));
+                              },
+                              tooltip: 'View handwritten notes',
+                            ),
+                            const Icon(Icons.chevron_right, color: Colors.grey),
+                          ],
+                        ),
                 ),
-                trailing: _isSelectionMode
-                    ? null
-                    : const Icon(Icons.chevron_right),
               ),
             ),
           ),
@@ -1463,122 +1549,15 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     );
   }
 
-  Widget _buildAIOutputFolders() {
-    if (patient == null) return const SizedBox();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Document Types',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: AppSpacing.xs),
-        Text(
-          'AI-generated documents organized by type',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        SizedBox(height: AppSpacing.md),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final crossAxisCount = constraints.maxWidth > 600 ? 3 : 2;
-            return GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: crossAxisCount,
-              mainAxisSpacing: AppSpacing.sm,
-              crossAxisSpacing: AppSpacing.sm,
-              childAspectRatio: 1.3,
-              children: [
-                _buildFolderCard(
-                  DocumentType.examinationReport,
-                  Icons.assignment_outlined,
-                  MedicalColors.medicalAccent1,
-                ),
-                _buildFolderCard(
-                  DocumentType.prescription,
-                  Icons.medication_outlined,
-                  MedicalColors.medicalAccent2,
-                ),
-                _buildFolderCard(
-                  DocumentType.sessionNote,
-                  Icons.notes_outlined,
-                  MedicalColors.medicalWarning,
-                ),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFolderCard(DocumentType type, IconData icon, Color color) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        side: BorderSide(
-          color: color.withOpacity(0.3),
-          width: 1.5,
-        ),
-      ),
-      child: InkWell(
-        onTap: () => _openDocumentFolder(type),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [color.withOpacity(0.08), color.withOpacity(0.02)],
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Icon(icon, size: 28, color: color),
-              ),
-              SizedBox(height: AppSpacing.sm),
-              Text(
-                type.displayName,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   void _openSession(SessionInfo session) {
     if (patient == null) return;
 
-    final sessionPath =
-        '${patient!.documentFolderPath(DocumentType.sessionNote)}/${session.folderName}';
-    final documentName = '${session.folderName}_notes.sbn';
-    final documentPath = '$sessionPath/$documentName';
+    final route = RoutePaths.sessionViewer
+        .replaceAll(':patientId', patient!.id)
+        .replaceAll(':sessionNumber', session.sessionNumber.toString());
 
-    debugPrint('PatientProfile: Navigating to editor for $documentPath');
-    context.push(RoutePaths.editFilePath(documentPath));
-  }
-
-  void _openDocumentFolder(DocumentType type) {
-    if (patient == null) return;
-    context.go('/home/patients/${patient!.id}/${type.folderName}');
+    context.push(route, extra: {'allSessions': sessions});
   }
 
   String _getStatusDisplayName(PatientStatus status) {
@@ -1624,7 +1603,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
   late TextEditingController phoneController;
   late TextEditingController emailController;
   late TextEditingController weightController;
-  late TextEditingController bloodGroupController;
+
   late TextEditingController allergiesController;
   late TextEditingController addressController;
   String? selectedGender;
@@ -1645,9 +1624,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
     weightController = TextEditingController(
       text: widget.patient.weight?.toString() ?? '',
     );
-    bloodGroupController = TextEditingController(
-      text: widget.patient.bloodGroup ?? '',
-    );
+
     allergiesController = TextEditingController(
       text: widget.patient.allergies ?? '',
     );
@@ -1664,7 +1641,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
     phoneController.dispose();
     emailController.dispose();
     weightController.dispose();
-    bloodGroupController.dispose();
+
     allergiesController.dispose();
     addressController.dispose();
     super.dispose();
@@ -1862,24 +1839,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: bloodGroupController,
-                              decoration: InputDecoration(
-                                labelText: 'Blood Group',
-                                hintText: 'e.g., A+, B-, O+',
-                                border: const OutlineInputBorder(),
-                                prefixIcon: const Icon(Icons.bloodtype),
-                                filled: true,
-                                fillColor: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest
-                                    .withOpacity(0.3),
-                              ),
-                              textCapitalization: TextCapitalization.characters,
-                            ),
-                          ),
+
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -1951,9 +1911,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                         weight: weightController.text.isEmpty
                             ? null
                             : double.tryParse(weightController.text),
-                        bloodGroup: bloodGroupController.text.isEmpty
-                            ? null
-                            : bloodGroupController.text,
+
                         allergies: allergiesController.text.isEmpty
                             ? null
                             : allergiesController.text,
@@ -1976,20 +1934,6 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
   }
 }
 
-/// Session information model
-class SessionInfo {
-  final int sessionNumber;
-  final String folderName;
-  final int fileCount;
-  final DateTime createdDate;
-
-  SessionInfo({
-    required this.sessionNumber,
-    required this.folderName,
-    required this.fileCount,
-    required this.createdDate,
-  });
-}
 
 class _SyncConflictDialog extends StatefulWidget {
   const _SyncConflictDialog({required this.fileNames});

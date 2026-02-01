@@ -138,6 +138,11 @@ class Stows {
     null,
     volatile: !_isOnMainIsolate,
   );
+  final userRole = PlainStow(
+    'userRole',
+    '',
+    volatile: !_isOnMainIsolate,
+  );
 
   final syncInBackground = PlainStow(
     'syncInBackground',
@@ -221,8 +226,8 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
   final autoStraightenLines = PlainStow(
-    'autoStraightenLines',
-    true,
+    'autoStraightenLines_v2',
+    false,
     volatile: !_isOnMainIsolate,
   );
 

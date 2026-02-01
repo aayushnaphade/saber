@@ -16,13 +16,18 @@ abstract class RoutePaths {
   static const patientDetail = '$prefixOfHome/patients/:patientId';
   static const patientDocuments =
       '$prefixOfHome/patients/:patientId/:documentType';
+  static const sessionViewer =
+      '$prefixOfHome/patients/:patientId/sessions/:sessionNumber';
 
   static const prefixOfHome = '/home';
 
-  static String editFilePath(String filePath, {String? consultationId}) {
+  static String editFilePath(String filePath, {String? consultationId, bool readOnly = false}) {
     var uri = '$edit?path=${Uri.encodeQueryComponent(filePath)}';
     if (consultationId != null) {
       uri += '&consultation_id=${Uri.encodeQueryComponent(consultationId)}';
+    }
+    if (readOnly) {
+      uri += '&readOnly=true';
     }
     return uri;
   }
@@ -51,40 +56,45 @@ abstract class HomeRoutes {
         routePath: _homeFunction({'subpage': HomePage.dashboardSubpage}),
         label: 'Dashboard',
         icon: const AdaptiveIcon(
-          icon: Icons.dashboard_rounded,
+          icon: Icons.space_dashboard_rounded,
           cupertinoIcon: CupertinoIcons.square_grid_2x2_fill,
+          size: 28,
         ),
       ),
       _Route(
         routePath: _homeFunction({'subpage': HomePage.recentSubpage}),
         label: 'Recent Notes',
         icon: const AdaptiveIcon(
-          icon: Icons.history,
+          icon: Icons.schedule_rounded,
           cupertinoIcon: CupertinoIcons.clock_fill,
+          size: 28,
         ),
       ),
       _Route(
         routePath: _homeFunction({'subpage': HomePage.browseSubpage}),
         label: t.home.tabs.browse,
         icon: const AdaptiveIcon(
-          icon: Icons.people,
+          icon: Icons.people_alt_rounded,
           cupertinoIcon: CupertinoIcons.person_2_fill,
+          size: 28,
         ),
       ),
       _Route(
         routePath: _homeFunction({'subpage': HomePage.whiteboardSubpage}),
         label: t.home.tabs.whiteboard,
         icon: const AdaptiveIcon(
-          icon: Icons.brush,
+          icon: Icons.brush_rounded,
           cupertinoIcon: CupertinoIcons.paintbrush_fill,
+          size: 28,
         ),
       ),
       _Route(
         routePath: _homeFunction({'subpage': HomePage.settingsSubpage}),
         label: t.home.tabs.settings,
         icon: const AdaptiveIcon(
-          icon: Icons.settings,
+          icon: Icons.tune_rounded,
           cupertinoIcon: CupertinoIcons.settings_solid,
+          size: 28,
         ),
       ),
     ];
@@ -116,12 +126,26 @@ class _Route {
       NavigationDestination(label: label, icon: icon);
   NavigationRailDestination toNavigationRailDestination() =>
       NavigationRailDestination(
-        label: Text(
-          label,
-          overflow: TextOverflow.clip,
-          maxLines: 1,
-          softWrap: false,
+        label: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 15,
+              letterSpacing: 0.2,
+            ),
+            overflow: TextOverflow.fade,
+            maxLines: 1,
+            softWrap: false,
+          ),
         ),
-        icon: icon,
+        icon: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: icon,
+        ),
+        selectedIcon: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: icon,
+        ),
       );
 }

@@ -188,7 +188,9 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
             if (mounted) {
               setState(() {
                 patients = patientList;
-                filteredPatients = patientList;
+                patients?.sort((a, b) =>
+                    a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+                filteredPatients = patients;
                 _onSearchChanged(); // Re-apply filter
                 isLoading = false;
               });
@@ -636,13 +638,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
                         ),
                       ),
                 title: Text(patient.fullName),
-                subtitle: Text(
-                  [
-                    if (patient.age != null) '${patient.age} years',
-                    if (patient.gender != null) patient.gender!,
-                    patient.status.value.replaceAll('_', ' '),
-                  ].join(' • '),
-                ),
+                subtitle: _buildPatientMetadata(patient: patient),
                 trailing: _isSelectionMode
                     ? null
                     : const Icon(Icons.chevron_right),
@@ -729,18 +725,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        [
-                          if (patient.age != null) '${patient.age} years',
-                          if (patient.gender != null) patient.gender!,
-                          patient.status.value.replaceAll('_', ' '),
-                        ].join(' • '),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                      _buildPatientMetadata(patient: patient),
                     ],
                   ),
                   if (_isSelectionMode)
@@ -786,7 +771,6 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
               DataColumn(label: Text('Name')),
               DataColumn(label: Text('Age')),
               DataColumn(label: Text('Gender')),
-              DataColumn(label: Text('Status')),
             ],
             rows: displayList
                 .map((patient) {
@@ -815,8 +799,11 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
                       ),
                       DataCell(Text(patient.fullName)),
                       DataCell(Text(patient.age?.toString() ?? '—')),
-                      DataCell(Text(patient.gender ?? '—')),
-                      DataCell(Text(patient.status.value.replaceAll('_', ' '))),
+                      DataCell(
+                        patient.gender != null
+                            ? _buildGenderTag(patient.gender!)
+                            : const Text('—'),
+                      ),
                     ],
                   );
                 })
@@ -849,15 +836,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  [
-                    if (selectedPatient!.age != null)
-                      '${selectedPatient!.age} years',
-                    if (selectedPatient!.gender != null)
-                      selectedPatient!.gender!,
-                  ].join(' • '),
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
+                _buildPatientMetadata(patient: selectedPatient, isLarge: true),
                 const SizedBox(height: 16),
                 Text(
                   'Document Types',
@@ -975,6 +954,69 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildGenderTag(String gender, {bool isLarge = false}) {
+    final lowerGender = gender.toLowerCase().trim();
+    Color backgroundColor;
+    Color textColor;
+
+    if (lowerGender == 'male' || lowerGender == 'm') {
+      backgroundColor = Colors.blue.withOpacity(0.1);
+      textColor = Colors.blue.shade700;
+    } else if (lowerGender == 'female' || lowerGender == 'f') {
+      backgroundColor = Colors.pink.withOpacity(0.1);
+      textColor = Colors.pink.shade700;
+    } else {
+      backgroundColor = Theme.of(context).colorScheme.surfaceContainerHighest;
+      textColor = Theme.of(context).colorScheme.onSurfaceVariant;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        gender,
+        style:
+            (isLarge
+                    ? Theme.of(context).textTheme.bodyMedium
+                    : Theme.of(context).textTheme.bodySmall)
+                ?.copyWith(color: textColor, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildPatientMetadata({Patient? patient, bool isLarge = false}) {
+    if (patient == null) return const SizedBox.shrink();
+    
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (patient.age != null) ...[
+          Text(
+            '${patient.age} years',
+            style: isLarge
+                ? Theme.of(context).textTheme.bodyLarge
+                : Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '•',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        if (patient.gender != null)
+          _buildGenderTag(patient.gender!, isLarge: isLarge),
+      ],
     );
   }
 
@@ -1096,12 +1138,6 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
           : selectedPatient != null
           ? _buildPatientView()
           : _buildPatientsView(),
-      floatingActionButton: selectedPatient == null
-          ? FloatingActionButton(
-              onPressed: _createNewPatient,
-              child: const Icon(Icons.add),
-            )
-          : null,
     );
   }
 }

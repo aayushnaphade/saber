@@ -24,6 +24,7 @@ class PsychiatricIntakeForm extends StatefulWidget {
     required this.onSave,
     this.onCancel,
     this.doctorName,
+    this.readOnly = false,
   });
 
   final Patient patient;
@@ -31,6 +32,7 @@ class PsychiatricIntakeForm extends StatefulWidget {
   final Function(PsychiatricIntake) onSave;
   final VoidCallback? onCancel;
   final String? doctorName;
+  final bool readOnly;
 
   @override
   State<PsychiatricIntakeForm> createState() => _PsychiatricIntakeFormState();
@@ -41,6 +43,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
   bool _isSaving = false;
   bool _isImporting = false;
   bool _wasImportedFromPhoto = false;
+  late bool _isEditing;
 
   // Header Fields
   DateTime? _dateOfExamination = DateTime.now();
@@ -147,6 +150,10 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    
+    // Start in edit mode if creating new intake or not in readOnly mode
+    // Start in view mode if readOnly and viewing existing intake
+    _isEditing = !widget.readOnly || widget.existingIntake == null;
     
     // Pre-fill residence from patient data if available
     if (widget.patient.address != null && widget.patient.address!.isNotEmpty) {
@@ -640,35 +647,47 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
           onPressed: widget.onCancel,
         ),
         actions: [
-          // Import from Photo button
-          OutlinedButton.icon(
-            onPressed: _isImporting || _isSaving ? null : _handlePhotoImport,
-            icon: _isImporting
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.photo_camera, size: 18),
-            label: const Text('Import from Form'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: MedicalColors.info,
+          if (_isEditing) ...[
+            // Import from Photo button (only in edit mode)
+            OutlinedButton.icon(
+              onPressed: _isImporting || _isSaving ? null : _handlePhotoImport,
+              icon: _isImporting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.photo_camera, size: 18),
+              label: const Text('Import from Form'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: MedicalColors.info,
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          
-          // Save button
-          FilledButton.icon(
-            onPressed: _isSaving ? null : _handleSave,
-            icon: _isSaving 
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.check, size: 18),
-            label: const Text('Save & Continue'),
-          ),
+            const SizedBox(width: 8),
+            
+            // Save button (only in edit mode)
+            FilledButton.icon(
+              onPressed: _isSaving ? null : _handleSave,
+              icon: _isSaving 
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check, size: 18),
+              label: const Text('Save Changes'),
+            ),
+          ] else ...[
+            // Edit button (only in view mode)
+            FilledButton.icon(
+              onPressed: () => setState(() => _isEditing = true),
+              icon: const Icon(Icons.edit, size: 18),
+              label: const Text('Edit'),
+              style: FilledButton.styleFrom(
+                backgroundColor: MedicalColors.info,
+              ),
+            ),
+          ],
           const SizedBox(width: 12),
         ],
       ),
@@ -1287,7 +1306,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
         ),
       ),
       value: value,
-      onChanged: onChanged,
+      onChanged: _isEditing ? onChanged : null,
       dense: true,
       controlAffinity: ListTileControlAffinity.leading,
       contentPadding: const EdgeInsets.symmetric(horizontal: 4),
@@ -1302,6 +1321,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
   }) {
     return TextField(
       controller: controller,
+      readOnly: !_isEditing,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
@@ -1319,6 +1339,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
   }) {
     return TextField(
       controller: controller,
+      readOnly: !_isEditing,
       maxLines: maxLines,
       decoration: InputDecoration(
         labelText: label,

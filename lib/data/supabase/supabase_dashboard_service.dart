@@ -12,12 +12,10 @@ class SupabaseDashboardService {
       // Auto-cleanup past pending sessions
       await cancelPastPendingSessions();
 
-      final now = DateTime.now().toIso8601String();
       final response = await supabase
           .from('consultations')
-          .select('*, patients(full_name)')
+          .select('*, patients(full_name, gender, age, visit_type)')
           .or('status.eq.waiting,status.eq.in_progress')
-          .lte('scheduled_time', now) // Only show items scheduled for now or earlier
           .order('queue_order', ascending: true)
           .order('scheduled_time', ascending: true);
 
@@ -28,6 +26,13 @@ class SupabaseDashboardService {
         final patient = item['patients'];
         final patientName = patient != null ? patient['full_name'] : 'Unknown';
         final status = item['status'] as String;
+        
+        final age = patient?['age'] as int? ?? 0;
+        
+        final gender = patient?['gender'] as String? ?? 'Unknown';
+        // Use visit_type from patient or default to 'New Patient'
+        final visitType = patient?['visit_type'] as String? ?? 'New Patient';
+        final registeredTime = DateTime.parse(item['created_at']);
 
         // Calculate estimated wait time (mock logic for now: 15 mins per person ahead)
         final waitTime = Duration(minutes: (position - 1) * 15);
@@ -40,6 +45,10 @@ class SupabaseDashboardService {
             position: position++,
             estimatedWaitTime: waitTime,
             status: status == 'in_progress' ? 'In Consultation' : 'Waiting',
+            age: age,
+            gender: gender,
+            registeredTime: registeredTime,
+            patientType: visitType,
           ),
         );
       }
@@ -74,7 +83,7 @@ class SupabaseDashboardService {
 
       final response = await supabase
           .from('consultations')
-          .select('*, patients(full_name, visit_type)')
+          .select('*, patients(full_name, visit_type, gender, age)')
           .gte('scheduled_time', startOfDay)
           .lte('scheduled_time', endOfDay)
           .order('scheduled_time', ascending: true);
@@ -98,6 +107,9 @@ class SupabaseDashboardService {
             status = AppointmentStatus.upcoming;
         }
 
+        final age = patient?['age'] as int?;
+        final gender = patient?['gender'] as String?;
+
         return Appointment(
           id: item['id'],
           patientName: patientName,
@@ -106,6 +118,8 @@ class SupabaseDashboardService {
           reason: visitType ?? 'General Consultation',
           status: status,
           appointmentType: appointmentTypeStr ?? 'walk-in',
+          age: age,
+          gender: gender,
         );
       }).toList();
     } catch (e) {
@@ -254,7 +268,7 @@ class SupabaseDashboardService {
 
       var query = supabase
           .from('consultations')
-          .select('*, patients(full_name, visit_type)')
+          .select('*, patients(full_name, visit_type, gender, age)')
           .gte('scheduled_time', start.toIso8601String())
           .lte('scheduled_time', end.toIso8601String())
           .neq('status', 'cancelled')
@@ -285,6 +299,9 @@ class SupabaseDashboardService {
             status = AppointmentStatus.upcoming;
         }
 
+        final age = patient?['age'] as int?;
+        final gender = patient?['gender'] as String?;
+
         return Appointment(
           id: item['id'],
           patientName: patientName,
@@ -293,6 +310,8 @@ class SupabaseDashboardService {
           reason: visitType ?? 'General Consultation',
           status: status,
           appointmentType: appointmentTypeStr ?? 'walk-in',
+          age: age,
+          gender: gender,
         );
       }).toList();
     } catch (e) {
@@ -307,7 +326,7 @@ class SupabaseDashboardService {
     try {
       final response = await supabase
           .from('consultations')
-          .select('*, patients(full_name, visit_type)')
+          .select('*, patients(full_name, visit_type, gender, age)')
           .gte('created_at', start.toIso8601String())
           .lte('created_at', end.toIso8601String())
           .order('created_at', ascending: false);
@@ -331,6 +350,9 @@ class SupabaseDashboardService {
             status = AppointmentStatus.upcoming;
         }
 
+        final age = patient?['age'] as int?;
+        final gender = patient?['gender'] as String?;
+
         return Appointment(
           id: item['id'],
           patientName: patientName,
@@ -339,6 +361,8 @@ class SupabaseDashboardService {
           reason: visitType ?? 'General Consultation',
           status: status,
           appointmentType: appointmentTypeStr ?? 'walk-in',
+          age: age,
+          gender: gender,
         );
       }).toList();
     } catch (e) {

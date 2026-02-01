@@ -64,28 +64,80 @@ class LiveQueueList extends StatelessWidget {
         if (queue.isEmpty)
           _buildEmptyState(context)
         else
-          Container(
-            height: 400, // Fixed height to show approx 5 items (approx 70-80px each)
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: theme.colorScheme.outlineVariant.withOpacity(0.5),
-              ),
-            ),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(0),
-              itemCount: queue.length,
-              separatorBuilder: (context, index) => Divider(
-                height: 1,
-                thickness: 1,
-                color: theme.colorScheme.outlineVariant.withOpacity(0.2),
-              ),
-              itemBuilder: (context, index) {
-                final item = queue[index];
-                return _buildQueueItem(context, item, index);
-              },
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // Calculate if we need scrolling (more than 5 items)
+              const itemHeight = 76.0; // Approximate height per item
+              final needsScroll = queue.length > 5;
+              final containerHeight = needsScroll 
+                  ? 400.0 
+                  : (queue.length * itemHeight).clamp(itemHeight, 400.0);
+
+              return Container(
+                height: containerHeight,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    Scrollbar(
+                      thumbVisibility: needsScroll,
+                      thickness: needsScroll ? 6 : 0,
+                      radius: const Radius.circular(3),
+                      child: ListView.separated(
+                        padding: const EdgeInsets.all(0),
+                        physics: needsScroll 
+                            ? const AlwaysScrollableScrollPhysics()
+                            : const NeverScrollableScrollPhysics(),
+                        itemCount: queue.length,
+                        separatorBuilder: (context, index) => Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: theme.colorScheme.outlineVariant.withOpacity(0.2),
+                        ),
+                        itemBuilder: (context, index) {
+                          final item = queue[index];
+                          return _buildQueueItem(context, item, index);
+                        },
+                      ),
+                    ),
+                    // Scroll indicator hint at bottom when scrollable
+                    if (needsScroll)
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: IgnorePointer(
+                          child: Container(
+                            height: 40,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  theme.colorScheme.surface.withOpacity(0),
+                                  theme.colorScheme.surface.withOpacity(0.95),
+                                ],
+                              ),
+                            ),
+                            child: Center(
+                              child: Icon(
+                                Icons.keyboard_arrow_down,
+                                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
           ),
       ],
     );
@@ -169,20 +221,14 @@ class LiveQueueList extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       // ID Pill
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          item.patientId,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontSize: 10,
-                          ),
+                      Text(
+                        '${item.age} yrs',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
+                      const SizedBox(width: 6),
+                      _buildGenderTag(item.gender, theme),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -194,13 +240,19 @@ class LiveQueueList extends StatelessWidget {
                         color: theme.colorScheme.onSurfaceVariant
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        item.estimatedWaitTime.inMinutes > 0
-                            ? '${item.estimatedWaitTime.inMinutes} min wait'
-                            : 'Ready now',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+                      Builder(
+                        builder: (context) {
+                          final duration = DateTime.now().difference(item.registeredTime);
+                          final hours = duration.inHours;
+                          final minutes = duration.inMinutes.remainder(60);
+                          final timeString = hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m';
+                          return Text(
+                            '$timeString waited',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -217,7 +269,7 @@ class LiveQueueList extends StatelessWidget {
                 ),
               ),
               child: Text(
-                item.status,
+                item.patientType,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: statusColor,
                   fontWeight: FontWeight.bold,
@@ -258,6 +310,39 @@ class LiveQueueList extends StatelessWidget {
                 ],
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenderTag(String gender, ThemeData theme) {
+    final lowerGender = gender.toLowerCase().trim();
+    Color backgroundColor;
+    Color textColor;
+
+    if (lowerGender == 'male' || lowerGender == 'm') {
+      backgroundColor = Colors.blue.withOpacity(0.1);
+      textColor = Colors.blue.shade700;
+    } else if (lowerGender == 'female' || lowerGender == 'f') {
+      backgroundColor = Colors.pink.withOpacity(0.1);
+      textColor = Colors.pink.shade700;
+    } else {
+      backgroundColor = theme.colorScheme.surfaceContainerHighest;
+      textColor = theme.colorScheme.onSurfaceVariant;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        gender,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: textColor,
+          fontWeight: FontWeight.bold,
+          fontSize: 10,
         ),
       ),
     );

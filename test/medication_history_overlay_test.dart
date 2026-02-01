@@ -2,12 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saber/components/overlays/medication_history_overlay.dart';
 import 'package:saber/data/models/medication_history_models.dart';
-import 'package:saber/data/api/medication_history_service.dart';
-import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
 
-// Generate mocks with: flutter pub run build_runner build
-@GenerateMocks([MedicationHistoryService])
 void main() {
   group('MedicationHistoryOverlay Widget Tests', () {
     testWidgets('should display loading indicator initially', (WidgetTester tester) async {

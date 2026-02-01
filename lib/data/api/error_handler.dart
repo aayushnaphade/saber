@@ -12,15 +12,27 @@ class ErrorHandler {
         error is HandshakeException ||
         error is TimeoutException ||
         error is http.ClientException) {
-      return 'No internet connection. Please check your connection.';
+      return 'No internet connection. Please check your connection and try again.';
     }
 
     final errorString = error.toString().toLowerCase();
+    
+    // Check for network-related error strings
     if (errorString.contains('socketexception') ||
         errorString.contains('connection timed out') ||
         errorString.contains('connection failed') ||
-        errorString.contains('timed out')) {
-      return 'No internet connection. Please check your connection.';
+        errorString.contains('timed out') ||
+        errorString.contains('connection refused') ||
+        errorString.contains('network') ||
+        errorString.contains('clientexception')) {
+      return 'No internet connection. Please check your connection and try again.';
+    }
+    
+    // Check for Google API / OAuth specific errors
+    if (errorString.contains('googleapis.com') ||
+        errorString.contains('oauth2') ||
+        errorString.contains('vertex ai')) {
+      return 'Unable to connect to Google AI services. Please check your internet connection or network firewall settings.';
     }
 
     return error.toString();

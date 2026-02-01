@@ -129,12 +129,32 @@ class LiveQueueCard extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'ID: ${currentPatient!.patientId} • ${currentPatient!.status}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withOpacity(0.8),
-                    ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Text(
+                        '${currentPatient!.age} yrs',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildGenderTag(currentPatient!.gender, theme),
+                      const SizedBox(width: 8),
+                      Text(
+                        '•',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withOpacity(0.6),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        currentPatient!.status,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 24),
                   Row(
@@ -218,6 +238,41 @@ class LiveQueueCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildGenderTag(String gender, ThemeData theme) {
+    final lowerGender = gender.toLowerCase().trim();
+    Color backgroundColor;
+    Color textColor;
+
+    if (lowerGender == 'male' || lowerGender == 'm') {
+      backgroundColor = Colors.blue.withOpacity(0.2);
+      textColor = Colors.blue.shade100;
+    } else if (lowerGender == 'female' || lowerGender == 'f') {
+      backgroundColor = Colors.pink.withOpacity(0.2);
+      textColor = Colors.pink.shade100;
+    } else {
+      backgroundColor = Colors.white.withOpacity(0.2);
+      textColor = Colors.white.withOpacity(0.9);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: textColor.withOpacity(0.3),
+        ),
+      ),
+      child: Text(
+        gender,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: textColor,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

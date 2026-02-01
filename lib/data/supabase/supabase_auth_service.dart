@@ -214,12 +214,13 @@ class SupabaseAuthService {
 
       final profile = await supabase
           .from('profiles')
-          .select('reception_mode')
+          .select('reception_mode, role')
           .eq('id', userId)
           .maybeSingle();
 
       if (profile != null) {
         stows.receptionMode.value = profile['reception_mode'] as bool? ?? false;
+        stows.userRole.value = profile['role'] as String? ?? '';
       }
     } catch (e) {
       log.warning('Failed to sync profile', e);
@@ -239,8 +240,15 @@ class SupabaseAuthService {
     stows.supabaseAccessToken.value = '';
     stows.supabaseRefreshToken.value = '';
     stows.supabaseUserEmail.value = '';
+    
+    // Clear profile cache
+    stows.userRole.value = '';
+    stows.userDisplayName.value = '';
+    stows.userHospital.value = '';
+    stows.userSpecialization.value = '';
+    stows.receptionMode.value = false;
 
-    log.info('Session cleared from preferences');
+    log.info('Session and profile cache cleared from preferences');
   }
 
   /// Try to restore session from stored credentials

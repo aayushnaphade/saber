@@ -6,6 +6,7 @@ import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_auth_service.dart';
 import 'package:saber/pages/home/home.dart';
+import 'package:saber/data/prefs.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Supabase authentication login page with Material 3 design
@@ -39,14 +40,10 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
   void _setupAuthListener() {
     _authStateSubscription = SupabaseAuthService.onAuthStateChange.listen(
       (AuthState data) {
-        if (data.event == AuthChangeEvent.signedIn && mounted) {
-          // Navigate to home when signed in
-          // We use context.go to ensure GoRouter handles the navigation correctly
-          // and updates the browser URL if on web
-          context.go(
-            RoutePaths.home.replaceFirst(':subpage', HomePage.dashboardSubpage),
-          );
-        }
+        // We handle navigation explicitly in _handleEmailPasswordAuth
+        // or via the router redirect for restored sessions.
+        // This avoids race conditions where a non-doctor is 
+        // briefly navigated to home before role check completes.
       },
       onError: (error) {
         if (mounted) {
@@ -67,6 +64,7 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
+    stows.userRole.value = '';
 
     try {
       final email = _emailController.text.trim();
@@ -96,13 +94,48 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
         }
       } else {
         // Sign in mode
-        await SupabaseAuthService.signInWithEmailPassword(
+        final response = await SupabaseAuthService.signInWithEmailPassword(
           email: email,
           password: password,
         );
 
-        if (mounted) {
-          _showSuccessSnackBar('Signed in successfully!');
+        // Check user role after successful authentication
+        if (response.user != null) {
+          try {
+            // Ensure profile is synced
+            await SupabaseAuthService.syncProfile();
+            
+            final role = stows.userRole.value;
+            log.info('User signed in with role: $role');
+
+            if (role != 'doctor') {
+              // Strictly only allow doctors on the tablet
+              log.warning('Access denied for role: $role');
+              await SupabaseAuthService.signOut();
+              if (mounted) {
+                _showErrorSnackBar(
+                  'Access Restricted: This device is reserved for Doctors. Please use the Web portal.',
+                );
+                setState(() => _isLoading = false);
+              }
+              return;
+            }
+
+            // If we reach here, it's a doctor. Navigate to home.
+            if (mounted) {
+              _showSuccessSnackBar('Signed in successfully!');
+              context.go(
+                RoutePaths.home.replaceFirst(':subpage', HomePage.dashboardSubpage),
+              );
+            }
+          } catch (roleError) {
+            log.warning('Could not verify user role', roleError);
+            // If we can't verify, play it safe and sign out
+            await SupabaseAuthService.signOut();
+            if (mounted) {
+              _showErrorSnackBar('Authentication error: Could not verify permissions.');
+            }
+          }
         }
       }
     } on AuthException catch (e) {

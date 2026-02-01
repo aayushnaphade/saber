@@ -10,7 +10,9 @@ class Appointment {
   final String reason;
   final AppointmentStatus status;
   final String? avatarUrl;
-  final String appointmentType; // 'walk-in' or 'scheduled'
+  final String appointmentType;
+  final String? gender;
+  final int? age;
 
   const Appointment({
     required this.id,
@@ -21,6 +23,8 @@ class Appointment {
     required this.status,
     this.avatarUrl,
     this.appointmentType = 'walk-in',
+    this.gender,
+    this.age,
   });
 
   bool get isScheduled => appointmentType == 'scheduled';
@@ -33,6 +37,10 @@ class QueueItem {
   final int position;
   final Duration estimatedWaitTime;
   final String status; // "Waiting", "In Vitals", "Ready"
+  final int age;
+  final String gender;
+  final DateTime registeredTime;
+  final String patientType;
 
   const QueueItem({
     required this.id,
@@ -41,6 +49,10 @@ class QueueItem {
     required this.position,
     required this.estimatedWaitTime,
     required this.status,
+    required this.age,
+    required this.gender,
+    required this.registeredTime,
+    required this.patientType,
   });
 }
 
@@ -166,29 +178,41 @@ class MockDashboardData {
 
   static List<QueueItem> getLiveQueue() {
     return [
-      const QueueItem(
+      QueueItem(
         id: 'q1',
         patientName: 'Michael Chen',
         patientId: 'P-1002',
         position: 0,
         estimatedWaitTime: Duration.zero,
         status: 'In Consultation',
+        age: 45,
+        gender: 'Male',
+        registeredTime: DateTime.now().subtract(const Duration(minutes: 30)),
+        patientType: 'Follow-up',
       ),
-      const QueueItem(
+      QueueItem(
         id: 'q2',
         patientName: 'Emma Davis',
         patientId: 'P-1003',
         position: 1,
-        estimatedWaitTime: Duration(minutes: 15),
+        estimatedWaitTime: const Duration(minutes: 15),
         status: 'In Vitals',
+        age: 28,
+        gender: 'Female',
+        registeredTime: DateTime.now().subtract(const Duration(minutes: 15)),
+        patientType: 'New Patient',
       ),
-      const QueueItem(
+      QueueItem(
         id: 'q3',
         patientName: 'Robert Taylor',
         patientId: 'P-1005',
         position: 2,
-        estimatedWaitTime: Duration(minutes: 30),
+        estimatedWaitTime: const Duration(minutes: 30),
         status: 'Waiting',
+        age: 62,
+        gender: 'Male',
+        registeredTime: DateTime.now().subtract(const Duration(minutes: 5)),
+        patientType: 'Follow-up',
       ),
     ];
   }
