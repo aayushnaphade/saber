@@ -196,7 +196,7 @@ class EditorState extends State<Editor> {
 
   // Psychiatric intake overlay state
   PsychiatricIntake? _patientIntake;
-  bool _showIntakeOverlay = true;
+  bool _showIntakeOverlay = false;
   bool _hasLoadedIntake = false;
   bool _isIntakeExpanded = false;
   Offset? _intakeOverlayPosition; // null means use default right-side position
@@ -362,10 +362,7 @@ class EditorState extends State<Editor> {
             if (intake != null) _patientIntake = intake;
             _vitalsHistory = vitals;
             if (patient != null) _patientName = patient.fullName;
-            // Force show overlay if we have data
-            if (vitals.isNotEmpty) {
-                 _showVitalsOverlay = true;
-            }
+            // Vitals overlay is shown by default in collapsed form
           });
           log.info('Loaded intake and vitals for patient: $patientId. Vitals count: ${vitals.length}');
         }  
