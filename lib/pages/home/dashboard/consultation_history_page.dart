@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/routes.dart';
+import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/design_system/spacing.dart';
 
@@ -54,7 +55,7 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading history: $e')),
+          SnackBar(content: Text(ErrorHandler.getFriendlyErrorMessage(e))),
         );
         setState(() => _isLoading = false);
       }
@@ -181,10 +182,9 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () {
-            // Navigate to patient details or consultation details if available
+            // Navigate to patient details with return path to history
              context.go(
-                RoutePaths.patientDetail
-                    .replaceFirst(':patientId', consultation.patientId),
+                '${RoutePaths.patientDetail.replaceFirst(':patientId', consultation.patientId)}?returnPath=${Uri.encodeComponent('/home/history')}',
              );
         },
       ),

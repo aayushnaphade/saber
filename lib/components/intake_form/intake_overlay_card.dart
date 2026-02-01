@@ -10,6 +10,7 @@ class IntakeOverlayCard extends StatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onClose;
   final VoidCallback? onEdit;
+  final ValueChanged<bool>? onExpandChanged;
   final bool isExpanded;
 
   const IntakeOverlayCard({
@@ -18,6 +19,7 @@ class IntakeOverlayCard extends StatefulWidget {
     this.onTap,
     this.onClose,
     this.onEdit,
+    this.onExpandChanged,
     this.isExpanded = false,
   });
 
@@ -49,20 +51,38 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
   }
 
   @override
+  void didUpdateWidget(covariant IntakeOverlayCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isExpanded != oldWidget.isExpanded) {
+      _isExpanded = widget.isExpanded;
+      if (_isExpanded) {
+        _animationController.forward();
+      } else {
+        _animationController.reverse();
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
   }
 
   void _toggleExpand() {
-    setState(() {
-      _isExpanded = !_isExpanded;
-      if (_isExpanded) {
-        _animationController.forward();
-      } else {
-        _animationController.reverse();
-      }
-    });
+    if (widget.onExpandChanged != null) {
+      widget.onExpandChanged!(!_isExpanded);
+    } else {
+      setState(() {
+        _isExpanded = !_isExpanded;
+        if (_isExpanded) {
+          _animationController.forward();
+        } else {
+          _animationController.reverse();
+        }
+      });
+    }
+    widget.onTap?.call();
   }
 
   @override
@@ -286,28 +306,13 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Patient Details
-            if (widget.intake.education != null ||
-                widget.intake.occupation != null ||
-                widget.intake.residence != null) ...[
+            if (widget.intake.residence != null) ...[
               _buildDetailSection(theme, 'Demographics', [
-                if (widget.intake.education != null)
-                  _buildDetailRow(
-                    Icons.school_outlined,
-                    'Education',
-                    widget.intake.education!,
-                  ),
-                if (widget.intake.occupation != null)
-                  _buildDetailRow(
-                    Icons.work_outline,
-                    'Occupation',
-                    widget.intake.occupation!,
-                  ),
-                if (widget.intake.residence != null)
-                  _buildDetailRow(
-                    Icons.home_outlined,
-                    'Residence',
-                    widget.intake.residence!,
-                  ),
+                _buildDetailRow(
+                  Icons.home_outlined,
+                  'Residence',
+                  widget.intake.residence!,
+                ),
               ]),
               const SizedBox(height: 12),
             ],

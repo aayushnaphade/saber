@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
+import 'package:saber/data/api/error_handler.dart';
 
 class NewPatientDialog extends StatefulWidget {
   const NewPatientDialog({super.key});
@@ -49,7 +50,7 @@ class _NewPatientDialogState extends State<NewPatientDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to register patient: $e'),
+            content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );

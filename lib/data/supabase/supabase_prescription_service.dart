@@ -17,35 +17,64 @@ class SupabasePrescriptionService {
 
       String? resolvedConsultationId = consultationId;
 
-      // If consultationId is missing, try to find an active one for today
+      // If consultationId is missing, try to find an active or recent one
       if (resolvedConsultationId == null) {
         _log.info('Consultation ID missing, searching for active consultation...');
-        final today = DateTime.now();
-        final startOfDay = DateTime(today.year, today.month, today.day).toIso8601String();
         
-        final consultation = await supabase
+        // 1. Search for an in_progress or waiting consultation first
+        var consultation = await supabase
             .from('consultations')
             .select('id')
             .eq('patient_id', patientId)
             .eq('doctor_id', user.id)
-            .gte('created_at', startOfDay)
+            .inFilter('status', ['in_progress', 'waiting'])
             .order('created_at', ascending: false)
             .limit(1)
             .maybeSingle();
+
+        // 2. Fallback to any consultation from today if no active one exists
+        if (consultation == null) {
+          final today = DateTime.now();
+          final startOfDay = DateTime(today.year, today.month, today.day).toUtc().toIso8601String();
+          
+          consultation = await supabase
+              .from('consultations')
+              .select('id')
+              .eq('patient_id', patientId)
+              .eq('doctor_id', user.id)
+              .gte('created_at', startOfDay)
+              .order('created_at', ascending: false)
+              .limit(1)
+              .maybeSingle();
+        }
             
         if (consultation != null) {
           resolvedConsultationId = consultation['id'] as String;
           _log.info('Resolved consultation ID: $resolvedConsultationId');
+        } else {
+          // 3. Last resort: Create a walk-in consultation automatically
+          // This ensures the prescription is NEVER lost even if the doctor
+          // started a session in a way that bypassed checking in.
+          _log.warning('No active or recent consultation found. Auto-creating walk-in consultation...');
+          try {
+            final response = await supabase.from('consultations').insert({
+              'patient_id': patientId,
+              'doctor_id': user.id,
+              'status': 'in_progress',
+              'scheduled_time': DateTime.now().toIso8601String(),
+              'appointment_type': 'walk-in',
+            }).select().single();
+            resolvedConsultationId = response['id'];
+            _log.info('Auto-created consultation ID: $resolvedConsultationId');
+          } catch (e) {
+            _log.severe('Failed to auto-create consultation', e);
+            // If even this fails, we have to throw, but this is unlikely
+            throw Exception(
+              'Failed to create prescription: No consultation record could be found or created. '
+              'Please ensure the patient is correctly registered.'
+            );
+          }
         }
-      }
-
-      // If still null, the database WILL error because it's not-nullable.
-      // We'll let it fail or log a more specific error.
-      if (resolvedConsultationId == null) {
-        throw Exception(
-          'Cannot create prescription: No active consultation found for this session. '
-          'Please ensure the patient is checked in via the dashboard.'
-        );
       }
 
       final prescriptionData = {

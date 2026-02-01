@@ -5,6 +5,11 @@ import 'package:saber/design_system/colors.dart';
 import 'package:saber/design_system/spacing.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
+import 'package:saber/components/intake_form/intake_photo_capture_screen.dart';
+import 'package:saber/data/api/intake_form_extractor.dart';
+import 'package:saber/data/supabase/supabase_client.dart';
+import 'package:saber/data/api/error_handler.dart';
+import 'dart:typed_data';
 
 /// Psychiatric Intake Form Widget
 /// Matches Dr. Monisha Dass's clinical intake form layout
@@ -34,17 +39,15 @@ class PsychiatricIntakeForm extends StatefulWidget {
 class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
   late final ScrollController _scrollController;
   bool _isSaving = false;
+  bool _isImporting = false;
+  bool _wasImportedFromPhoto = false;
 
   // Header Fields
-  final _caseNumberController = TextEditingController();
-  DateTime? _dateOfExamination;
-  final _educationController = TextEditingController();
-  final _occupationController = TextEditingController();
-  final _residenceController = TextEditingController();
-  final _informantsController = TextEditingController();
-  final _durationOfIllnessController = TextEditingController();
-  final _referredByController = TextEditingController();
-  final _precipitatingFactorController = TextEditingController();
+  DateTime? _dateOfExamination = DateTime.now();
+  final TextEditingController _residenceController = TextEditingController();
+  final TextEditingController _durationOfIllnessController = TextEditingController();
+  final TextEditingController _referredByController = TextEditingController();
+  final TextEditingController _precipitatingFactorController = TextEditingController();
 
   // Anxiety & Related Symptoms
   bool _anxietyWorry = false;
@@ -144,20 +147,20 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _dateOfExamination = DateTime.now();
     
+    // Pre-fill residence from patient data if available
+    if (widget.patient.address != null && widget.patient.address!.isNotEmpty) {
+      _residenceController.text = widget.patient.address!;
+    }
+
     if (widget.existingIntake != null) {
       _loadExistingIntake(widget.existingIntake!);
     }
   }
 
   void _loadExistingIntake(PsychiatricIntake intake) {
-    _caseNumberController.text = intake.caseNumber ?? '';
     _dateOfExamination = intake.dateOfExamination;
-    _educationController.text = intake.education ?? '';
-    _occupationController.text = intake.occupation ?? '';
     _residenceController.text = intake.residence ?? '';
-    _informantsController.text = intake.informants ?? '';
     _durationOfIllnessController.text = intake.durationOfIllness ?? '';
     _referredByController.text = intake.referredBy ?? '';
     _precipitatingFactorController.text = intake.precipitatingFactor ?? '';
@@ -251,11 +254,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
   @override
   void dispose() {
     _scrollController.dispose();
-    _caseNumberController.dispose();
-    _educationController.dispose();
-    _occupationController.dispose();
     _residenceController.dispose();
-    _informantsController.dispose();
     _durationOfIllnessController.dispose();
     _referredByController.dispose();
     _precipitatingFactorController.dispose();
@@ -272,17 +271,15 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
 
   PsychiatricIntake _buildIntake() {
     final id = widget.existingIntake?.id ?? const Uuid().v4();
+    final currentUserId = supabase.auth.currentUser?.id;
+    
     return PsychiatricIntake(
       id: id,
       patientId: widget.patient.id,
       createdAt: widget.existingIntake?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
-      caseNumber: _caseNumberController.text.isEmpty ? null : _caseNumberController.text,
       dateOfExamination: _dateOfExamination,
-      education: _educationController.text.isEmpty ? null : _educationController.text,
-      occupation: _occupationController.text.isEmpty ? null : _occupationController.text,
       residence: _residenceController.text.isEmpty ? null : _residenceController.text,
-      informants: _informantsController.text.isEmpty ? null : _informantsController.text,
       durationOfIllness: _durationOfIllnessController.text.isEmpty ? null : _durationOfIllnessController.text,
       referredBy: _referredByController.text.isEmpty ? null : _referredByController.text,
       precipitatingFactor: _precipitatingFactorController.text.isEmpty ? null : _precipitatingFactorController.text,
@@ -362,6 +359,10 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
       otherSymptoms: _otherSymptomsController.text.isEmpty ? null : _otherSymptomsController.text,
       clinicalNotes: _clinicalNotesController.text.isEmpty ? null : _clinicalNotesController.text,
       provisionalDiagnosis: _provisionalDiagnosisController.text.isEmpty ? null : _provisionalDiagnosisController.text,
+      // Import metadata
+      importedFromPhoto: _wasImportedFromPhoto,
+      importedAt: _wasImportedFromPhoto ? DateTime.now() : null,
+      importedBy: _wasImportedFromPhoto ? currentUserId : null,
     );
   }
 
@@ -377,6 +378,250 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
         setState(() => _isSaving = false);
       }
     }
+  }
+
+  /// Handle photo import workflow
+  Future<void> _handlePhotoImport() async {
+    try {
+      setState(() => _isImporting = true);
+
+      // Open photo capture screen
+      final result = await Navigator.push<Map<String, Uint8List>>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const IntakePhotoCaptureScreen(),
+        ),
+      );
+
+      if (result == null) {
+        setState(() => _isImporting = false);
+        return;
+      }
+
+      final frontPhoto = result['frontPhoto']!;
+      final backPhoto = result['backPhoto']!;
+
+      // Show processing dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                const Text('Extracting data from photos...'),
+                const SizedBox(height: 8),
+                Text(
+                  'This may take a few seconds',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      // Extract data using Gemini Vision API
+      final extractedData = await IntakeFormExtractor.extractFromPhotos(
+        frontPhoto: frontPhoto,
+        backPhoto: backPhoto,
+      );
+
+      // Close processing dialog
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      // Pre-fill form with extracted data
+      if (mounted) {
+        _prefillFromExtractedData(extractedData);
+        
+        setState(() {
+          _isImporting = false;
+          _wasImportedFromPhoto = true;
+        });
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text('Form pre-filled from photos. Please review and correct any errors.'),
+                ),
+              ],
+            ),
+            backgroundColor: MedicalColors.healthy,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close processing dialog if open
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      setState(() => _isImporting = false);
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red),
+                SizedBox(width: 8),
+                Text('Import Failed'),
+              ],
+            ),
+            content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
+  /// Pre-fill form fields from extracted data
+  void _prefillFromExtractedData(Map<String, dynamic> data) {
+    setState(() {
+      // Header fields
+      if (data['residence'] != null) {
+        _residenceController.text = data['residence'];
+      }
+      if (data['duration_of_illness'] != null) {
+        _durationOfIllnessController.text = data['duration_of_illness'];
+      }
+      if (data['referred_by'] != null) {
+        _referredByController.text = data['referred_by'];
+      }
+      if (data['precipitating_factor'] != null) {
+        _precipitatingFactorController.text = data['precipitating_factor'];
+      }
+
+      // Anxiety symptoms
+      _anxietyWorry = data['anxiety_worry'] ?? false;
+      _panic = data['panic'] ?? false;
+      _restless = data['restless'] ?? false;
+      _palpitationsTremors = data['palpitations_tremors'] ?? false;
+      _phobia = data['phobia'] ?? false;
+      _obsessions = data['obsessions'] ?? false;
+      _compulsions = data['compulsions'] ?? false;
+      _hypochondriacal = data['hypochondriacal'] ?? false;
+      _fitsHystEpileptic = data['fits_hyst_epileptic'] ?? false;
+      _possessionState = data['possession_state'] ?? false;
+
+      // Somatic symptoms
+      _somaticHeadache = data['somatic_headache'] ?? false;
+      _somaticBodyache = data['somatic_bodyache'] ?? false;
+      _somaticAbdominal = data['somatic_abdominal'] ?? false;
+      if (data['somatic_other'] != null) {
+        _somaticOtherController.text = data['somatic_other'];
+      }
+
+      // Substance use
+      _substanceUse = data['substance_use'];
+      _alcoholDrugsTobacco = data['alcohol_drugs_tobacco'] ?? false;
+
+      // Sexual dysfunction
+      _decreasedLibido = data['decreased_libido'] ?? false;
+      _increasedLibido = data['increased_libido'] ?? false;
+      _erectileDysfunction = data['erectile_dysfunction'] ?? false;
+      _prematureEjaculation = data['premature_ejaculation'] ?? false;
+      _retardedEjaculation = data['retarded_ejaculation'] ?? false;
+      _worryMasturbationNE = data['worry_masturbation_ne'] ?? false;
+      if (data['sexual_dysfunction_other'] != null) {
+        _sexualDysfunctionOtherController.text = data['sexual_dysfunction_other'];
+      }
+
+      // Psychotic symptoms
+      _ideasDelPersecution = data['ideas_del_persecution'] ?? false;
+      _ideasDelReference = data['ideas_del_reference'] ?? false;
+      _otherDelusions = data['other_delusions'] ?? false;
+      _firstRankSymptoms = data['first_rank_symptoms'] ?? false;
+      _hallucinationsAuditory = data['hallucinations_auditory'] ?? false;
+      _hallucinationsVisual = data['hallucinations_visual'] ?? false;
+      _incoherence = data['incoherence'] ?? false;
+      _mutteringToSelf = data['muttering_to_self'] ?? false;
+      _inappropriateSmiling = data['inappropriate_smiling'] ?? false;
+      _inappropriateWeeping = data['inappropriate_weeping'] ?? false;
+      _abusing = data['abusing'] ?? false;
+      _violence = data['violence'] ?? false;
+      _withdrawalInertia = data['withdrawal_inertia'] ?? false;
+
+      // Manic symptoms
+      _irritableElated = data['irritable_elated'] ?? false;
+      _grandiose = data['grandiose'] ?? false;
+      _overtalkative = data['overtalkative'] ?? false;
+      _flightOfIdeas = data['flight_of_ideas'] ?? false;
+      _overactivePMA = data['overactive_pma'] ?? false;
+      _extravagant = data['extravagant'] ?? false;
+
+      // Depressive symptoms
+      _sadIntermittent = data['sad_intermittent'] ?? false;
+      _sadPersistent = data['sad_persistent'] ?? false;
+      _anhedoniaInertia = data['anhedonia_inertia'] ?? false;
+      _diurnalChange = data['diurnal_change'] ?? false;
+      _weightLoss = data['weight_loss'] ?? false;
+      _weightGain = data['weight_gain'] ?? false;
+      _insomniaType = data['insomnia_type'];
+      _hypersomnia = data['hypersomnia'] ?? false;
+      _pmrPma = data['pmr_pma'] ?? false;
+      _fatigue = data['fatigue'] ?? false;
+      _worthlessnessGuilt = data['worthlessness_guilt'] ?? false;
+      _decreasedThinkingConcentration = data['decreased_thinking_concentration'] ?? false;
+      _indecisive = data['indecisive'] ?? false;
+      _suicidalThoughts = data['suicidal_thoughts'] ?? false;
+      _suicidalPlans = data['suicidal_plans'] ?? false;
+      _suicidalAttempts = data['suicidal_attempts'] ?? false;
+
+      // Cognitive symptoms
+      _disorientationTime = data['disorientation_time'] ?? false;
+      _disorientationPlace = data['disorientation_place'] ?? false;
+      _disorientationPerson = data['disorientation_person'] ?? false;
+      _forgetfulness = data['forgetfulness'];
+      _aphasiaApraxiaAgnosia = data['aphasia_apraxia_agnosia'] ?? false;
+      _decreasedIntelligence = data['decreased_intelligence'] ?? false;
+      _perseveration = data['perseveration'] ?? false;
+      _losingPath = data['losing_path'] ?? false;
+      _disinhibition = data['disinhibition'] ?? false;
+      _incontinenceUrine = data['incontinence_urine'] ?? false;
+      _incontinenceStools = data['incontinence_stools'] ?? false;
+      _emotionalLability = data['emotional_lability'] ?? false;
+
+      // Additional information
+      if (data['medical_illnesses'] != null) {
+        _medicalIllnessesController.text = data['medical_illnesses'];
+      }
+      if (data['stresses'] != null) {
+        _stressesController.text = data['stresses'];
+      }
+      if (data['ongoing_treatment'] != null) {
+        _ongoingTreatmentController.text = data['ongoing_treatment'];
+      }
+      if (data['other_symptoms'] != null) {
+        _otherSymptomsController.text = data['other_symptoms'];
+      }
+      if (data['clinical_notes'] != null) {
+        _clinicalNotesController.text = data['clinical_notes'];
+      }
+      if (data['provisional_diagnosis'] != null) {
+        _provisionalDiagnosisController.text = data['provisional_diagnosis'];
+      }
+    });
   }
 
   @override
@@ -395,6 +640,24 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
           onPressed: widget.onCancel,
         ),
         actions: [
+          // Import from Photo button
+          OutlinedButton.icon(
+            onPressed: _isImporting || _isSaving ? null : _handlePhotoImport,
+            icon: _isImporting
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.photo_camera, size: 18),
+            label: const Text('Import from Form'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: MedicalColors.info,
+            ),
+          ),
+          const SizedBox(width: 8),
+          
+          // Save button
           FilledButton.icon(
             onPressed: _isSaving ? null : _handleSave,
             icon: _isSaving 
@@ -539,39 +802,15 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
                     icon: Icons.cake_outlined,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildTextField(
-                    controller: _caseNumberController,
-                    label: 'Case No.',
-                    hint: 'Enter case number',
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 12),
             
-            // Second Row
+            // Second Row - General Info
             Wrap(
               spacing: 12,
               runSpacing: 12,
               children: [
-                SizedBox(
-                  width: isTablet ? 200 : double.infinity,
-                  child: _buildTextField(
-                    controller: _educationController,
-                    label: 'Education',
-                    hint: 'e.g., Graduate',
-                  ),
-                ),
-                SizedBox(
-                  width: isTablet ? 200 : double.infinity,
-                  child: _buildTextField(
-                    controller: _occupationController,
-                    label: 'Occupation',
-                    hint: 'e.g., Teacher',
-                  ),
-                ),
                 SizedBox(
                   width: isTablet ? 250 : double.infinity,
                   child: _buildTextField(
@@ -580,23 +819,6 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
                     hint: 'City/Area',
                   ),
                 ),
-                SizedBox(
-                  width: isTablet ? 200 : double.infinity,
-                  child: _buildTextField(
-                    controller: _informantsController,
-                    label: 'Informants',
-                    hint: 'Self/Family',
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            
-            // Third Row
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
                 SizedBox(
                   width: isTablet ? 200 : double.infinity,
                   child: _buildTextField(

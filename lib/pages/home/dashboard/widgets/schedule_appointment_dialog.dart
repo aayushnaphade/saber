@@ -4,6 +4,7 @@ import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
+import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/pages/home/dashboard/widgets/vitals_dialog.dart';
 
 class ScheduleAppointmentDialog extends StatefulWidget {
@@ -41,7 +42,7 @@ class _ScheduleAppointmentDialogState extends State<ScheduleAppointmentDialog> {
       if (mounted) {
         setState(() => _isLoadingPatients = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load patients: $e')),
+          SnackBar(content: Text(ErrorHandler.getFriendlyErrorMessage(e))),
         );
       }
     }
@@ -162,7 +163,7 @@ class _ScheduleAppointmentDialogState extends State<ScheduleAppointmentDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to schedule: $e')),
+          SnackBar(content: Text(ErrorHandler.getFriendlyErrorMessage(e))),
         );
       }
     } finally {

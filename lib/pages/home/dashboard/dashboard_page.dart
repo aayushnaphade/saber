@@ -15,6 +15,7 @@ import 'package:saber/pages/home/dashboard/widgets/live_queue_list.dart';
 import 'package:saber/pages/home/dashboard/widgets/quick_actions.dart';
 import 'package:saber/pages/home/dashboard/widgets/stat_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/welcome_header.dart';
+import 'package:saber/data/api/error_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -217,7 +218,7 @@ class _DashboardPageState extends State<DashboardPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error starting session: $e')),
+          SnackBar(content: Text(ErrorHandler.getFriendlyErrorMessage(e))),
         );
       }
     }
@@ -236,7 +237,7 @@ class _DashboardPageState extends State<DashboardPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error cancelling appointment: $e')),
+          SnackBar(content: Text(ErrorHandler.getFriendlyErrorMessage(e))),
         );
       }
     }
@@ -256,7 +257,7 @@ class _DashboardPageState extends State<DashboardPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error rescheduling appointment: $e')),
+          SnackBar(content: Text(ErrorHandler.getFriendlyErrorMessage(e))),
         );
       }
     }

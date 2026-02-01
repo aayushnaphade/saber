@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:saber/data/supabase/supabase_vitals_service.dart';
+import 'package:saber/data/api/error_handler.dart';
 
 class VitalsDialog extends StatefulWidget {
   final String patientId;
@@ -66,7 +67,7 @@ class _VitalsDialogState extends State<VitalsDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save vitals: $e')),
+          SnackBar(content: Text(ErrorHandler.getFriendlyErrorMessage(e))),
         );
       }
     } finally {

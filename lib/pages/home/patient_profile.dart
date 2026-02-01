@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:logging/logging.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/models/psychiatric_intake.dart';
@@ -15,6 +16,7 @@ import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/design_system/colors.dart';
 import 'package:saber/design_system/radius.dart';
 import 'package:saber/design_system/spacing.dart';
+import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/components/loading/skeleton_loader.dart';
 import 'package:saber/components/empty_state/empty_state.dart';
 import 'package:saber/components/intake_form/psychiatric_intake_form.dart';
@@ -30,6 +32,7 @@ class PatientProfilePage extends StatefulWidget {
 }
 
 class _PatientProfilePageState extends State<PatientProfilePage> {
+  static final _log = Logger('PatientProfilePage');
   Patient? patient;
   var sessions = <SessionInfo>[];
   var isLoading = true;
@@ -136,7 +139,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to delete sessions: $e'),
+            content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -177,7 +180,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Sync failed: $e'),
+            content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -299,7 +302,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Failed to save intake form: $e'),
+                    content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
                     backgroundColor: Theme.of(context).colorScheme.error,
                   ),
                 );
@@ -353,41 +356,71 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       final documentName = 'session_${nextSessionNumber}_notes';
       final documentPath = '$sessionPath/$documentName.sbn';
 
-      // Create consultation record to mark doctor as busy
+      // Create or find consultation record
       String? consultationId;
       try {
         final user = supabase.auth.currentUser;
         if (user != null) {
-          // Get max queue order to maintain consistency
-          final maxOrderResponse = await supabase
+          // 1. First check if there's already an active or waiting consultation for this patient and doctor
+          final existing = await supabase
               .from('consultations')
-              .select('queue_order')
+              .select('id, status')
+              .eq('patient_id', patient!.id)
               .eq('doctor_id', user.id)
-              .or('status.eq.waiting,status.eq.in_progress')
-              .order('queue_order', ascending: false)
+              .inFilter('status', ['waiting', 'in_progress'])
+              .order('created_at', ascending: false)
               .limit(1)
               .maybeSingle();
 
-          final nextQueueOrder =
-              (maxOrderResponse?['queue_order'] as int? ?? 0) + 1;
+          if (existing != null) {
+            consultationId = existing['id'];
+            _log.info('Using existing consultation: $consultationId');
+            
+            // If it was waiting, move to in_progress
+            if (existing['status'] == 'waiting') {
+              await supabase
+                  .from('consultations')
+                  .update({'status': 'in_progress', 'session_start_time': DateTime.now().toIso8601String()})
+                  .eq('id', consultationId!);
+            }
+          } else {
+            // 2. No existing consultation found, create a new walk-in one
+            _log.info('No active consultation found, creating new walk-in...');
+            
+            // Get max queue order to maintain consistency
+            final maxOrderResponse = await supabase
+                .from('consultations')
+                .select('queue_order')
+                .eq('doctor_id', user.id)
+                .or('status.eq.waiting,status.eq.in_progress')
+                .order('queue_order', ascending: false)
+                .limit(1)
+                .maybeSingle();
 
-          final response = await supabase
-              .from('consultations')
-              .insert({
-                'patient_id': patient!.id,
-                'doctor_id': user.id,
-                'status': 'in_progress', // Immediately mark as busy/in-progress
-                'scheduled_time': DateTime.now().toIso8601String(),
-                'appointment_type': 'walk-in',
-                'queue_order': nextQueueOrder,
-              })
-              .select()
-              .single();
-          consultationId = response['id'];
+            final nextQueueOrder =
+                (maxOrderResponse?['queue_order'] as int? ?? 0) + 1;
+
+            final response = await supabase
+                .from('consultations')
+                .insert({
+                  'patient_id': patient!.id,
+                  'doctor_id': user.id,
+                  'status': 'in_progress',
+                  'session_start_time': DateTime.now().toIso8601String(),
+                  'scheduled_time': DateTime.now().toIso8601String(),
+                  'appointment_type': 'walk-in',
+                  'queue_order': nextQueueOrder,
+                })
+                .select()
+                .single();
+            consultationId = response['id'];
+            _log.info('Created new consultation: $consultationId');
+          }
         }
       } catch (e) {
-        debugPrint('Failed to create consultation record: $e');
-        // Proceed anyway so the doctor can still take notes
+        _log.severe('Failed to resolve consultation record', e);
+        // We will still proceed to the editor so the doctor doesn't lose their ability to take notes,
+        // but now the PrescriptionService has its own safety net to handle a null ID.
       }
 
       // Navigate to editor with new document
@@ -403,7 +436,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to start session: $e'),
+            content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -430,7 +463,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update status: $e'),
+            content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -478,7 +511,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to update: $e'),
+              content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
@@ -517,8 +550,17 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
           : AppBar(
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () => context.go('/home/browse'),
-                tooltip: 'Back to patients',
+                onPressed: () {
+                  // Check if there's a returnPath query parameter
+                  final uri = GoRouterState.of(context).uri;
+                  final returnPath = uri.queryParameters['returnPath'];
+                  if (returnPath != null && returnPath.isNotEmpty) {
+                    context.go(returnPath);
+                  } else {
+                    context.go('/home/browse');
+                  }
+                },
+                tooltip: 'Back',
               ),
               title: const Text('Patient Profile'),
               backgroundColor: Colors.transparent,

@@ -5,6 +5,7 @@ import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_auth_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
+import 'package:saber/data/api/error_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseProfile extends StatefulWidget {
@@ -96,7 +97,7 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load profile: $e'),
+            content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -143,7 +144,7 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to save profile: $e'),
+            content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -197,7 +198,7 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to upload image: $e'),
+            content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -243,7 +244,7 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to sign out: $e'),
+              content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
@@ -337,7 +338,7 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to update password: $e'),
+              content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );

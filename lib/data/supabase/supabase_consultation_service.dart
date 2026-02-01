@@ -1,6 +1,8 @@
 import 'package:logging/logging.dart';
 import 'package:saber/data/models/dashboard_models.dart';
+import 'package:saber/data/models/previous_session_note.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service for managing consultations and patient sessions
 class SupabaseConsultationService {
@@ -202,6 +204,69 @@ class SupabaseConsultationService {
     } catch (e) {
       log.severe('Error grouping consultations by date: $e');
       return {};
+    }
+  }
+
+  /// Fetch all previous session notes screenshots for a patient
+  static Future<List<PreviousSessionNote>> getPreviousSessionNotes(
+    String patientId,
+  ) async {
+    try {
+      final doctorId = supabase.auth.currentUser?.id;
+      if (doctorId == null) return [];
+
+      final cloudPrefix = '$doctorId/$patientId/session_notes';
+
+      // List all folders in the session_notes directory
+      final sessionFolders = await supabase.storage
+          .from('medical_notes')
+          .list(path: cloudPrefix);
+
+      final List<PreviousSessionNote> notes = [];
+
+      for (final folder in sessionFolders) {
+        // Folders have null id in Supabase Storage listing
+        if (folder.id == null || folder.metadata == null) {
+          final folderName = folder.name;
+          final sessionPath = '$cloudPrefix/$folderName';
+          
+          final files = await supabase.storage
+              .from('medical_notes')
+              .list(path: sessionPath);
+
+          // Find the preview file (.sbn2.p or .sbn.p)
+          final previewFile = files.cast<FileObject?>().firstWhere(
+            (f) => f != null && (f.name.endsWith('.p')),
+            orElse: () => null,
+          );
+
+          if (previewFile != null) {
+            final publicUrl = supabase.storage
+                .from('medical_notes')
+                .getPublicUrl('$sessionPath/${previewFile.name}');
+
+            // Extract session number from folder name "session_X"
+            final sessionNum =
+                int.tryParse(folderName.replaceAll('session_', '')) ?? 0;
+
+            notes.add(PreviousSessionNote(
+              imageUrl: publicUrl,
+              sessionNumber: sessionNum,
+              createdAt: previewFile.updatedAt != null
+                  ? DateTime.parse(previewFile.updatedAt!)
+                  : DateTime.now(),
+              fileName: previewFile.name,
+            ));
+          }
+        }
+      }
+
+      // Sort by session number descending (newest first)
+      notes.sort((a, b) => b.sessionNumber.compareTo(a.sessionNumber));
+      return notes;
+    } catch (e) {
+      log.severe('Error fetching previous session notes: $e');
+      return [];
     }
   }
 }

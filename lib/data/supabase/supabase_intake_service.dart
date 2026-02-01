@@ -1,6 +1,8 @@
 import 'package:logging/logging.dart';
 import 'package:saber/data/models/psychiatric_intake.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
+import 'dart:typed_data';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service for managing psychiatric intake data in Supabase
 class SupabaseIntakeService {
@@ -154,4 +156,140 @@ class SupabaseIntakeService {
       rethrow;
     }
   }
+
+  // ============================================================================
+  // PHOTO STORAGE METHODS (for intake form photo imports)
+  // ============================================================================
+
+  /// Upload intake form photos to Supabase Storage
+  /// Returns the file paths in storage
+  static Future<Map<String, String>> uploadIntakeFormPhotos({
+    required String patientId,
+    required Uint8List frontPhotoBytes,
+    required Uint8List backPhotoBytes,
+  }) async {
+    try {
+      log.info('Uploading intake form photos for patient: $patientId');
+
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final frontPath = 'intake-forms/$patientId/front_$timestamp.png';
+      final backPath = 'intake-forms/$patientId/back_$timestamp.png';
+
+      // Upload front photo
+      await supabase.storage
+          .from('intake-form-photos')
+          .uploadBinary(
+            frontPath,
+            frontPhotoBytes,
+            fileOptions: const FileOptions(
+              contentType: 'image/png',
+              upsert: false,
+            ),
+          );
+
+      log.info('Uploaded front photo: $frontPath');
+
+      // Upload back photo
+      await supabase.storage
+          .from('intake-form-photos')
+          .uploadBinary(
+            backPath,
+            backPhotoBytes,
+            fileOptions: const FileOptions(
+              contentType: 'image/png',
+              upsert: false,
+            ),
+          );
+
+      log.info('Uploaded back photo: $backPath');
+
+      return {
+        'front': frontPath,
+        'back': backPath,
+      };
+    } catch (e) {
+      log.severe('Failed to upload intake form photos for patient: $patientId', e);
+      rethrow;
+    }
+  }
+
+  /// Get signed URL for intake form photo (valid for 1 hour)
+  static Future<String> getIntakeFormPhotoUrl(String filePath) async {
+    try {
+      log.info('Getting signed URL for: $filePath');
+
+      final url = await supabase.storage
+          .from('intake-form-photos')
+          .createSignedUrl(filePath, 3600); // 1 hour
+
+      return url;
+    } catch (e) {
+      log.severe('Failed to get signed URL for: $filePath', e);
+      rethrow;
+    }
+  }
+
+  /// Delete intake form photos from storage
+  static Future<void> deleteIntakeFormPhotos(List<String> filePaths) async {
+    try {
+      log.info('Deleting ${filePaths.length} intake form photos');
+
+      await supabase.storage
+          .from('intake-form-photos')
+          .remove(filePaths);
+
+      log.info('Deleted intake form photos');
+    } catch (e) {
+      log.severe('Failed to delete intake form photos', e);
+      rethrow;
+    }
+  }
+
+  /// Clean up old intake form photos (older than 30 days)
+  /// Note: This should be called periodically via a background job
+  static Future<void> cleanupOldPhotos() async {
+    try {
+      log.info('Cleaning up old intake form photos (>30 days)');
+
+      final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
+      
+      // List all files in the bucket
+      final files = await supabase.storage
+          .from('intake-form-photos')
+          .list(path: 'intake-forms');
+
+      final filesToDelete = <String>[];
+      
+      for (final file in files) {
+        // Parse timestamp from filename
+        if (file.name.contains('_')) {
+          final parts = file.name.split('_');
+          if (parts.length >= 2) {
+            final timestampStr = parts.last.replaceAll('.png', '');
+            try {
+              final timestamp = int.parse(timestampStr);
+              final fileDate = DateTime.fromMillisecondsSinceEpoch(timestamp);
+              
+              if (fileDate.isBefore(thirtyDaysAgo)) {
+                filesToDelete.add('intake-forms/${file.name}');
+              }
+            } catch (e) {
+              log.warning('Could not parse timestamp from filename: ${file.name}');
+            }
+          }
+        }
+      }
+
+      if (filesToDelete.isNotEmpty) {
+        await deleteIntakeFormPhotos(filesToDelete);
+        log.info('Cleaned up ${filesToDelete.length} old photos');
+      } else {
+        log.info('No old photos to clean up');
+      }
+    } catch (e) {
+      log.severe('Failed to cleanup old photos', e);
+      rethrow;
+    }
+  }
 }
+

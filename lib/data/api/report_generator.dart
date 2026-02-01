@@ -16,7 +16,17 @@ class ReportGenerator {
 
   static const _projectId = 'synapseai-production';
   static const _location = 'asia-south1';
-  static const _modelId = 'gemini-3-pro-preview';
+  
+  /// Get the model ID based on user preference
+  static String get _modelId {
+    switch (stows.reportGenerationModel.value) {
+      case ReportGenerationModel.flash:
+        return 'gemini-3-flash-preview';
+      case ReportGenerationModel.pro:
+        return 'gemini-3-pro-preview';
+    }
+  }
+
 
   static const _defaultSystemPrompt = '''
 **Role:**
@@ -38,7 +48,12 @@ You must output a single valid JSON object containing exactly these six keys. Do
 4.  `family_history`: (String) Descriptions of family mental health or the family tree/genogram details.
 5.  `mental_status_examination`: (Object) Break this down into sub-fields based on the notes (e.g., "appearance", "mood", "affect", "thought", "perception", "insight").
 6.  `provided_diagnosis`: (String) The diagnosis or impression (Imp/∆) written by the doctor.
-7.  `medications`: (Array of Objects) List of prescribed medicines found in the notes (Rx/Adv). Each object must have `name` (String) and `frequency` (String). If none, return empty array `[]`.
+7.  `medications`: (Array of Objects) List of prescribed medicines found in the notes (Rx/Adv). Each object must have:
+    - `name` (String): Name of the medicine + dosage.
+    - `frequency` (String): Frequency (e.g., "BD", "1-0-1").
+    - `duration` (String): Duration if mentioned (e.g., "5 days", "1 month").
+    - `remarks` (String): Any special instructions (e.g., "after food", "empty stomach").
+    If no medications are found, return empty array `[]`.
 
 **Critical Rules:**
 1.  **Missing Information:** If a specific section is not found in the notes, the value must be the string "Not mentioned". Do not hallucinate or infer missing data.
@@ -47,7 +62,7 @@ You must output a single valid JSON object containing exactly these six keys. Do
 4.  **Language:** If words like "Ghabrahat" or "Man udaas" are used, transliterate them exactly as written, followed by the English approximation in parentheses if obvious (e.g., "Ghabrahat (Anxiety)").
 
 **Example Input:**
-"C/o: Ghabrahat, ↓ sleep, Sad ↑ for 2 mths. Ppt fact: Death of friend. Past Hist: Similar complaint 3 yrs back following work stress. MSE: Consc, co-op. Mood-anx. Aff-restricted."
+"C/o: Ghabrahat, ↓ sleep, Sad ↑ for 2 mths. Ppt fact: Death of friend. Past Hist: Similar complaint 3 yrs back following work stress. MSE: Consc, co-op. Mood-anx. Aff-restricted. Rx: T. Sertraline 50mg HS, T. Clonazepam 0.5mg SOS fro 5 days (ensure good sleep)."
 
 **Example Output:**
 {
@@ -61,7 +76,20 @@ You must output a single valid JSON object containing exactly these six keys. Do
     "affect": "Restricted"
   },
   "provided_diagnosis": "Not mentioned",
-  "medications": []
+  "medications": [
+    {
+      "name": "T. Sertraline 50mg",
+      "frequency": "HS",
+      "duration": "Not mentioned",
+      "remarks": "Not mentioned"
+    },
+    {
+      "name": "T. Clonazepam 0.5mg",
+      "frequency": "SOS",
+      "duration": "5 days",
+      "remarks": "ensure good sleep"
+    }
+  ]
 }
 ''';
 
@@ -93,7 +121,7 @@ Return a single JSON object with these 6 keys. Values must be **Strings**.
 * `family_history`: (String) Content related to FHx, family tree.
 * `mental_status_examination`: (String) Content related to MSE, appearance, mood, affect.
 * `provided_diagnosis`: (String) Content related to Imp, Δ, or diagnosis.
-* `medications`: (Array) List of objects `{"name": "...", "frequency": "..."}`.
+* `medications`: (Array) List of objects `{"name": "...", "frequency": "...", "duration": "...", "remarks": "..."}`.
 
 **Handling Missing Data:**
 If a section is empty in the source notes, use the string `"Not mentioned"`.
@@ -104,7 +132,8 @@ If a section is empty in the source notes, use the string `"Not mentioned"`.
 "c/o: Ghabrahat, Low mood } 2 wks.
 PHx: Nil.
 MSE: Co-op. Mood-ok.
-Imp: Anxiety"
+Imp: Anxiety
+Rx: Tab Foo 10mg BD 5 days (after food)"
 
 *Output JSON:*
 {
@@ -114,7 +143,14 @@ Imp: Anxiety"
   "family_history": "Not mentioned",
   "mental_status_examination": "Co-op. Mood-ok.",
   "provided_diagnosis": "Anxiety",
-  "medications": []
+  "medications": [
+    {
+      "name": "Tab Foo 10mg",
+      "frequency": "BD",
+      "duration": "5 days",
+      "remarks": "after food"
+    }
+  ]
 }
 ''';
 
@@ -141,7 +177,7 @@ Imp: Anxiety"
       final client = await clientViaServiceAccount(accountCredentials, scopes);
       final api = AiplatformApi(client);
 
-      const parent = 'projects/$_projectId/locations/$_location/publishers/google/models/$_modelId';
+      final parent = 'projects/$_projectId/locations/$_location/publishers/google/models/$_modelId';
       
       log.info('Sending request to Vertex AI ($parent)...');
 

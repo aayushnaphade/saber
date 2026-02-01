@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/routes.dart';
+import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/pages/home/dashboard/widgets/vitals_dialog.dart';
 
@@ -147,7 +148,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to delete patients: $e'),
+            content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -388,7 +389,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to create patient: $e'),
+              content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
@@ -565,7 +566,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Failed to delete patient: $e'),
+                    content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
                     backgroundColor: Theme.of(context).colorScheme.error,
                   ),
                 );
@@ -579,9 +580,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                      'Deleted patient, but failed to delete local files: $e',
-                    ),
+                    content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
                     backgroundColor: Theme.of(context).colorScheme.error,
                   ),
                 );

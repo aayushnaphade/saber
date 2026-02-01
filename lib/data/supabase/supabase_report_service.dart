@@ -90,4 +90,12 @@ class SupabaseReportService {
     if (response == null) return null;
     return ClinicalReport.fromJson(response);
   }
+
+  /// Deletes a clinical report by ID
+  static Future<void> deleteReport(String reportId) async {
+    await supabase
+        .from('clinical_reports')
+        .delete()
+        .eq('id', reportId);
+  }
 }

@@ -6,10 +6,12 @@ class ReportView extends StatefulWidget {
     super.key,
     required this.reportData,
     required this.onVerify,
+    this.onRegenerate,
   });
 
   final Map<String, dynamic> reportData;
   final VoidCallback onVerify;
+  final VoidCallback? onRegenerate;
 
   @override
   State<ReportView> createState() => _ReportViewState();
@@ -54,6 +56,8 @@ class _ReportViewState extends State<ReportView> {
           _medications.add({
             'name': m['name']?.toString() ?? '',
             'frequency': m['frequency']?.toString() ?? '',
+            'duration': m['duration']?.toString() ?? '',
+            'remarks': m['remarks']?.toString() ?? '',
           });
         }
       }
@@ -79,6 +83,15 @@ class _ReportViewState extends State<ReportView> {
       appBar: AppBar(
         title: const Text('Clinical Assessment Report'),
         actions: [
+          if (widget.onRegenerate != null)
+            TextButton.icon(
+              onPressed: widget.onRegenerate,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Regenerate'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.orange,
+              ),
+            ),
           TextButton.icon(
             onPressed: () {
                 // Update reportData with current values before verifying
@@ -155,8 +168,11 @@ class _ReportViewState extends State<ReportView> {
               runSpacing: 8.0,
               children: [
                 ..._medications.map((med) {
+                  final summary = StringBuffer(med['name'] ?? '');
+                  if (med['frequency']?.isNotEmpty == true) summary.write(' (${med['frequency']})');
+                  if (med['duration']?.isNotEmpty == true && med['duration'] != 'Not mentioned') summary.write(' - ${med['duration']}');
                   return InputChip(
-                    label: Text('${med['name']} (${med['frequency']})'),
+                    label: Text(summary.toString()),
                     onDeleted: () {
                       setState(() {
                         _medications.remove(med);
@@ -183,23 +199,35 @@ class _ReportViewState extends State<ReportView> {
   Future<void> _editMedication(Map<String, String> med) async {
     final nameController = TextEditingController(text: med['name']);
     final freqController = TextEditingController(text: med['frequency']);
+    final durationController = TextEditingController(text: med['duration']);
+    final remarksController = TextEditingController(text: med['remarks']);
 
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Edit Medication'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: 'Medication Name'),
-            ),
-            TextField(
-              controller: freqController,
-              decoration: const InputDecoration(labelText: 'Frequency (e.g. BD, 1-0-1)'),
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Medication Name'),
+              ),
+              TextField(
+                controller: freqController,
+                decoration: const InputDecoration(labelText: 'Frequency (e.g. BD, 1-0-1)'),
+              ),
+              TextField(
+                controller: durationController,
+                decoration: const InputDecoration(labelText: 'Duration (e.g. 5 days)'),
+              ),
+              TextField(
+                controller: remarksController,
+                decoration: const InputDecoration(labelText: 'Remarks (e.g. after food)'),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -211,6 +239,8 @@ class _ReportViewState extends State<ReportView> {
               setState(() {
                 med['name'] = nameController.text;
                 med['frequency'] = freqController.text;
+                med['duration'] = durationController.text;
+                med['remarks'] = remarksController.text;
               });
               Navigator.pop(context);
             },
@@ -224,23 +254,35 @@ class _ReportViewState extends State<ReportView> {
   Future<void> _addNewMedication() async {
     final nameController = TextEditingController();
     final freqController = TextEditingController();
+    final durationController = TextEditingController();
+    final remarksController = TextEditingController();
 
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Add Medication'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: 'Medication Name'),
-            ),
-            TextField(
-              controller: freqController,
-              decoration: const InputDecoration(labelText: 'Frequency (e.g. BD, 1-0-1)'),
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Medication Name'),
+              ),
+              TextField(
+                controller: freqController,
+                decoration: const InputDecoration(labelText: 'Frequency (e.g. BD, 1-0-1)'),
+              ),
+              TextField(
+                controller: durationController,
+                decoration: const InputDecoration(labelText: 'Duration (e.g. 5 days)'),
+              ),
+              TextField(
+                controller: remarksController,
+                decoration: const InputDecoration(labelText: 'Remarks (e.g. after food)'),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -254,6 +296,8 @@ class _ReportViewState extends State<ReportView> {
                   _medications.add({
                     'name': nameController.text,
                     'frequency': freqController.text,
+                    'duration': durationController.text,
+                    'remarks': remarksController.text,
                   });
                 });
               }

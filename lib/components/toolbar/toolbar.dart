@@ -50,6 +50,7 @@ class Toolbar extends StatefulWidget {
     required this.exportAsSba,
     required this.exportAsPdf,
     required this.exportAsPng,
+    this.toggleMedicationHistory,
   });
 
   final bool readOnly;
@@ -79,6 +80,7 @@ class Toolbar extends StatefulWidget {
   final Future Function(BuildContext)? exportAsSba;
   final Future Function(BuildContext)? exportAsPdf;
   final Future Function(BuildContext)? exportAsPng;
+  final VoidCallback? toggleMedicationHistory;
 
   @override
   State<Toolbar> createState() => _ToolbarState();
@@ -328,26 +330,6 @@ class _ToolbarState extends State<Toolbar> {
             runSpacing: 8,
             children: [
               ToolbarIconButton(
-                tooltip: Pen.currentPen.name,
-                selected: widget.currentTool == Pen.currentPen,
-                enabled: !widget.readOnly,
-                onPressed: () {
-                  if (widget.currentTool == Pen.currentPen) {
-                    if (toolOptionsType.value == .pen) {
-                      toolOptionsType.value = .hide;
-                    } else {
-                      toolOptionsType.value = .pen;
-                    }
-                  } else {
-                    toolOptionsType.value = .hide;
-                    widget.setTool(Pen.currentPen);
-                  }
-                },
-                padding: buttonPadding,
-                customColor: Colors.blue[700],
-                child: FaIcon(Pen.currentPen.icon, size: 24),
-              ),
-              ToolbarIconButton(
                 tooltip: t.editor.pens.pencil,
                 selected: widget.currentTool == Pencil.currentPencil,
                 enabled: !widget.readOnly,
@@ -366,6 +348,26 @@ class _ToolbarState extends State<Toolbar> {
                 padding: buttonPadding,
                 customColor: Colors.orange[800],
                 child: const FaIcon(Pencil.pencilIcon, size: 24),
+              ),
+              ToolbarIconButton(
+                tooltip: Pen.currentPen.name,
+                selected: widget.currentTool == Pen.currentPen,
+                enabled: !widget.readOnly,
+                onPressed: () {
+                  if (widget.currentTool == Pen.currentPen) {
+                    if (toolOptionsType.value == .pen) {
+                      toolOptionsType.value = .hide;
+                    } else {
+                      toolOptionsType.value = .pen;
+                    }
+                  } else {
+                    toolOptionsType.value = .hide;
+                    widget.setTool(Pen.currentPen);
+                  }
+                },
+                padding: buttonPadding,
+                customColor: Colors.blue[700],
+                child: FaIcon(Pen.currentPen.icon, size: 24),
               ),
               ToolbarIconButton(
                 tooltip: t.editor.pens.highlighter,
@@ -464,6 +466,16 @@ class _ToolbarState extends State<Toolbar> {
                 customColor: Colors.pink[400],
                 child: const FaIcon(FontAwesomeIcons.eraser, size: 24),
               ),
+              if (widget.toggleMedicationHistory != null)
+                ToolbarIconButton(
+                  tooltip: 'Medication History',
+                  selected: false,
+                  enabled: true,
+                  onPressed: widget.toggleMedicationHistory,
+                  padding: buttonPadding,
+                  customColor: Colors.teal,
+                  child: const Icon(Icons.medication_liquid),
+                ),
               if (!stows.hideFingerDrawingToggle.value)
                 ValueListenableBuilder(
                   valueListenable: stows.editorFingerDrawing,

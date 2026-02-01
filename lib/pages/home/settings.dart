@@ -8,6 +8,7 @@ import 'package:saber/data/prefs.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/home/settings_subpages/ai_settings_page.dart';
 import 'package:saber/pages/home/settings_subpages/app_settings_page.dart';
+import 'package:saber/data/api/error_handler.dart';
 import 'package:stow/stow.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -320,7 +321,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Failed to submit feedback: $e'),
+                          content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
                           backgroundColor: Colors.red,
                           duration: const Duration(seconds: 3),
                         ),

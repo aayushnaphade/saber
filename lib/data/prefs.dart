@@ -454,10 +454,28 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
+  final reportGenerationModel = PlainStow(
+    'reportGenerationModel',
+    ReportGenerationModel.flash,
+    codec: const EnumCodec(ReportGenerationModel.values),
+    volatile: !_isOnMainIsolate,
+  );
+
+
   @pragma('vm:platform-const')
   static final isDesktop =
       Platform.isLinux || Platform.isWindows || Platform.isMacOS;
 }
+
+/// Model selection for AI report generation
+enum ReportGenerationModel {
+  /// Fast mode using Gemini 3 Flash (~5-10 seconds)
+  flash,
+  
+  /// Deep & focused mode using Gemini 3 Pro (~20-35 seconds)
+  pro,
+}
+
 
 /// An [Stow] that transforms the value of another [Stow].
 class TransformedStow<T_in, T_out> extends Stow<dynamic, T_out, dynamic> {

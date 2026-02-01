@@ -114,6 +114,11 @@ class PsychiatricIntake {
   // Clinical Notes
   final String? clinicalNotes;
   final String? provisionalDiagnosis;
+  
+  // Import Metadata (for photo capture imports)
+  final bool importedFromPhoto;
+  final DateTime? importedAt;
+  final String? importedBy;
 
   const PsychiatricIntake({
     required this.id,
@@ -205,6 +210,9 @@ class PsychiatricIntake {
     this.otherSymptoms,
     this.clinicalNotes,
     this.provisionalDiagnosis,
+    this.importedFromPhoto = false,
+    this.importedAt,
+    this.importedBy,
   });
 
   /// Create from JSON (Supabase or local storage)
@@ -305,6 +313,11 @@ class PsychiatricIntake {
       otherSymptoms: json['other_symptoms']?.toString(),
       clinicalNotes: json['clinical_notes']?.toString(),
       provisionalDiagnosis: json['provisional_diagnosis']?.toString(),
+      importedFromPhoto: json['imported_from_photo'] as bool? ?? false,
+      importedAt: json['imported_at'] != null
+          ? DateTime.parse(json['imported_at'].toString())
+          : null,
+      importedBy: json['imported_by']?.toString(),
     );
   }
 
@@ -400,6 +413,9 @@ class PsychiatricIntake {
       if (otherSymptoms != null) 'other_symptoms': otherSymptoms,
       if (clinicalNotes != null) 'clinical_notes': clinicalNotes,
       if (provisionalDiagnosis != null) 'provisional_diagnosis': provisionalDiagnosis,
+      'imported_from_photo': importedFromPhoto,
+      if (importedAt != null) 'imported_at': importedAt!.toIso8601String(),
+      if (importedBy != null) 'imported_by': importedBy,
     };
   }
 
@@ -564,6 +580,9 @@ class PsychiatricIntake {
     String? otherSymptoms,
     String? clinicalNotes,
     String? provisionalDiagnosis,
+    bool? importedFromPhoto,
+    DateTime? importedAt,
+    String? importedBy,
   }) {
     return PsychiatricIntake(
       id: id ?? this.id,
@@ -655,6 +674,9 @@ class PsychiatricIntake {
       otherSymptoms: otherSymptoms ?? this.otherSymptoms,
       clinicalNotes: clinicalNotes ?? this.clinicalNotes,
       provisionalDiagnosis: provisionalDiagnosis ?? this.provisionalDiagnosis,
+      importedFromPhoto: importedFromPhoto ?? this.importedFromPhoto,
+      importedAt: importedAt ?? this.importedAt,
+      importedBy: importedBy ?? this.importedBy,
     );
   }
 }

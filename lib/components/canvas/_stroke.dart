@@ -232,8 +232,8 @@ class Stroke {
       options: switch (quality) {
         .low => options.copyWith(
           simulatePressure: false,
-          smoothing: 0,
-          streamline: 0,
+          // smoothing: 0, // removed to prevent polygon look
+          // streamline: 0,
         ),
         .high => options,
       },
@@ -412,7 +412,7 @@ class Stroke {
 }
 
 enum StrokeQuality {
-  low(4),
+  low(2),
   high(1);
 
   const StrokeQuality(this.N);
