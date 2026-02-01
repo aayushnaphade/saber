@@ -209,6 +209,7 @@ class EditorState extends State<Editor> {
 
   String? _doctorName;
   String? _patientId;
+  String? _patientName;
 
   // Previous Session Notes overlay state
   bool _showPreviousNotesOverlay = false;
@@ -244,26 +245,63 @@ class EditorState extends State<Editor> {
   }
 
   void _initAsync() async {
-    coreInfo.filePath = await widget.initialPath;
-    filenameTextEditingController.text = coreInfo.fileName;
+    debugPrint('Editor: _initAsync started');
+    try {
+      coreInfo.filePath = await widget.initialPath;
+      debugPrint('Editor: filePath resolved: ${coreInfo.filePath}');
+      filenameTextEditingController.text = coreInfo.fileName;
 
-    if (needsNaming) {
-      filenameTextEditingController.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: filenameTextEditingController.text.length,
+      if (needsNaming) {
+        filenameTextEditingController.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: filenameTextEditingController.text.length,
+        );
+      }
+
+      debugPrint('Editor: Starting parallel initialization');
+      
+      // Load core strokes with timeout
+      final strokesFuture = _initStrokes().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          log.warning('Editor: _initStrokes timed out!');
+          // Create empty core info on timeout to avoid crash
+          coreInfo = EditorCoreInfo(filePath: coreInfo.filePath);
+          if (mounted) setState(() {});
+        },
       );
+
+      // Load patient intake largely in parallel, but don't block main core info loading
+      // We start it here but await independent of strokes if possible, or just await together
+      final intakeFuture = _loadPatientIntake().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          log.warning('Editor: _loadPatientIntake timed out!');
+        },
+      );
+      
+      await Future.wait([strokesFuture, intakeFuture]);
+      
+      // Ensure we have at least one page to avoid layout errors
+      if (coreInfo.pages.isEmpty) {
+        log.warning('Editor: Loaded file has no pages. Adding default page.');
+        coreInfo.pages.add(EditorPage(size: EditorPage.defaultSize));
+      }
+
+      debugPrint('Editor: Parallel initialization complete. Pages: ${coreInfo.pages.length}');
+
+      if (widget.pdfPath != null) {
+        debugPrint('Editor: Importing PDF: ${widget.pdfPath}');
+        await importPdfFromFilePath(widget.pdfPath!);
+      }
+
+      debugPrint('Editor: Calling _fetchDoctorProfile');
+      _fetchDoctorProfile();
+      
+    } catch (e, stack) {
+      log.severe('Editor: Critical error in _initAsync', e, stack);
     }
-
-    await _initStrokes();
-
-    // Load psychiatric intake for patient if applicable
-    await _loadPatientIntake();
-
-    if (widget.pdfPath != null) {
-      await importPdfFromFilePath(widget.pdfPath!);
-    }
-
-    _fetchDoctorProfile();
+    debugPrint('Editor: _initAsync finished');
   }
 
   Future<void> _fetchDoctorProfile() async {
@@ -317,11 +355,13 @@ class EditorState extends State<Editor> {
 
         final intake = await SupabaseIntakeService.getIntake(patientId);
         final vitals = await SupabaseVitalsService.getVitalsHistory(patientId);
+        final patient = await SupabasePatientService.getPatient(patientId);
         
         if (mounted) {
           setState(() {
             if (intake != null) _patientIntake = intake;
             _vitalsHistory = vitals;
+            if (patient != null) _patientName = patient.fullName;
             // Force show overlay if we have data
             if (vitals.isNotEmpty) {
                  _showVitalsOverlay = true;
@@ -339,7 +379,9 @@ class EditorState extends State<Editor> {
   }
 
   Future _initStrokes() async {
+    debugPrint('Editor: _initStrokes loading from file: ${coreInfo.filePath}');
     coreInfo = await EditorCoreInfo.loadFromFilePath(coreInfo.filePath);
+    debugPrint('Editor: EditorCoreInfo load complete. ReadOnly: ${coreInfo.readOnly}');
     if (coreInfo.readOnly) {
       log.info('Loaded file as read-only');
     }
@@ -1902,180 +1944,159 @@ class EditorState extends State<Editor> {
     );
 
     // Canvas with intake overlay if available
-    // Canvas with intake overlay if available
-    Widget finalCanvasWithOverlay;
-    if (_patientIntake != null) {
-      if (_showIntakeOverlay) {
-        finalCanvasWithOverlay = LayoutBuilder(
-          builder: (context, constraints) {
-            return Stack(
-              children: [
-                canvas,
-                _intakeOverlayPosition != null
-                    ? Positioned(
-                        left: _intakeOverlayPosition!.dx,
-                        top: _intakeOverlayPosition!.dy,
-                        child: _buildDraggableIntakeOverlay(constraints),
-                      )
-                    : Positioned(
-                        right: 16,
-                        top: 16,
-                        child: _buildDraggableIntakeOverlay(constraints),
-                      ),
-              ],
-            );
-          },
-        );
-      } else {
-        // Show reopen button when intake overlay is closed
-        finalCanvasWithOverlay = Stack(
-          children: [
-            canvas,
-            Positioned(
-              right: 16,
-              top: 16,
-              child: Tooltip(
-                message: 'Show Intake Form',
-                child: Material(
-                  elevation: 4,
-                  borderRadius: BorderRadius.circular(20),
-                  color: colorScheme.surface,
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        _showIntakeOverlay = true;
-                        _intakeOverlayPosition =
-                            null; // Reset position to default
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Icon(
-                        Icons.assignment_ind_outlined,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      }
-    } else if (_patientId != null) {
-      // No intake loaded, but we have a patient ID - show button to create/view
-      finalCanvasWithOverlay = Stack(
-        children: [
-          canvas,
-          Positioned(
-            right: 16,
-            top: 16,
-            child: Tooltip(
-              message: 'Fill Intake Form',
-              child: Material(
-                elevation: 4,
-                borderRadius: BorderRadius.circular(20),
-                color: colorScheme.surface,
-                child: InkWell(
-                  onTap: _openIntakeFormEditor,
-                  borderRadius: BorderRadius.circular(20),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Icon(
-                      Icons.assignment_outlined,
-                      size: 20,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-    } else {
-      finalCanvasWithOverlay = canvas;
-    }
+    // ----------------------------------------------------------------------
+    // Final Layout: Canvas + ALL Overlays (Intake, Vitals, History)
+    // ----------------------------------------------------------------------
+    // We use a SINGLE LayoutBuilder and Stack here to prevent layout cycles/ANRs
+    // caused by nested LayoutBuilders in previous implementations.
     
-    // Add Vitals Overlay to the stack if we have vitals
-    if (_vitalsHistory.isNotEmpty) {
-      final double defaultTop = (_patientIntake != null || _patientId != null) ? 80 : 16; // Shift down if intake is present or create button exists
-      
-      Widget vitalsWidget;
-       if (_showVitalsOverlay) {
-        vitalsWidget = LayoutBuilder(
-          builder: (context, constraints) {
-            return _vitalsOverlayPosition != null
-                ? Positioned(
-                    left: _vitalsOverlayPosition!.dx,
-                    top: _vitalsOverlayPosition!.dy,
-                    child: _buildDraggableVitalsOverlay(constraints),
-                  )
-                : Positioned(
-                    right: 16,
-                    top: defaultTop,
-                    child: _buildDraggableVitalsOverlay(constraints),
-                  );
-          },
-        );
-      } else {
-         vitalsWidget = Positioned(
-            right: 16,
-            top: defaultTop,
-            child: Tooltip(
-              message: 'Show Vitals',
-              child: Material(
-                elevation: 4,
-                borderRadius: BorderRadius.circular(20),
-                color: colorScheme.surface,
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      _showVitalsOverlay = true;
-                      _vitalsOverlayPosition = null;
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: const Padding(
-                    padding: EdgeInsets.all(8),
-                    child: Icon(
-                      Icons.monitor_heart_outlined,
-                      size: 20,
-                      color: Colors.pink,
+    Widget finalCanvasWithOverlay = LayoutBuilder(
+      builder: (context, constraints) {
+        // 1. Base Layer: The Editor Canvas
+        final List<Widget> stackChildren = [canvas];
+
+        // --------------------------------------------------------------------
+        // Right-Side Overlay Buttons (Intake, Vitals, Previous Notes, Med History)
+        // --------------------------------------------------------------------
+        // Configuration
+        const double baseTop = 16.0;
+        const double btnGap = 80.0;
+        const double iconSize = 28.0;
+        const double btnPadding = 12.0;
+
+        int buttonIndex = 0;
+
+        // 1. Intake Button
+        if (_patientId != null || _patientIntake != null) {
+          final top = baseTop + (buttonIndex * btnGap);
+          
+          if (_showIntakeOverlay) {
+             stackChildren.add(
+              _intakeOverlayPosition != null
+                  ? Positioned(
+                      left: _intakeOverlayPosition!.dx,
+                      top: _intakeOverlayPosition!.dy,
+                      child: _buildDraggableIntakeOverlay(constraints),
+                    )
+                  : Positioned(
+                      right: 16,
+                      top: top,
+                      child: _buildDraggableIntakeOverlay(constraints),
+                    ),
+            );
+          } else {
+            stackChildren.add(
+              Positioned(
+                right: 16,
+                top: top,
+                child: Tooltip(
+                  message: _patientIntake != null ? 'View Intake Form' : 'Fill Intake Form',
+                  child: Material(
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(20),
+                    color: colorScheme.surface,
+                    child: InkWell(
+                      onTap: _patientIntake != null 
+                        ? () => setState(() {
+                            _showIntakeOverlay = true;
+                            _intakeOverlayPosition = null;
+                          })
+                        : _openIntakeFormEditor,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Padding(
+                        padding: const EdgeInsets.all(btnPadding),
+                        child: Icon(
+                          _patientIntake != null ? Icons.assignment_ind_outlined : Icons.assignment_outlined,
+                          size: iconSize,
+                          color: _patientIntake != null ? null : colorScheme.primary,
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          );
-      }
-      
-      
-      // Wrap existing canvasWithOverlay
-      finalCanvasWithOverlay = Stack(
-        children: [
-          finalCanvasWithOverlay,
-          vitalsWidget,
-        ],
-      );
-    }
+            );
+          }
+          buttonIndex++;
+        }
 
-    // Add Previous Session Notes button and overlay
-    if (_patientId != null) {
-      final double historyBtnTop = (_patientIntake != null || _patientId != null) 
-          ? (_vitalsHistory.isNotEmpty ? 144 : 80) : 16;
-
-      finalCanvasWithOverlay = LayoutBuilder(
-        builder: (context, constraints) {
-          return Stack(
-            children: [
-              finalCanvasWithOverlay,
-              // History Toggle Button
-              if (!_showPreviousNotesOverlay)
-                Positioned(
+        // 2. Vitals Button (Always visible for patients)
+        if (_patientId != null) {
+           final top = baseTop + (buttonIndex * btnGap);
+           
+           if (_showVitalsOverlay) {
+             stackChildren.add(
+               _vitalsOverlayPosition != null
+                   ? Positioned(
+                       left: _vitalsOverlayPosition!.dx,
+                       top: _vitalsOverlayPosition!.dy,
+                       child: _buildDraggableVitalsOverlay(constraints),
+                     )
+                   : Positioned(
+                       right: 16,
+                       top: top,
+                       child: _buildDraggableVitalsOverlay(constraints),
+                     ),
+             );
+           } else {
+             stackChildren.add(
+               Positioned(
                   right: 16,
-                  top: historyBtnTop,
+                  top: top,
+                  child: Tooltip(
+                    message: 'Show Vitals',
+                    child: Material(
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(20),
+                      color: colorScheme.surface,
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _showVitalsOverlay = true;
+                            _vitalsOverlayPosition = null;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(btnPadding),
+                          child: Icon(
+                            Icons.monitor_heart_outlined,
+                            size: iconSize,
+                            color: Colors.pink,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+             );
+           }
+           buttonIndex++;
+        }
+
+        // 3. Previous Session Notes Button
+        if (_patientId != null) {
+           final top = baseTop + (buttonIndex * btnGap);
+           
+           if (_showPreviousNotesOverlay) {
+             stackChildren.add(
+               _previousNotesOverlayPosition != null
+                   ? Positioned(
+                       left: _previousNotesOverlayPosition!.dx,
+                       top: _previousNotesOverlayPosition!.dy,
+                       child: _buildDraggablePreviousNotesOverlay(constraints),
+                     )
+                   : Positioned(
+                       right: 16,
+                       top: top,
+                       child: _buildDraggablePreviousNotesOverlay(constraints),
+                     ),
+             );
+           } else {
+             stackChildren.add(
+               Positioned(
+                  right: 16,
+                  top: top,
                   child: Tooltip(
                     message: 'Previous Session Notes',
                     child: Material(
@@ -2086,30 +2107,92 @@ class EditorState extends State<Editor> {
                         onTap: _togglePreviousNotesOverlay,
                         borderRadius: BorderRadius.circular(20),
                         child: Padding(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(btnPadding),
                           child: _isLoadingPreviousNotes 
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                              ? const SizedBox(
+                                  width: iconSize,
+                                  height: iconSize,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
                               : const Icon(
-                            Icons.history_edu,
-                            size: 20,
-                            color: Colors.purple,
+                                  Icons.history_edu,
+                                  size: iconSize,
+                                  color: Colors.purple,
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+             );
+           }
+           buttonIndex++;
+        }
+
+        // 4. Medication History Button
+        if (_patientId != null) {
+           final top = baseTop + (buttonIndex * btnGap);
+           
+           if (_showMedicationHistoryOverlay) {
+             stackChildren.add(
+               _medicationHistoryOverlayPosition != null
+                   ? Positioned(
+                       left: _medicationHistoryOverlayPosition!.dx,
+                       top: _medicationHistoryOverlayPosition!.dy,
+                       child: _buildDraggableMedicationHistoryOverlay(constraints),
+                     )
+                   : Positioned(
+                       right: 16,
+                       top: top,
+                       child: _buildDraggableMedicationHistoryOverlay(constraints),
+                     ),
+             );
+           } else {
+             stackChildren.add(
+               Positioned(
+                  right: 16,
+                  top: top,
+                  child: Tooltip(
+                    message: 'Medication History',
+                    child: Material(
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(20),
+                      color: colorScheme.surface,
+                      child: InkWell(
+                        onTap: () {
+                            setState(() {
+                              _showMedicationHistoryOverlay = true;
+                              _medicationHistoryOverlayPosition = null;
+                            });
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(btnPadding),
+                          child: Icon(
+                            Icons.medication_outlined,
+                            size: iconSize,
+                            color: Colors.teal,
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              // Draggable Overlay
-              if (_showPreviousNotesOverlay)
-                _buildDraggablePreviousNotesOverlay(constraints),
-              // Medication History Overlay
-              if (_showMedicationHistoryOverlay && _patientId != null)
-                _buildDraggableMedicationHistoryOverlay(constraints),
-            ],
-          );
+             );
+           }
+           buttonIndex++;
         }
-      );
-    }
+
+        // --------------------------------------------------------------------
+        // FINAL STACK
+        // --------------------------------------------------------------------
+        return Stack(
+          children: stackChildren,
+        );
+      },
+    );
+
+
 
     final Widget body;
     if (isToolbarVertical) {
@@ -2172,19 +2255,39 @@ class EditorState extends State<Editor> {
                 toolbarHeight: kToolbarHeight,
                 title: widget.customTitle != null
                     ? Text(widget.customTitle!)
-                    : Form(
-                        key: _filenameFormKey,
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
-                        child: TextFormField(
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
+                    : _patientName != null
+                        ? Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _patientName!,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                coreInfo.fileName,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Form(
+                            key: _filenameFormKey,
+                            autovalidateMode: AutovalidateMode.onUserInteraction,
+                            child: TextFormField(
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                              ),
+                              controller: filenameTextEditingController,
+                              onChanged: renameFile,
+                              autofocus: needsNaming,
+                              validator: _validateFilenameTextField,
+                            ),
                           ),
-                          controller: filenameTextEditingController,
-                          onChanged: renameFile,
-                          autofocus: needsNaming,
-                          validator: _validateFilenameTextField,
-                        ),
-                      ),
                 leading: SaveIndicator(
                   savingState: savingState,
                   triggerSave: saveToFile,
@@ -3148,6 +3251,29 @@ class EditorState extends State<Editor> {
   }
 
   Widget _buildDraggableIntakeOverlay(BoxConstraints constraints) {
+    // Show placeholder card if no intake data
+    if (_patientIntake == null) {
+      return Draggable(
+        feedback: Opacity(
+          opacity: 0.5,
+          child: Material(
+            child: _buildEmptyIntakeCard(),
+          ),
+        ),
+        childWhenDragging: Container(),
+        onDragEnd: (details) {
+          final RenderBox? box = context.findRenderObject() as RenderBox?;
+          if (box != null) {
+            final localPos = box.globalToLocal(details.offset);
+            setState(() {
+              _intakeOverlayPosition = localPos;
+            });
+          }
+        },
+        child: _buildEmptyIntakeCard(),
+      );
+    }
+    
     return Draggable(
       feedback: Opacity(
         opacity: 0.5,
@@ -3172,6 +3298,102 @@ class EditorState extends State<Editor> {
         onExpandChanged: (expanded) => setState(() => _isIntakeExpanded = expanded),
         onClose: () => setState(() => _showIntakeOverlay = false),
         onEdit: _openIntakeFormEditor,
+      ),
+    );
+  }
+
+  Widget _buildEmptyIntakeCard() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    return Container(
+      width: 200,
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: colorScheme.primary.withOpacity(0.3)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withOpacity(0.1),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.assignment_outlined, size: 16, color: colorScheme.primary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Intake Form',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                ),
+                InkWell(
+                  onTap: () => setState(() => _showIntakeOverlay = false),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.close,
+                      size: 16,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Content
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.assignment_outlined,
+                  size: 48,
+                  color: colorScheme.onSurfaceVariant.withOpacity(0.3),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'No intake form filled',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: _openIntakeFormEditor,
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Fill Form'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    textStyle: theme.textTheme.labelSmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3218,9 +3440,21 @@ class EditorState extends State<Editor> {
       });
 
       try {
+        // Extract session number from current file path if possible
+        // Expected format: .../session_X_notes.sbn
+        int? currentSessionNum;
+        final filename = coreInfo.filePath.split('/').last;
+        final match = RegExp(r'session_(\d+)_notes').firstMatch(filename);
+        if (match != null) {
+          currentSessionNum = int.tryParse(match.group(1)!);
+        }
+
         final notes =
             await SupabaseConsultationService.getPreviousSessionNotes(
-                _patientId!);
+                _patientId!,
+                excludeSessionNumber: currentSessionNum);
+        
+        log.info('Received ${notes.length} previous notes (excluded session $currentSessionNum)');
         setState(() {
           _previousNotes = notes;
           _isLoadingPreviousNotes = false;

@@ -25,7 +25,8 @@ class SupabaseVitalsService {
         .from(_tableName)
         .select()
         .eq('patient_id', patientId)
-        .order('captured_at', ascending: false); // Newest first
+        .order('captured_at', ascending: false) // Newest first
+        .limit(50);
 
     return (response as List).map((e) => Vitals.fromJson(e)).toList();
   }

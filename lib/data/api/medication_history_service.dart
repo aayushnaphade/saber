@@ -19,66 +19,89 @@ class MedicationHistoryService {
           .from('prescriptions')
           .select('id, created_at, content, consultation_id')
           .eq('patient_id', patientId)
-          .order('created_at', ascending: true);
+          .order('created_at', ascending: false)
+          .limit(50);
 
       if (response == null || (response as List).isEmpty) {
         return PatientMedicationHistory(patientId: patientId, lifespans: []);
       }
 
-      final List prescriptions = response as List;
+      final List prescriptions = (response as List).reversed.toList();
       _log.info('Found ${prescriptions.length} prescriptions. Analyzing transitions...');
 
-      // Map from medication name to its lifespan
-      final Map<String, List<MedicationEvent>> lifespansMap = {};
+      // Decrypt/Decode service account once
+      final serviceAccountJson = jsonDecode(dotenv.env['GOOGLE_SERVICE_ACCOUNT_JSON']!);
+      final serviceAccount = Map<String, dynamic>.from(serviceAccountJson);
+      if (serviceAccount.containsKey('private_key')) {
+        serviceAccount['private_key'] = (serviceAccount['private_key'] as String).replaceAll(r'\n', '\n');
+      }
+      final accountCredentials = ServiceAccountCredentials.fromJson(serviceAccount);
+      final scopes = [AiplatformApi.cloudPlatformScope];
+      final client = await clientViaServiceAccount(accountCredentials, scopes);
+      
+      try {
+        final Map<String, List<MedicationEvent>> lifespansMap = {};
+        final List<Future<List<Map<String, dynamic>>>> transitionFutures = [];
+        final List<DateTime> transitionDates = [];
+        final List<String?> transitionConsultationIds = [];
 
-      for (int i = 0; i < prescriptions.length; i++) {
-        final current = prescriptions[i];
-        final prev = i > 0 ? prescriptions[i - 1] : null;
-        
-        final currentDate = DateTime.parse(current['created_at']);
-        final currentMeds = current['content']['medications'] as List? ?? [];
-        final prevMeds = prev != null ? (prev['content']['medications'] as List? ?? []) : [];
+        for (int i = 0; i < prescriptions.length; i++) {
+          final current = prescriptions[i];
+          final prev = i > 0 ? prescriptions[i - 1] : null;
+          final currentDate = DateTime.parse(current['created_at']);
+          final currentMeds = current['content']['medications'] as List? ?? [];
 
-        // If it's the first prescription, all meds are "STARTED"
-        if (prev == null) {
-          for (final med in currentMeds) {
-            final name = _getMedName(med);
-            _addEvent(lifespansMap, name, MedicationEvent(
-              date: currentDate,
-              type: MedicationEventType.started,
-              dose: med['name'], // name field in prescription usually contains dosage
-              frequency: med['frequency'],
-              remarks: med['remarks'],
-              consultationId: current['consultation_id'],
-            ));
+          if (prev == null) {
+            for (final med in currentMeds) {
+              final name = _getMedName(med);
+              _addEvent(lifespansMap, name, MedicationEvent(
+                date: currentDate,
+                type: MedicationEventType.started,
+                dose: med['name'],
+                frequency: med['frequency'],
+                remarks: med['remarks'],
+                consultationId: current['consultation_id'],
+              ));
+            }
+          } else {
+            final prevMeds = (prev['content']['medications'] as List? ?? []);
+            transitionFutures.add(_analyzeTransitionsAIWithClient(client, prevMeds, currentMeds));
+            transitionDates.add(currentDate);
+            transitionConsultationIds.add(current['consultation_id']);
           }
-        } else {
-          // Identify transitions using AI
-          final transitions = await _analyzeTransitionsAI(prevMeds, currentMeds);
-          
+        }
+
+        // Run AI transitions in parallel (caution: might hit rate limits if many)
+        // For safer execution, we could chunk these, but usually it's < 10.
+        final allTransitions = await Future.wait(transitionFutures);
+
+        for (int i = 0; i < allTransitions.length; i++) {
+          final transitions = allTransitions[i];
+          final date = transitionDates[i];
+          final consultationId = transitionConsultationIds[i];
+
           for (final transition in transitions) {
             final name = transition['name'];
             _addEvent(lifespansMap, name, MedicationEvent(
-              date: currentDate,
+              date: date,
               type: _mapTransitionType(transition['type']),
               dose: transition['current_dose'],
               frequency: transition['current_frequency'],
               remarks: transition['remarks'],
-              consultationId: current['consultation_id'],
+              consultationId: consultationId,
             ));
           }
-          
-          // Detect STOPPED meds: Any med in prev that's not in current AND not mentioned in AI transitions as STOPPED
-          // Actually, we'll let AI handle the comparison entirely to be safe.
         }
+
+        final lifespans = lifespansMap.entries.map((e) => MedicationLifespan(
+          name: e.key,
+          events: e.value,
+        )).toList();
+
+        return PatientMedicationHistory(patientId: patientId, lifespans: lifespans);
+      } finally {
+        client.close();
       }
-
-      final lifespans = lifespansMap.entries.map((e) => MedicationLifespan(
-        name: e.key,
-        events: e.value,
-      )).toList();
-
-      return PatientMedicationHistory(patientId: patientId, lifespans: lifespans);
     } catch (e) {
       _log.severe('Failed to get medication history', e);
       rethrow;
@@ -110,8 +133,7 @@ class MedicationHistoryService {
     }
   }
 
-  /// Uses Gemini to compare two lists of medications and find changes
-  static Future<List<Map<String, dynamic>>> _analyzeTransitionsAI(List prevMeds, List currentMeds) async {
+  static Future<List<Map<String, dynamic>>> _analyzeTransitionsAIWithClient(AuthClient client, List prevMeds, List currentMeds) async {
     try {
       if (prevMeds.isEmpty && currentMeds.isEmpty) return [];
 
@@ -143,19 +165,6 @@ ${jsonEncode(currentMeds)}
 Output ONLY the JSON list.
 ''';
 
-      // Reusing logic from ReportGenerator to call Vertex AI
-      // For simplicity in this implementation, I'll invoke the same API directly here
-      // though in a real app we might want to share the client logic.
-      
-      final serviceAccountJson = jsonDecode(dotenv.env['GOOGLE_SERVICE_ACCOUNT_JSON']!);
-      final serviceAccount = Map<String, dynamic>.from(serviceAccountJson);
-      if (serviceAccount.containsKey('private_key')) {
-        serviceAccount['private_key'] = (serviceAccount['private_key'] as String).replaceAll(r'\n', '\n');
-      }
-
-      final accountCredentials = ServiceAccountCredentials.fromJson(serviceAccount);
-      final scopes = [AiplatformApi.cloudPlatformScope];
-      final client = await clientViaServiceAccount(accountCredentials, scopes);
       final api = AiplatformApi(client);
 
       const projectId = 'synapseai-production';
@@ -177,7 +186,7 @@ Output ONLY the JSON list.
       );
 
       final response = await api.projects.locations.publishers.models.generateContent(request, parent);
-      client.close();
+      // Client is closed by the caller
 
       if (response.candidates != null && response.candidates!.isNotEmpty) {
         final part = response.candidates!.first.content?.parts?.first;

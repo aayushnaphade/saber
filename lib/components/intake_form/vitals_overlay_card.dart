@@ -83,9 +83,94 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
 
   @override
   Widget build(BuildContext context) {
-    if (widget.vitalsHistory.isEmpty) return const SizedBox.shrink();
-
     final theme = Theme.of(context);
+
+    // Show empty state if no vitals data
+    if (widget.vitalsHistory.isEmpty) {
+      return Container(
+        width: 200,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+          border: Border.all(color: Colors.pink.withOpacity(0.3)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.pink.withOpacity(0.1),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.monitor_heart_outlined, size: 16, color: Colors.pink),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Vitals',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.pink,
+                      ),
+                    ),
+                  ),
+                  if (widget.onClose != null) ...[ 
+                    InkWell(
+                      onTap: widget.onClose,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.close,
+                          size: 16,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.monitor_heart_outlined,
+                    size: 48,
+                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.3),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'No vitals recorded',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final latest = widget.vitalsHistory.first;
 
     return AnimatedBuilder(
@@ -174,19 +259,33 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
   }
 
   Widget _buildCompactSummary(ThemeData theme, Vitals vitals) {
+    final hasAnyVitals = vitals.systolic != null || 
+                         vitals.diastolic != null || 
+                         vitals.heartRate != null || 
+                         vitals.weight != null;
+
     return Padding(
       padding: const EdgeInsets.all(12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          if (vitals.systolic != null && vitals.diastolic != null)
-            _buildVitalItem(theme, 'BP', '${vitals.systolic}/${vitals.diastolic}'),
-          if (vitals.heartRate != null)
-            _buildVitalItem(theme, 'HR', '${vitals.heartRate}'),
-          if (vitals.weight != null)
-            _buildVitalItem(theme, 'Wt', '${vitals.weight}'),
-        ],
-      ),
+      child: hasAnyVitals
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                if (vitals.systolic != null && vitals.diastolic != null)
+                  _buildVitalItem(theme, 'BP', '${vitals.systolic}/${vitals.diastolic}'),
+                if (vitals.heartRate != null)
+                  _buildVitalItem(theme, 'HR', '${vitals.heartRate}'),
+                if (vitals.weight != null)
+                  _buildVitalItem(theme, 'Wt', '${vitals.weight}'),
+              ],
+            )
+          : Text(
+              'No values recorded',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
     );
   }
 

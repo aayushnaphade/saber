@@ -466,16 +466,6 @@ class _ToolbarState extends State<Toolbar> {
                 customColor: Colors.pink[400],
                 child: const FaIcon(FontAwesomeIcons.eraser, size: 24),
               ),
-              if (widget.toggleMedicationHistory != null)
-                ToolbarIconButton(
-                  tooltip: 'Medication History',
-                  selected: false,
-                  enabled: true,
-                  onPressed: widget.toggleMedicationHistory,
-                  padding: buttonPadding,
-                  customColor: Colors.teal,
-                  child: const Icon(Icons.medication_liquid),
-                ),
               if (!stows.hideFingerDrawingToggle.value)
                 ValueListenableBuilder(
                   valueListenable: stows.editorFingerDrawing,

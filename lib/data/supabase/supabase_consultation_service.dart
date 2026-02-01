@@ -209,30 +209,46 @@ class SupabaseConsultationService {
 
   /// Fetch all previous session notes screenshots for a patient
   static Future<List<PreviousSessionNote>> getPreviousSessionNotes(
-    String patientId,
-  ) async {
+    String patientId, {
+    int? excludeSessionNumber,
+  }) async {
     try {
       final doctorId = supabase.auth.currentUser?.id;
       if (doctorId == null) return [];
 
       final cloudPrefix = '$doctorId/$patientId/session_notes';
+      log.info('Fetching notes from: $cloudPrefix');
 
       // List all folders in the session_notes directory
       final sessionFolders = await supabase.storage
           .from('medical_notes')
           .list(path: cloudPrefix);
+      
+      log.info('Found ${sessionFolders.length} items in session_notes');
 
       final List<PreviousSessionNote> notes = [];
 
       for (final folder in sessionFolders) {
-        // Folders have null id in Supabase Storage listing
-        if (folder.id == null || folder.metadata == null) {
+        // Folders often have null id, but checking name is safer
+        if (folder.name.startsWith('session_')) {
           final folderName = folder.name;
+          
+          // Extract session number from folder name "session_X"
+          final sessionNum =
+              int.tryParse(folderName.replaceAll('session_', '')) ?? 0;
+          
+          if (excludeSessionNumber != null && sessionNum == excludeSessionNumber) {
+            log.info('Skipping current session: $sessionNum');
+            continue;
+          }
+
           final sessionPath = '$cloudPrefix/$folderName';
           
           final files = await supabase.storage
               .from('medical_notes')
               .list(path: sessionPath);
+          
+          log.info('Found ${files.length} files in $sessionPath');
 
           // Find the preview file (.sbn2.p or .sbn.p)
           final previewFile = files.cast<FileObject?>().firstWhere(
@@ -241,22 +257,24 @@ class SupabaseConsultationService {
           );
 
           if (previewFile != null) {
-            final publicUrl = supabase.storage
-                .from('medical_notes')
-                .getPublicUrl('$sessionPath/${previewFile.name}');
+            try {
+              // Use createSignedUrl instead of getPublicUrl for private buckets
+              final signedUrl = await supabase.storage
+                  .from('medical_notes')
+                  .createSignedUrl('$sessionPath/${previewFile!.name}', 60 * 60);
 
-            // Extract session number from folder name "session_X"
-            final sessionNum =
-                int.tryParse(folderName.replaceAll('session_', '')) ?? 0;
-
-            notes.add(PreviousSessionNote(
-              imageUrl: publicUrl,
-              sessionNumber: sessionNum,
-              createdAt: previewFile.updatedAt != null
-                  ? DateTime.parse(previewFile.updatedAt!)
-                  : DateTime.now(),
-              fileName: previewFile.name,
-            ));
+              notes.add(PreviousSessionNote(
+                imageUrl: signedUrl,
+                sessionNumber: sessionNum,
+                createdAt: previewFile.updatedAt != null
+                    ? DateTime.parse(previewFile.updatedAt!)
+                    : DateTime.now(),
+                fileName: previewFile.name,
+              ));
+              log.info('Added note for session $sessionNum');
+            } catch (e) {
+              log.severe('Error parsing note for $folderName: $e');
+            }
           }
         }
       }

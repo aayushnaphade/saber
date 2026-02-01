@@ -199,9 +199,11 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     });
 
     try {
+      debugPrint('PatientProfile: _loadPatientData started for ${widget.patientId}');
       final loadedPatient = await SupabasePatientService.getPatient(
         widget.patientId,
       );
+      debugPrint('PatientProfile: Patient loaded: ${loadedPatient?.fullName}');
 
       if (loadedPatient == null) {
         setState(() {
@@ -213,6 +215,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
 
       // Load previous sessions
       final sessionsList = await _loadSessions(loadedPatient);
+      debugPrint('PatientProfile: Sessions loaded: ${sessionsList.length}');
 
       // Load psychiatric intake if not already loaded
       PsychiatricIntake? intake;
@@ -1569,6 +1572,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     final documentName = '${session.folderName}_notes.sbn';
     final documentPath = '$sessionPath/$documentName';
 
+    debugPrint('PatientProfile: Navigating to editor for $documentPath');
     context.push(RoutePaths.editFilePath(documentPath));
   }
 

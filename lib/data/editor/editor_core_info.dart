@@ -99,7 +99,7 @@ class EditorCoreInfo {
        backgroundPattern = stows.lastBackgroundPattern.value,
        lineHeight = stows.lastLineHeight.value,
        lineThickness = stows.lastLineThickness.value,
-       pages = [],
+       pages = [EditorPage(size: EditorPage.defaultSize)],
        assetCache = AssetCache();
 
   EditorCoreInfo._({
@@ -395,8 +395,9 @@ class EditorCoreInfo {
       );
 
       final length = jsonString?.length ?? bsonBytes!.length;
-      if (alwaysUseIsolate || length > 2 * 1024 * 1024) {
-        // > 2 MB, run on a separate isolate
+      // Always run on a separate isolate to prevent main thread blocking (ANR)
+      if (alwaysUseIsolate || true) {
+        // Run on a separate isolate
         final documentsDirectory = FileManager.documentsDirectory;
         coreInfo = await workerManager.execute(
           () async {

@@ -145,9 +145,9 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
     final now = DateTime.now();
     DateTime startDate;
     switch (_timeFilter) {
-      case '3m': startDate = now.subtract(const Duration(days: 90)); break;
-      case '6m': startDate = now.subtract(const Duration(days: 180)); break;
-      case '1y': startDate = now.subtract(const Duration(days: 365)); break;
+      case '3m': startDate = now.subtract(const Duration(days: 90)); 
+      case '6m': startDate = now.subtract(const Duration(days: 180)); 
+      case '1y': startDate = now.subtract(const Duration(days: 365)); 
       default: 
         startDate = _history!.lifespans.isEmpty 
             ? now.subtract(const Duration(days: 365)) 
@@ -161,11 +161,11 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildTimelineRuler(constraints.width - 100, startDate, now),
+              _buildTimelineRuler(constraints.maxWidth - 100, startDate, now),
               const SizedBox(height: 16),
               ..._history!.lifespans.map((lifespan) => _buildMedicationRow(
                 lifespan,
-                constraints.width - 100,
+                constraints.maxWidth - 100,
                 startDate,
                 now,
               )),
@@ -198,7 +198,6 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
 
   Widget _buildMedicationRow(MedicationLifespan lifespan, double width, DateTime rulerStart, DateTime rulerEnd) {
     final theme = Theme.of(context);
-    final duration = rulerEnd.difference(rulerStart).inDays;
     
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
