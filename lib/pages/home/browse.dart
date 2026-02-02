@@ -125,19 +125,15 @@ class _BrowsePageState extends State<BrowsePage> {
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
-              collapsedHeight: kToolbarHeight,
-              expandedHeight: 200 - 8,
+              floating: true,
               pinned: true,
-              scrolledUnderElevation: 1,
-              flexibleSpace: FlexibleSpaceBar(
-                title: Text(
-                  t.home.titles.browse,
-                  style: TextStyle(color: colorScheme.onSurface),
-                ),
-                centerTitle: false,
-                titlePadding: const EdgeInsetsDirectional.only(
-                  start: 16,
-                  bottom: 8, // less than other pages for path components
+              snap: true,
+              centerTitle: false,
+              title: Text(
+                t.home.titles.browse,
+                style: TextStyle(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               actions: const [SyncingButton()],

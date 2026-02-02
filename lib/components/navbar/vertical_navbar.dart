@@ -70,7 +70,7 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
     // Add a unique key based on expanded state to force partial redraws if needed,
     // though proper widget refactoring is key.
     // Here we use a stable structure.
-    
+
     final theme = Theme.of(context);
     final backgroundColor = switch (theme.platform) {
       TargetPlatform.linux => Colors.transparent,
@@ -102,7 +102,9 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
               : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(theme.brightness == Brightness.light ? 10 : 30),
+              color: Colors.black.withAlpha(
+                theme.brightness == Brightness.light ? 10 : 30,
+              ),
               blurRadius: 10,
               offset: const Offset(2, 0),
             ),
@@ -118,34 +120,9 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: kToolbarHeight),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-              child: Align(
-                alignment: expanded ? Alignment.centerLeft : Alignment.center,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () {
-                    setState(() {
-                      expanded = !expanded;
-                    });
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: AnimatedRotation(
-                      duration: animationDuration,
-                      curve: animationCurve,
-                      turns: expanded ? 0.5 : 0,
-                      child: AdaptiveIcon(
-                        icon: Icons.chevron_right,
-                        cupertinoIcon: CupertinoIcons.chevron_right,
-                        size: 28,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            SafeArea(
+              bottom: false,
+              child: _buildAppLogo(theme, animationDuration, animationCurve),
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -165,10 +142,113 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
               ),
             ),
             Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: Align(
+                alignment: expanded ? Alignment.centerRight : Alignment.center,
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        expanded = !expanded;
+                      });
+                    },
+                    child: AnimatedContainer(
+                      duration: animationDuration,
+                      curve: animationCurve,
+                      height: 48,
+                      width: expanded ? 200 : 48,
+                      alignment: expanded
+                          ? Alignment.centerRight
+                          : Alignment.center,
+                      padding: expanded
+                          ? const EdgeInsets.only(right: 12)
+                          : EdgeInsets.zero,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: theme.colorScheme.outlineVariant.withOpacity(
+                            0.5,
+                          ),
+                          width: 1,
+                        ),
+                        color: expanded
+                            ? theme.colorScheme.surfaceContainerHighest
+                                  .withOpacity(0.3)
+                            : Colors.transparent,
+                      ),
+                      child: AnimatedRotation(
+                        duration: animationDuration,
+                        curve: animationCurve,
+                        turns: expanded ? 0.5 : 0,
+                        child: AdaptiveIcon(
+                          icon: Icons.chevron_right,
+                          cupertinoIcon: CupertinoIcons.chevron_right,
+                          size: 24,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
               padding: const EdgeInsets.all(8),
-              child: _buildSignOutButton(theme, animationDuration, animationCurve),
+              child: _buildSignOutButton(
+                theme,
+                animationDuration,
+                animationCurve,
+              ),
             ),
             const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppLogo(ThemeData theme, Duration duration, Curve curve) {
+    return Container(
+      height: 80,
+      margin: const EdgeInsets.only(top: 24), // Align with dashboard content
+      child: AnimatedPadding(
+        duration: duration,
+        curve: curve,
+        padding: EdgeInsets.symmetric(horizontal: expanded ? 24 : 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center, // Center when collapsed
+          children: [
+            Image.asset(
+              'assets/android/playstore-icon.png',
+              width: 44, // Increased size
+              height: 44,
+            ),
+            AnimatedContainer(
+              duration: duration,
+              curve: curve,
+              width: expanded ? 16 : 0, // Increased spacing
+            ),
+            Expanded(
+              child: AnimatedOpacity(
+                duration: duration,
+                curve: curve,
+                opacity: expanded ? 1.0 : 0.0,
+                child: Text(
+                  'SynapseAI',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    // Larger texture
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                    letterSpacing: -0.5,
+                  ),
+                  softWrap: false,
+                  overflow: TextOverflow.visible,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -204,11 +284,13 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
                     children: [
                       ClipRect(
                         child: Align(
-                          widthFactor: 1.0, 
+                          widthFactor: 1.0,
                           child: Icon(
-                            Icons.logout_rounded, 
+                            Icons.logout_rounded,
                             size: expanded ? 24 : 32,
-                            color: expanded ? theme.colorScheme.onError : theme.colorScheme.error,
+                            color: expanded
+                                ? theme.colorScheme.onError
+                                : theme.colorScheme.error,
                           ),
                         ),
                       ),
@@ -251,9 +333,11 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
-    final iconWidget = isSelected ? (destination.selectedIcon ?? destination.icon) : destination.icon;
-    
+
+    final iconWidget = isSelected
+        ? (destination.selectedIcon ?? destination.icon)
+        : destination.icon;
+
     final baseStyle = isSelected
         ? theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.bold,
@@ -269,9 +353,14 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
       child: AnimatedPadding(
         duration: duration,
         curve: curve,
-        padding: EdgeInsets.symmetric(horizontal: expanded ? 12 : 8, vertical: 4),
+        padding: EdgeInsets.symmetric(
+          horizontal: expanded ? 12 : 8,
+          vertical: 4,
+        ),
         child: Material(
-          color: isSelected ? colorScheme.primary.withAlpha(40) : Colors.transparent,
+          color: isSelected
+              ? colorScheme.primary.withAlpha(40)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -292,8 +381,10 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
                     children: [
                       IconTheme(
                         data: IconThemeData(
-                          color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                          size: 24, 
+                          color: isSelected
+                              ? colorScheme.primary
+                              : colorScheme.onSurfaceVariant,
+                          size: 24,
                         ),
                         child: iconWidget,
                       ),

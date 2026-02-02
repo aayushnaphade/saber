@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:saber/i18n/strings.g.dart';
+import 'package:intl/intl.dart';
+import 'package:saber/data/prefs.dart';
+import 'package:saber/data/utils/report_printer.dart';
 
 class ReportView extends StatefulWidget {
   const ReportView({
@@ -95,7 +97,22 @@ class _ReportViewState extends State<ReportView> {
   @override
   Widget build(BuildContext context) {
     if (widget.readonly) {
-      return _buildBentoLayout(context);
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Clinical Assessment Report'),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: IconButton.filledTonal(
+                onPressed: () => ReportPrinter.printReport(widget.reportData),
+                icon: const Icon(Icons.print, size: 20),
+                tooltip: 'Print PDF',
+              ),
+            ),
+          ],
+        ),
+        body: _buildBentoLayout(context),
+      );
     }
 
     return Scaffold(
@@ -228,6 +245,12 @@ class _ReportViewState extends State<ReportView> {
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
         children: [
+          if (widget.readonly)
+            StaggeredGridTile.fit(
+              crossAxisCellCount: 2,
+              child: _buildProfessionalHeader(context, isDark),
+            ),
+
           // Diagnosis (Full Width)
           if (isEditing || hasText(_diagnosisController))
             StaggeredGridTile.fit(
@@ -598,6 +621,126 @@ class _ReportViewState extends State<ReportView> {
               Navigator.pop(context);
             },
             child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfessionalHeader(BuildContext context, bool isDark) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final clinicName = stows.clinicName.value;
+    final clinicAddress = stows.clinicAddress.value;
+    final clinicPhone = stows.clinicPhone.value;
+    final clinicLogo = stows.clinicLogoUrl.value;
+
+    final doctorName = stows.userDisplayName.value;
+    final qualification = stows.userQualification.value;
+    final regNo = stows.userRegistrationNumber.value;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark
+              ? Colors.white10
+              : colorScheme.outlineVariant.withOpacity(0.5),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (clinicLogo != null && clinicLogo.isNotEmpty) ...[
+                Container(
+                  height: 80,
+                  width: 80,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    image: DecorationImage(
+                      image: NetworkImage(clinicLogo),
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      clinicName.isNotEmpty
+                          ? clinicName
+                          : 'Clinical Assessment',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.primary,
+                          ),
+                    ),
+                    if (clinicAddress.isNotEmpty)
+                      Text(
+                        clinicAddress,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    if (clinicPhone.isNotEmpty)
+                      Text(
+                        'Ph: $clinicPhone',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'Dr. $doctorName',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (qualification.isNotEmpty)
+                    Text(
+                      qualification,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  if (regNo.isNotEmpty)
+                    Text(
+                      'Reg No: $regNo',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          const Divider(height: 32),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'CLINICAL ASSESSMENT REPORT',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  letterSpacing: 2,
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.secondary,
+                ),
+              ),
+              Text(
+                DateFormat('dd MMM yyyy').format(DateTime.now()),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
           ),
         ],
       ),

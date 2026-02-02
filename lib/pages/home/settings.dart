@@ -15,6 +15,7 @@ import 'package:saber/data/supabase/supabase_auth_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/home/settings_subpages/app_settings_page.dart';
+import 'package:saber/pages/home/settings_subpages/professional_profile_page.dart';
 import 'package:stow/stow.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -471,23 +472,17 @@ class _SettingsPageState extends State<SettingsPage> {
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
-              collapsedHeight: kToolbarHeight,
-              expandedHeight: 140,
+              floating: true,
               pinned: true,
-              scrolledUnderElevation: 0,
+              snap: true,
+              centerTitle: false,
               backgroundColor: Colors.transparent,
-              flexibleSpace: FlexibleSpaceBar(
-                title: Text(
-                  t.home.titles.settings,
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                centerTitle: false,
-                titlePadding: const EdgeInsetsDirectional.only(
-                  start: 16,
-                  bottom: 16,
+              surfaceTintColor: Colors.transparent,
+              title: Text(
+                t.home.titles.settings,
+                style: TextStyle(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               actions: [
@@ -544,6 +539,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: Column(
                         children: [
                           _buildProfileSection(colorScheme, isDark),
+                          const SizedBox(height: 16),
+                          _buildProfessionalSection(colorScheme, isDark),
                           if (stows.userRole.value == 'doctor') ...[
                             const SizedBox(height: 16),
                             _buildTeamSection(colorScheme, isDark),
@@ -1111,6 +1108,27 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _buildProfessionalSection(ColorScheme colorScheme, bool isDark) {
+    return _buildGlassCard(
+      colorScheme: colorScheme,
+      isDark: isDark,
+      child: SettingsButton(
+        title: 'Professional & Clinic Details',
+        subtitle: 'Personalize your reports and app header',
+        icon: Icons.verified_user_outlined,
+        onPressed: () {
+          Navigator.of(context)
+              .push(
+                MaterialPageRoute(
+                  builder: (context) => const ProfessionalProfilePage(),
+                ),
+              )
+              .then((_) => _fetchProfile());
+        },
+      ),
+    );
+  }
+
   Widget _buildTeamSection(ColorScheme colorScheme, bool isDark) {
     return _buildGlassCard(
       colorScheme: colorScheme,
@@ -1120,7 +1138,7 @@ class _SettingsPageState extends State<SettingsPage> {
         subtitle: 'Manage your clinic team',
         icon: Icons.manage_accounts_outlined,
         onPressed: () {
-          context.go('/home/team');
+          context.push('/home/team');
         },
       ),
     );

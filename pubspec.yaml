@@ -166,6 +166,7 @@ dependencies:
   # Photo capture for intake forms
   image_picker: ^1.0.7
   image: ^4.1.7
+  signature: ^6.3.0
 
 dev_dependencies:
   flutter_test:

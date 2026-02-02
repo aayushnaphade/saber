@@ -18,13 +18,11 @@ class SkeletonLoader extends StatefulWidget {
   });
 
   /// Creates a circular skeleton loader (e.g., for avatars)
-  const SkeletonLoader.circle({
-    super.key,
-    required double size,
-  }) : width = size,
-       height = size,
-       borderRadius = null,
-       shape = BoxShape.circle;
+  const SkeletonLoader.circle({super.key, required double size})
+    : width = size,
+      height = size,
+      borderRadius = null,
+      shape = BoxShape.circle;
 
   /// Creates a rectangular skeleton with rounded corners
   factory SkeletonLoader.rounded({
@@ -58,9 +56,10 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
       vsync: this,
     )..repeat();
 
-    _animation = Tween<double>(begin: -1.0, end: 2.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: -1.0,
+      end: 2.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
   }
 
   @override
@@ -73,14 +72,11 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     // Skeleton colors based on theme
-    final baseColor = isDark 
-        ? theme.colorScheme.surfaceContainerHighest
-        : theme.colorScheme.surfaceContainerHigh;
-    final highlightColor = isDark
-        ? theme.colorScheme.surfaceContainerHigh
-        : theme.colorScheme.surface;
+    // Skeleton colors based on theme
+    final baseColor = isDark ? Colors.grey[800]! : Colors.grey[300]!;
+    final highlightColor = isDark ? Colors.grey[700]! : Colors.grey[100]!;
 
     return AnimatedBuilder(
       animation: _animation,
@@ -90,21 +86,17 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
           height: widget.height,
           decoration: BoxDecoration(
             shape: widget.shape,
-            borderRadius: widget.shape == BoxShape.circle 
-                ? null 
+            borderRadius: widget.shape == BoxShape.circle
+                ? null
                 : widget.borderRadius ?? AppRadius.mdRadius,
             gradient: LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: [
-                baseColor,
-                highlightColor,
-                baseColor,
-              ],
+              colors: [baseColor, highlightColor, baseColor],
               stops: [
-                0.0,
-                _animation.value.clamp(0.0, 1.0),
-                1.0,
+                _animation.value - 0.3,
+                _animation.value,
+                _animation.value + 0.3,
               ],
             ),
           ),

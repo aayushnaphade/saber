@@ -88,6 +88,8 @@ class Editor extends StatefulWidget {
     this.customTitle,
     this.pdfPath,
     this.consultationId,
+    this.patientName,
+    this.patientId,
     this.onVerify,
     this.readOnly = false,
     this.isWhiteboard = false,
@@ -103,6 +105,8 @@ class Editor extends StatefulWidget {
   final String? pdfPath;
 
   final String? consultationId;
+  final String? patientName;
+  final String? patientId;
   final bool isWhiteboard;
   final VoidCallback? onVerify;
   final bool readOnly;
@@ -252,6 +256,9 @@ class EditorState extends State<Editor> {
     _initAsync();
     _assignKeybindings();
 
+    _patientName = widget.patientName;
+    _patientId = widget.patientId;
+
     super.initState();
   }
 
@@ -311,7 +318,8 @@ class EditorState extends State<Editor> {
       debugPrint('Editor: Calling _fetchDoctorProfile');
       _fetchDoctorProfile();
 
-      if (!widget.readOnly) {
+      if (!widget.readOnly &&
+          (widget.consultationId != null || _patientId != null)) {
         SessionManager().startSession(
           coreInfo: coreInfo,
           patientName: _patientName,
@@ -384,8 +392,18 @@ class EditorState extends State<Editor> {
             if (intake != null) _patientIntake = intake;
             _vitalsHistory = vitals;
             if (patient != null) _patientName = patient.fullName;
-            // Show vitals overlay in minimized form only if there are vitals entries
-            _showVitalsOverlay = vitals.isNotEmpty;
+
+            // Check if this is a restored session
+            final isRestore =
+                SessionManager().hasActiveSession &&
+                SessionManager().activeSession?.filePath == coreInfo.filePath;
+
+            // Show vitals overlay in minimized form ONLY if there are vitals entries
+            // AND it is NOT a restored session (only show on fresh start)
+            _showVitalsOverlay = vitals.isNotEmpty && !isRestore;
+
+            // Always collapse vitals by default
+            _isVitalsExpanded = false;
 
             // Vitals overlay logic handled by initialization
           });
@@ -1717,8 +1735,9 @@ class EditorState extends State<Editor> {
   }
 
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.of(context);
-    final platform = Theme.of(context).platform;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final platform = theme.platform;
     final isToolbarVertical =
         stows.editorToolbarAlignment.value == AxisDirection.left ||
         stows.editorToolbarAlignment.value == AxisDirection.right;
@@ -2014,255 +2033,97 @@ class EditorState extends State<Editor> {
 
     Widget finalCanvasWithOverlay = LayoutBuilder(
       builder: (context, constraints) {
-        // 1. Base Layer: The Editor Canvas
         final List<Widget> stackChildren = [canvas];
 
         // --------------------------------------------------------------------
-        // Right-Side Overlay Buttons (Intake, Vitals, Previous Notes, Med History)
+        // Right-Side Controls (Buttons and Draggable Overlays)
         // --------------------------------------------------------------------
-        // Configuration
-        const double baseTop = 80.0;
-        const double btnGap = 80.0;
-        const double iconSize = 28.0;
-        const double btnPadding = 12.0;
+        // Using a Column for default positions to provide an 'adaptive gap',
+        // ensuring expanded overlays don't obstruct other buttons.
+        // --------------------------------------------------------------------
 
-        int buttonIndex = 0;
-
-        // 1. Intake Button
-        if (_patientId != null || _patientIntake != null) {
-          final top = baseTop + (buttonIndex * btnGap);
-
-          // Always add the button
+        // Items that have been dragged or have custom positions
+        if (_showIntakeOverlay && _intakeOverlayPosition != null) {
           stackChildren.add(
             Positioned(
-              right: 16,
-              top: top,
-              child: Tooltip(
-                message: _patientIntake != null
-                    ? 'View Intake Form'
-                    : 'Fill Intake Form',
-                child: Material(
-                  elevation: 4,
-                  borderRadius: BorderRadius.circular(20),
-                  color: colorScheme.surface,
-                  child: InkWell(
-                    onTap: _patientIntake != null
-                        ? () => setState(() {
-                            _showIntakeOverlay = !_showIntakeOverlay;
-                            _intakeOverlayPosition = null;
-                          })
-                        : _openIntakeFormEditor,
-                    borderRadius: BorderRadius.circular(20),
-                    child: Padding(
-                      padding: const EdgeInsets.all(btnPadding),
-                      child: Icon(
-                        _patientIntake != null
-                            ? Icons.assignment_ind_outlined
-                            : Icons.assignment_outlined,
-                        size: iconSize,
-                        color: _patientIntake != null
-                            ? null
-                            : colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              left: _intakeOverlayPosition!.dx,
+              top: _intakeOverlayPosition!.dy,
+              child: _buildDraggableIntakeOverlay(constraints),
             ),
           );
-
-          // Add the overlay on top if active
-          if (_showIntakeOverlay) {
-            stackChildren.add(
-              _intakeOverlayPosition != null
-                  ? Positioned(
-                      left: _intakeOverlayPosition!.dx,
-                      top: _intakeOverlayPosition!.dy,
-                      child: _buildDraggableIntakeOverlay(constraints),
-                    )
-                  : Positioned(
-                      right: 16,
-                      top: top,
-                      child: _buildDraggableIntakeOverlay(constraints),
-                    ),
-            );
-          }
-          buttonIndex++;
         }
-
-        // 2. Vitals Button (Always visible for patients)
-        if (_patientId != null) {
-          final top = baseTop + (buttonIndex * btnGap);
-
-          // Always add the button
+        if (_showVitalsOverlay && _vitalsOverlayPosition != null) {
           stackChildren.add(
             Positioned(
-              right: 16,
-              top: top,
-              child: Tooltip(
-                message: 'Show Vitals',
-                child: Material(
-                  elevation: 4,
-                  borderRadius: BorderRadius.circular(20),
-                  color: colorScheme.surface,
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        _showVitalsOverlay = !_showVitalsOverlay;
-                        _vitalsOverlayPosition = null;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Padding(
-                      padding: const EdgeInsets.all(btnPadding),
-                      child: Icon(
-                        Icons.monitor_heart_outlined,
-                        size: iconSize,
-                        color: Colors.pink,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              left: _vitalsOverlayPosition!.dx,
+              top: _vitalsOverlayPosition!.dy,
+              child: _buildDraggableVitalsOverlay(constraints),
             ),
           );
-
-          // Add the overlay on top if active
-          if (_showVitalsOverlay) {
-            stackChildren.add(
-              _vitalsOverlayPosition != null
-                  ? Positioned(
-                      left: _vitalsOverlayPosition!.dx,
-                      top: _vitalsOverlayPosition!.dy,
-                      child: _buildDraggableVitalsOverlay(constraints),
-                    )
-                  : Positioned(
-                      right: 16,
-                      top: top,
-                      child: _buildDraggableVitalsOverlay(constraints),
-                    ),
-            );
-          }
-          buttonIndex++;
         }
-
-        // 3. Previous Session Notes Button
-        if (_patientId != null) {
-          final top = baseTop + (buttonIndex * btnGap);
-
-          // Always add the button
+        if (_showPreviousNotesOverlay &&
+            _previousNotesOverlayPosition != null) {
           stackChildren.add(
             Positioned(
-              right: 16,
-              top: top,
-              child: Tooltip(
-                message: 'Previous Session Notes',
-                child: Material(
-                  elevation: 4,
-                  borderRadius: BorderRadius.circular(20),
-                  color: colorScheme.surface,
-                  child: InkWell(
-                    onTap: _togglePreviousNotesOverlay,
-                    borderRadius: BorderRadius.circular(20),
-                    child: Padding(
-                      padding: const EdgeInsets.all(btnPadding),
-                      child: _isLoadingPreviousNotes
-                          ? const SizedBox(
-                              width: iconSize,
-                              height: iconSize,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(
-                              Icons.history_edu,
-                              size: iconSize,
-                              color: Colors.purple,
-                            ),
-                    ),
-                  ),
-                ),
-              ),
+              left: _previousNotesOverlayPosition!.dx,
+              top: _previousNotesOverlayPosition!.dy,
+              child: _buildDraggablePreviousNotesOverlay(constraints),
             ),
           );
-
-          // Add the overlay on top if active
-          if (_showPreviousNotesOverlay) {
-            stackChildren.add(
-              _previousNotesOverlayPosition != null
-                  ? Positioned(
-                      left: _previousNotesOverlayPosition!.dx,
-                      top: _previousNotesOverlayPosition!.dy,
-                      child: _buildDraggablePreviousNotesOverlay(constraints),
-                    )
-                  : Positioned(
-                      right: 16,
-                      top: top,
-                      child: _buildDraggablePreviousNotesOverlay(constraints),
-                    ),
-            );
-          }
-          buttonIndex++;
         }
-
-        // 4. Medication History Button
-        if (_patientId != null) {
-          final top = baseTop + (buttonIndex * btnGap);
-
-          // Always add the button
+        if (_showMedicationHistoryOverlay &&
+            _medicationHistoryOverlayPosition != null) {
           stackChildren.add(
             Positioned(
-              right: 16,
-              top: top,
-              child: Tooltip(
-                message: 'Medication History',
-                child: Material(
-                  elevation: 4,
-                  borderRadius: BorderRadius.circular(20),
-                  color: colorScheme.surface,
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        _showMedicationHistoryOverlay =
-                            !_showMedicationHistoryOverlay;
-                        _medicationHistoryOverlayPosition = null;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Padding(
-                      padding: const EdgeInsets.all(btnPadding),
-                      child: Icon(
-                        Icons.medication_outlined,
-                        size: iconSize,
-                        color: Colors.teal,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              left: _medicationHistoryOverlayPosition!.dx,
+              top: _medicationHistoryOverlayPosition!.dy,
+              child: _buildDraggableMedicationHistoryOverlay(constraints),
             ),
           );
-
-          // Add the overlay on top if active
-          if (_showMedicationHistoryOverlay) {
-            stackChildren.add(
-              _medicationHistoryOverlayPosition != null
-                  ? Positioned(
-                      left: _medicationHistoryOverlayPosition!.dx,
-                      top: _medicationHistoryOverlayPosition!.dy,
-                      child: _buildDraggableMedicationHistoryOverlay(
-                        constraints,
-                      ),
-                    )
-                  : Positioned(
-                      right: 16,
-                      top: top,
-                      child: _buildDraggableMedicationHistoryOverlay(
-                        constraints,
-                      ),
-                    ),
-            );
-          }
-          buttonIndex++;
         }
+
+        // Column for items at their default (non-dragged) position
+        stackChildren.add(
+          Positioned(
+            right: 16,
+            top: 80,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 1. Intake
+                if (_patientId != null || _patientIntake != null) ...[
+                  _showIntakeOverlay && _intakeOverlayPosition == null
+                      ? _buildDraggableIntakeOverlay(constraints)
+                      : _buildIntakeButton(colorScheme, theme),
+                  const SizedBox(height: 16),
+                ],
+                // 2. Vitals
+                if (_patientId != null) ...[
+                  _showVitalsOverlay && _vitalsOverlayPosition == null
+                      ? _buildDraggableVitalsOverlay(constraints)
+                      : _buildVitalsButton(colorScheme, theme),
+                  const SizedBox(height: 16),
+                ],
+                // 3. Previous Notes
+                if (_patientId != null) ...[
+                  _showPreviousNotesOverlay &&
+                          _previousNotesOverlayPosition == null
+                      ? _buildDraggablePreviousNotesOverlay(constraints)
+                      : _buildPreviousNotesButton(colorScheme, theme),
+                  const SizedBox(height: 16),
+                ],
+                // 4. Medication History
+                if (_patientId != null) ...[
+                  _showMedicationHistoryOverlay &&
+                          _medicationHistoryOverlayPosition == null
+                      ? _buildDraggableMedicationHistoryOverlay(constraints)
+                      : _buildMedicationHistoryButton(colorScheme, theme),
+                ],
+              ],
+            ),
+          ),
+        );
 
         return Stack(children: stackChildren);
       },
@@ -2329,9 +2190,13 @@ class EditorState extends State<Editor> {
         appBar: DynamicMaterialApp.isFullscreen
             ? null
             : AppBar(
+                centerTitle: false,
                 toolbarHeight: kToolbarHeight,
                 title: widget.customTitle != null
-                    ? Text(widget.customTitle!)
+                    ? Text(
+                        widget.customTitle!,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      )
                     : _patientName != null
                     ? Column(
                         mainAxisSize: MainAxisSize.min,
@@ -3298,10 +3163,14 @@ class EditorState extends State<Editor> {
                   Expanded(
                     child: TextButton(
                       onPressed: () => Navigator.pop(dialogContext),
-                      style: TextButton.styleFrom(
+                      style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
+                        ),
+                        side: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 1.5,
                         ),
                       ),
                       child: Text(
@@ -3316,24 +3185,58 @@ class EditorState extends State<Editor> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: FilledButton(
-                      onPressed: () {
-                        // 1. Mark as completed in DB if we have a consultation ID
+                      onPressed: () async {
+                        // 1. Cancel in DB if we have a consultation ID
                         final consultationId =
                             widget.consultationId ??
                             SessionManager().consultationId;
                         if (consultationId != null) {
-                          SupabaseDashboardService.completeConsultation(
-                            consultationId,
+                          try {
+                            await SupabaseDashboardService.cancelAppointment(
+                              consultationId,
+                            );
+                          } catch (e) {
+                            log.warning(
+                              'Failed to cancel appointment in DB: $e',
+                            );
+                          }
+                        }
+
+                        // 2. Delete the session file/folder
+                        try {
+                          final relativePath = coreInfo.filePath;
+                          log.info(
+                            'Terminating session. File path: $relativePath',
+                          );
+
+                          final parentDir = p.dirname(relativePath);
+                          final parentDirName = p.basename(parentDir);
+
+                          // Check if parent dir is like "session_123"
+                          if (parentDirName.startsWith('session_')) {
+                            // Delete the entire session directory
+                            log.info('Deleting session directory: $parentDir');
+                            await FileManager.deleteDirectory(parentDir);
+                          } else {
+                            // Just delete the file
+                            log.info('Deleting session file: $relativePath');
+                            await FileManager.deleteFile(relativePath);
+                          }
+                        } catch (e) {
+                          log.warning(
+                            'Failed to delete terminated session file: $e',
                           );
                         }
 
-                        // 2. Terminate local state
+                        // 3. Terminate local state
                         SessionManager().terminate();
 
-                        // 2. Close dialog
-                        Navigator.of(dialogContext).pop();
+                        // 4. Close dialog
+                        if (dialogContext.mounted) {
+                          Navigator.of(dialogContext).pop();
+                        }
 
-                        // 3. Navigate away
+                        // 5. Navigate away
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (context.mounted) {
                             if (Navigator.of(context).canPop()) {
@@ -3989,6 +3892,42 @@ class EditorState extends State<Editor> {
     );
   }
 
+  Widget _buildIntakeButton(ColorScheme colorScheme, ThemeData theme) {
+    return Tooltip(
+      message: _patientIntake != null ? 'View Intake Form' : 'Fill Intake Form',
+      child: Material(
+        elevation: 4,
+        borderRadius: BorderRadius.circular(20),
+        color: colorScheme.surface,
+        child: InkWell(
+          onTap: _patientIntake != null
+              ? () => setState(() {
+                  final newState = !_showIntakeOverlay;
+                  if (newState) {
+                    _showVitalsOverlay = false;
+                    _showPreviousNotesOverlay = false;
+                    _showMedicationHistoryOverlay = false;
+                  }
+                  _showIntakeOverlay = newState;
+                  _intakeOverlayPosition = null;
+                })
+              : _openIntakeFormEditor,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Icon(
+              _patientIntake != null
+                  ? Icons.assignment_ind_outlined
+                  : Icons.assignment_outlined,
+              size: 28,
+              color: _patientIntake != null ? null : colorScheme.primary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyIntakeCard() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -4123,11 +4062,52 @@ class EditorState extends State<Editor> {
     );
   }
 
+  Widget _buildVitalsButton(ColorScheme colorScheme, ThemeData theme) {
+    return Tooltip(
+      message: 'Show Vitals',
+      child: Material(
+        elevation: 4,
+        borderRadius: BorderRadius.circular(20),
+        color: colorScheme.surface,
+        child: InkWell(
+          onTap: () {
+            setState(() {
+              final newState = !_showVitalsOverlay;
+              if (newState) {
+                _showIntakeOverlay = false;
+                _showPreviousNotesOverlay = false;
+                _showMedicationHistoryOverlay = false;
+              }
+              _showVitalsOverlay = newState;
+              _vitalsOverlayPosition = null;
+            });
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: const Padding(
+            padding: EdgeInsets.all(12),
+            child: Icon(
+              Icons.monitor_heart_outlined,
+              size: 28,
+              color: Colors.pink,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _togglePreviousNotesOverlay() async {
     if (_showPreviousNotesOverlay) {
       setState(() => _showPreviousNotesOverlay = false);
       return;
     }
+
+    // Close others
+    setState(() {
+      _showIntakeOverlay = false;
+      _showVitalsOverlay = false;
+      _showMedicationHistoryOverlay = false;
+    });
 
     if (_previousNotes.isEmpty && _patientId != null) {
       setState(() {
@@ -4170,7 +4150,10 @@ class EditorState extends State<Editor> {
       }
     } else {
       if (_previousNotes.isNotEmpty) {
-        setState(() => _showPreviousNotesOverlay = true);
+        setState(() {
+          _showPreviousNotesOverlay = true;
+          _previousNotesOverlayPosition = null;
+        });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No previous session notes found')),
@@ -4211,27 +4194,94 @@ class EditorState extends State<Editor> {
     );
   }
 
+  Widget _buildPreviousNotesButton(ColorScheme colorScheme, ThemeData theme) {
+    return Tooltip(
+      message: 'Previous Session Notes',
+      child: Material(
+        elevation: 4,
+        borderRadius: BorderRadius.circular(20),
+        color: colorScheme.surface,
+        child: InkWell(
+          onTap: _togglePreviousNotesOverlay,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: _isLoadingPreviousNotes
+                ? const SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.history_edu, size: 28, color: Colors.purple),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _toggleMedicationHistoryOverlay() {
     setState(() {
-      _showMedicationHistoryOverlay = !_showMedicationHistoryOverlay;
-      if (_showMedicationHistoryOverlay) {
-        _medicationHistoryOverlayPosition ??= const Offset(200, 100);
+      final newState = !_showMedicationHistoryOverlay;
+      if (newState) {
+        _showIntakeOverlay = false;
+        _showVitalsOverlay = false;
+        _showPreviousNotesOverlay = false;
       }
+      _showMedicationHistoryOverlay = newState;
+      _medicationHistoryOverlayPosition = null; // Default to column
     });
   }
 
   Widget _buildDraggableMedicationHistoryOverlay(BoxConstraints constraints) {
-    return GestureDetector(
-      onPanUpdate: (details) {
-        setState(() {
-          _medicationHistoryOverlayPosition =
-              (_medicationHistoryOverlayPosition ?? const Offset(200, 100)) +
-              details.delta;
-        });
+    return Draggable(
+      feedback: Opacity(
+        opacity: 0.5,
+        child: Material(
+          child: MedicationHistoryOverlay(
+            patientId: _patientId!,
+            onClose: () {},
+          ),
+        ),
+      ),
+      childWhenDragging: Container(),
+      onDragEnd: (details) {
+        final box = context.findRenderObject() as RenderBox?;
+        if (box != null) {
+          final localPos = box.globalToLocal(details.offset);
+          setState(() {
+            _medicationHistoryOverlayPosition = localPos;
+          });
+        }
       },
       child: MedicationHistoryOverlay(
         patientId: _patientId!,
         onClose: () => setState(() => _showMedicationHistoryOverlay = false),
+      ),
+    );
+  }
+
+  Widget _buildMedicationHistoryButton(
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
+    return Tooltip(
+      message: 'Medication History',
+      child: Material(
+        elevation: 4,
+        borderRadius: BorderRadius.circular(20),
+        color: colorScheme.surface,
+        child: InkWell(
+          onTap: _toggleMedicationHistoryOverlay,
+          borderRadius: BorderRadius.circular(20),
+          child: const Padding(
+            padding: EdgeInsets.all(12),
+            child: Icon(
+              Icons.medication_outlined,
+              size: 28,
+              color: Colors.teal,
+            ),
+          ),
+        ),
       ),
     );
   }

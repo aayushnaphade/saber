@@ -188,8 +188,11 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
             if (mounted) {
               setState(() {
                 patients = patientList;
-                patients?.sort((a, b) =>
-                    a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+                patients?.sort(
+                  (a, b) => a.fullName.toLowerCase().compareTo(
+                    b.fullName.toLowerCase(),
+                  ),
+                );
                 filteredPatients = patients;
                 _onSearchChanged(); // Re-apply filter
                 isLoading = false;
@@ -241,7 +244,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
       // FileManager.getChildrenOfDirectory filters for .sbn files by default
       final fullPath = '${FileManager.documentsDirectory}$path';
       final dir = Directory(fullPath);
-      
+
       if (await dir.exists()) {
         final entities = await dir.list().toList();
         final fileNames = entities
@@ -249,7 +252,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
             .map((e) => p.basename(e.path))
             .where((name) => !name.startsWith('.')) // Filter hidden files
             .toList();
-            
+
         setState(() {
           documents = fileNames;
           isLoading = false;
@@ -873,14 +876,15 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
     final docType = DocumentType.values.firstWhere(
       (t) => t.folderName == widget.documentType,
     );
-    final relativePath = '${selectedPatient!.documentFolderPath(docType)}/$fileName';
-    
+    final relativePath =
+        '${selectedPatient!.documentFolderPath(docType)}/$fileName';
+
     if (fileName.toLowerCase().endsWith('.md')) {
       // Show Markdown files in a dialog
       try {
         final fullPath = '${FileManager.documentsDirectory}$relativePath';
         final content = await File(fullPath).readAsString();
-        
+
         if (mounted) {
           showDialog(
             context: context,
@@ -907,9 +911,9 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to read file: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed to read file: $e')));
         }
       }
     } else {
@@ -992,7 +996,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
 
   Widget _buildPatientMetadata({Patient? patient, bool isLarge = false}) {
     if (patient == null) return const SizedBox.shrink();
-    
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1056,9 +1060,11 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
               leading: selectedPatient != null
                   ? IconButton(
                       icon: const Icon(Icons.arrow_back),
-                      onPressed: () => context.go('/home/patients/${selectedPatient!.id}'),
+                      onPressed: () =>
+                          context.go('/home/patients/${selectedPatient!.id}'),
                     )
                   : null,
+              centerTitle: false,
               title: _isSearching
                   ? TextField(
                       controller: _searchController,
@@ -1072,6 +1078,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
                       selectedPatient != null
                           ? selectedPatient!.fullName
                           : 'Patients',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
               actions: [
                 if (selectedPatient == null)

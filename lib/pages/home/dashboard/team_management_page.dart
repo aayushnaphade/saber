@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:saber/data/supabase/supabase_team_service.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/design_system/spacing.dart';
@@ -630,10 +631,22 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
         ),
         child: CustomScrollView(
           slivers: [
-            SliverAppBar.large(
-              title: const Text('Team Management'),
+            SliverAppBar(
+              title: const Text(
+                'Team Management',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              centerTitle: false,
+              pinned: true,
+              floating: true,
+              snap: true,
               backgroundColor: Colors.transparent,
               scrolledUnderElevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.pop(),
+                tooltip: 'Back',
+              ),
               actions: [
                 IconButton(
                   onPressed: _fetchTeam,

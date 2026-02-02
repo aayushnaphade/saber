@@ -58,8 +58,10 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
           break;
       }
 
-      final results =
-          await SupabaseDashboardService.getConsultationHistory(start, end);
+      final results = await SupabaseDashboardService.getConsultationHistory(
+        start,
+        end,
+      );
       if (mounted) {
         setState(() {
           _allConsultations = results;
@@ -84,9 +86,11 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
         _filteredConsultations = List.from(_allConsultations);
       } else {
         _filteredConsultations = _allConsultations
-            .where((c) =>
-                c.patientName.toLowerCase().contains(query) ||
-                c.reason.toLowerCase().contains(query))
+            .where(
+              (c) =>
+                  c.patientName.toLowerCase().contains(query) ||
+                  c.reason.toLowerCase().contains(query),
+            )
             .toList();
       }
       // Sort by time descending
@@ -105,20 +109,29 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
         onRefresh: _loadHistory,
         child: CustomScrollView(
           slivers: [
-            SliverAppBar.large(
+            SliverAppBar(
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => context.go(HomeRoutes.getRoute(0)),
               ),
-              title: const Text('History'),
+              title: const Text(
+                'History',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               centerTitle: false,
+              pinned: true,
+              floating: true,
+              snap: true,
               actions: [
                 IconButton(
                   icon: const Icon(Icons.calendar_month_outlined),
                   onPressed: () {
                     // TODO: Implement date picker range filter
                     ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Date range picker coming soon')));
+                      const SnackBar(
+                        content: Text('Date range picker coming soon'),
+                      ),
+                    );
                   },
                   tooltip: 'Select Date Range',
                 ),
@@ -146,7 +159,8 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
                         filled: true,
                         fillColor: colorScheme.surfaceContainerHighest,
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md),
+                          horizontal: AppSpacing.md,
+                        ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -158,10 +172,14 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
                           _buildFilterChip('Today', _HistoryFilter.today),
                           const SizedBox(width: AppSpacing.sm),
                           _buildFilterChip(
-                              'Last 7 Days', _HistoryFilter.lastWeek),
+                            'Last 7 Days',
+                            _HistoryFilter.lastWeek,
+                          ),
                           const SizedBox(width: AppSpacing.sm),
                           _buildFilterChip(
-                              'Last 30 Days', _HistoryFilter.lastMonth),
+                            'Last 30 Days',
+                            _HistoryFilter.lastMonth,
+                          ),
                         ],
                       ),
                     ),
@@ -174,9 +192,7 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_filteredConsultations.isEmpty)
-              SliverFillRemaining(
-                child: _buildEmptyState(),
-              )
+              SliverFillRemaining(child: _buildEmptyState())
             else
               _buildGroupedList(),
             const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
@@ -198,35 +214,32 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
     }
 
     return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          final dateKey = grouped.keys.elementAt(index);
-          final consultations = grouped[dateKey]!;
+      delegate: SliverChildBuilderDelegate((context, index) {
+        final dateKey = grouped.keys.elementAt(index);
+        final consultations = grouped[dateKey]!;
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                  AppSpacing.xs,
-                ),
-                child: Text(
-                  dateKey,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                AppSpacing.xs,
+              ),
+              child: Text(
+                dateKey,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              ...consultations.map((c) => _buildConsultationCard(c)),
-            ],
-          );
-        },
-        childCount: grouped.length,
-      ),
+            ),
+            ...consultations.map((c) => _buildConsultationCard(c)),
+          ],
+        );
+      }, childCount: grouped.length),
     );
   }
 
@@ -283,15 +296,15 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
           Text(
             'No history found',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             'Try adjusting your filters or search',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -305,14 +318,14 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
 
     return Card(
       margin: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
       elevation: 0,
       color: colorScheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: colorScheme.outlineVariant.withOpacity(0.3),
-        ),
+        side: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.3)),
       ),
       child: InkWell(
         onTap: () {
@@ -367,18 +380,22 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (consultation.age != null || consultation.gender != null) ...[
+                        if (consultation.age != null ||
+                            consultation.gender != null) ...[
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
                               [
-                                if (consultation.age != null) '${consultation.age}',
+                                if (consultation.age != null)
+                                  '${consultation.age}',
                                 if (consultation.gender != null &&
                                     consultation.gender!.isNotEmpty)
                                   consultation.gender![0].toUpperCase(),
@@ -405,7 +422,9 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
                     // ID Badge
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(4),
@@ -478,8 +497,4 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
   }
 }
 
-enum _HistoryFilter {
-  today,
-  lastWeek,
-  lastMonth,
-}
+enum _HistoryFilter { today, lastWeek, lastMonth }

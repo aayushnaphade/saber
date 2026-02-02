@@ -78,8 +78,11 @@ class SupabaseConsultationService {
   ) async {
     try {
       final tomorrow = DateTime.now().add(const Duration(days: 1));
-      final startOfTomorrow =
-          DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
+      final startOfTomorrow = DateTime(
+        tomorrow.year,
+        tomorrow.month,
+        tomorrow.day,
+      );
 
       final response = await supabase
           .from('consultations')
@@ -161,8 +164,8 @@ class SupabaseConsultationService {
             profiles!inner(full_name)
           ''')
           .eq('doctor_id', doctorId)
-          .gte('scheduled_time', startDate.toIso8601String())
-          .lt('scheduled_time', endDate.toIso8601String())
+          .gte('scheduled_time', startDate.toUtc().toIso8601String())
+          .lt('scheduled_time', endDate.toUtc().toIso8601String())
           .order('scheduled_time', ascending: false);
 
       return (response as List)
@@ -176,7 +179,7 @@ class SupabaseConsultationService {
 
   /// Get consultations grouped by date for calendar view
   static Future<Map<DateTime, List<PatientConsultation>>>
-      getConsultationsGroupedByDate(
+  getConsultationsGroupedByDate(
     String doctorId,
     DateTime startDate,
     DateTime endDate,
@@ -223,7 +226,7 @@ class SupabaseConsultationService {
       final sessionFolders = await supabase.storage
           .from('medical_notes')
           .list(path: cloudPrefix);
-      
+
       log.info('Found ${sessionFolders.length} items in session_notes');
 
       final List<PreviousSessionNote> notes = [];
@@ -232,22 +235,23 @@ class SupabaseConsultationService {
         // Folders often have null id, but checking name is safer
         if (folder.name.startsWith('session_')) {
           final folderName = folder.name;
-          
+
           // Extract session number from folder name "session_X"
           final sessionNum =
               int.tryParse(folderName.replaceAll('session_', '')) ?? 0;
-          
-          if (excludeSessionNumber != null && sessionNum == excludeSessionNumber) {
+
+          if (excludeSessionNumber != null &&
+              sessionNum == excludeSessionNumber) {
             log.info('Skipping current session: $sessionNum');
             continue;
           }
 
           final sessionPath = '$cloudPrefix/$folderName';
-          
+
           final files = await supabase.storage
               .from('medical_notes')
               .list(path: sessionPath);
-          
+
           log.info('Found ${files.length} files in $sessionPath');
 
           // Find the preview file (.sbn2.p or .sbn.p)
@@ -261,16 +265,21 @@ class SupabaseConsultationService {
               // Use createSignedUrl instead of getPublicUrl for private buckets
               final signedUrl = await supabase.storage
                   .from('medical_notes')
-                  .createSignedUrl('$sessionPath/${previewFile!.name}', 60 * 60);
+                  .createSignedUrl(
+                    '$sessionPath/${previewFile!.name}',
+                    60 * 60,
+                  );
 
-              notes.add(PreviousSessionNote(
-                imageUrl: signedUrl,
-                sessionNumber: sessionNum,
-                createdAt: previewFile.updatedAt != null
-                    ? DateTime.parse(previewFile.updatedAt!)
-                    : DateTime.now(),
-                fileName: previewFile.name,
-              ));
+              notes.add(
+                PreviousSessionNote(
+                  imageUrl: signedUrl,
+                  sessionNumber: sessionNum,
+                  createdAt: previewFile.updatedAt != null
+                      ? DateTime.parse(previewFile.updatedAt!).toLocal()
+                      : DateTime.now(),
+                  fileName: previewFile.name,
+                ),
+              );
               log.info('Added note for session $sessionNum');
             } catch (e) {
               log.severe('Error parsing note for $folderName: $e');
@@ -320,16 +329,16 @@ class PatientConsultation {
   factory PatientConsultation.fromJson(Map<String, dynamic> json) {
     final createdAtStr = json['created_at'] as String;
     final scheduledTimeStr = json['scheduled_time'] as String?;
-    
+
     return PatientConsultation(
       id: json['id'] as String,
       patientId: json['patient_id'] as String,
       doctorId: json['doctor_id'] as String?,
       status: json['status'] as String,
-      createdAt: DateTime.parse(createdAtStr),
-      scheduledTime: scheduledTimeStr != null 
-          ? DateTime.parse(scheduledTimeStr) 
-          : DateTime.parse(createdAtStr),
+      createdAt: DateTime.parse(createdAtStr).toLocal(),
+      scheduledTime: scheduledTimeStr != null
+          ? DateTime.parse(scheduledTimeStr).toLocal()
+          : DateTime.parse(createdAtStr).toLocal(),
       appointmentType: json['appointment_type'] as String? ?? 'walk-in',
       patientName: json['patients']['full_name'] as String,
       doctorName: json['profiles']?['full_name'] as String?,

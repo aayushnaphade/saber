@@ -212,18 +212,59 @@ class SupabaseAuthService {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
+      // 1. Fetch Profile
       final profile = await supabase
           .from('profiles')
-          .select('reception_mode, role')
+          .select(
+            'reception_mode, role, display_name, qualification, registration_number, signature_url',
+          )
           .eq('id', userId)
           .maybeSingle();
 
       if (profile != null) {
         stows.receptionMode.value = profile['reception_mode'] as bool? ?? false;
         stows.userRole.value = profile['role'] as String? ?? '';
+        stows.userDisplayName.value = profile['display_name'] as String? ?? '';
+        stows.userQualification.value =
+            profile['qualification'] as String? ?? '';
+        stows.userRegistrationNumber.value =
+            profile['registration_number'] as String? ?? '';
+        stows.userSignatureUrl.value = profile['signature_url'] as String?;
+      }
+
+      // 2. Fetch Clinic
+      // If the user is a doctor, fetch their clinic.
+      // If the user is staff, fetch their doctor's clinic.
+      String? doctorId;
+      if (stows.userRole.value == 'doctor') {
+        doctorId = userId;
+      } else {
+        final profileForDoctor = await supabase
+            .from('profiles')
+            .select('doctor_id')
+            .eq('id', userId)
+            .maybeSingle();
+        doctorId = profileForDoctor?['doctor_id'] as String?;
+      }
+
+      if (doctorId != null) {
+        final clinic = await supabase
+            .from('clinics')
+            .select()
+            .eq('doctor_id', doctorId)
+            .maybeSingle();
+
+        if (clinic != null) {
+          stows.clinicId.value = clinic['id'] as String? ?? '';
+          stows.clinicName.value = clinic['name'] as String? ?? '';
+          stows.clinicAddress.value = clinic['address'] as String? ?? '';
+          stows.clinicPhone.value = clinic['phone'] as String? ?? '';
+          stows.clinicWebsite.value = clinic['website'] as String? ?? '';
+          stows.clinicLogoUrl.value = clinic['logo_url'] as String?;
+        }
       }
     } catch (e) {
-      log.warning('Failed to sync profile', e);
+      log.warning('Failed to sync profile or clinic', e);
     }
   }
 
@@ -240,7 +281,7 @@ class SupabaseAuthService {
     stows.supabaseAccessToken.value = '';
     stows.supabaseRefreshToken.value = '';
     stows.supabaseUserEmail.value = '';
-    
+
     // Clear profile cache
     stows.userRole.value = '';
     stows.userDisplayName.value = '';
@@ -288,7 +329,7 @@ class SupabaseAuthService {
         if (stows.supabaseRefreshToken.value.isEmpty) {
           stows.supabaseRefreshToken.value = session.refreshToken ?? '';
         }
-        
+
         await syncProfile();
         log.info('Session restored successfully');
         return true;
@@ -321,7 +362,8 @@ class SupabaseAuthService {
     // If offline or no session available, check local storage
     // This allows the app to work offline if user was previously logged in
     try {
-      final hasLocalSession = stows.supabaseUserId.value.isNotEmpty &&
+      final hasLocalSession =
+          stows.supabaseUserId.value.isNotEmpty &&
           stows.supabaseAccessToken.value.isNotEmpty;
 
       if (hasLocalSession) {

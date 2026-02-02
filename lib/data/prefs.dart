@@ -138,9 +138,40 @@ class Stows {
     null,
     volatile: !_isOnMainIsolate,
   );
-  final userRole = PlainStow(
-    'userRole',
+  final userRole = PlainStow('userRole', '', volatile: !_isOnMainIsolate);
+  final userQualification = PlainStow(
+    'userQualification',
     '',
+    volatile: !_isOnMainIsolate,
+  );
+  final userRegistrationNumber = PlainStow(
+    'userRegistrationNumber',
+    '',
+    volatile: !_isOnMainIsolate,
+  );
+  final userSignatureUrl = PlainStow<String?>(
+    'userSignatureUrl',
+    null,
+    volatile: !_isOnMainIsolate,
+  );
+
+  // Clinic Stows
+  final clinicId = PlainStow('clinicId', '', volatile: !_isOnMainIsolate);
+  final clinicName = PlainStow('clinicName', '', volatile: !_isOnMainIsolate);
+  final clinicAddress = PlainStow(
+    'clinicAddress',
+    '',
+    volatile: !_isOnMainIsolate,
+  );
+  final clinicPhone = PlainStow('clinicPhone', '', volatile: !_isOnMainIsolate);
+  final clinicWebsite = PlainStow(
+    'clinicWebsite',
+    '',
+    volatile: !_isOnMainIsolate,
+  );
+  final clinicLogoUrl = PlainStow<String?>(
+    'clinicLogoUrl',
+    null,
     volatile: !_isOnMainIsolate,
   );
 
@@ -466,7 +497,6 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
-
   @pragma('vm:platform-const')
   static final isDesktop =
       Platform.isLinux || Platform.isWindows || Platform.isMacOS;
@@ -476,11 +506,10 @@ class Stows {
 enum ReportGenerationModel {
   /// Fast mode using Gemini 3 Flash (~5-10 seconds)
   flash,
-  
+
   /// Deep & focused mode using Gemini 3 Pro (~20-35 seconds)
   pro,
 }
-
 
 /// An [Stow] that transforms the value of another [Stow].
 class TransformedStow<T_in, T_out> extends Stow<dynamic, T_out, dynamic> {

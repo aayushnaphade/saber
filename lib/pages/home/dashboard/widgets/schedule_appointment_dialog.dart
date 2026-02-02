@@ -62,7 +62,7 @@ class _ScheduleAppointmentDialogState extends State<ScheduleAppointmentDialog> {
         ),
       );
 
-      // If user cancelled vitals, do we stop? 
+      // If user cancelled vitals, do we stop?
       // Assuming yes, to ensure vitals are taken.
       // But VitalsDialog might return null if cancelled.
       // Let's assume user must save to proceed, or if they cancel, we abort queueing.
@@ -81,7 +81,9 @@ class _ScheduleAppointmentDialogState extends State<ScheduleAppointmentDialog> {
 
       // Check for conflicts if scheduling
       if (scheduledTime != null) {
-        final conflicts = await SupabaseDashboardService.checkTimeSlotConflicts(time);
+        final conflicts = await SupabaseDashboardService.checkTimeSlotConflicts(
+          time,
+        );
         if (conflicts.isNotEmpty && mounted) {
           final shouldContinue = await showDialog<bool>(
             context: context,
@@ -91,12 +93,18 @@ class _ScheduleAppointmentDialogState extends State<ScheduleAppointmentDialog> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('The following appointments overlap with this time slot:'),
+                  const Text(
+                    'The following appointments overlap with this time slot:',
+                  ),
                   const SizedBox(height: 12),
-                  ...conflicts.map((conflict) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text('• ${conflict.patientName} at ${DateFormat('h:mm a').format(conflict.time)}'),
-                  )),
+                  ...conflicts.map(
+                    (conflict) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        '• ${conflict.patientName} at ${DateFormat('h:mm a').format(conflict.time)}',
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   const Text('Do you want to schedule anyway?'),
                 ],
@@ -113,7 +121,7 @@ class _ScheduleAppointmentDialogState extends State<ScheduleAppointmentDialog> {
               ],
             ),
           );
-          
+
           if (shouldContinue != true) {
             setState(() => _isLoading = false);
             return;
@@ -131,22 +139,26 @@ class _ScheduleAppointmentDialogState extends State<ScheduleAppointmentDialog> {
           .limit(1)
           .maybeSingle();
 
-      final nextQueueOrder = (maxOrderResponse?['queue_order'] as int? ?? 0) + 1;
+      final nextQueueOrder =
+          (maxOrderResponse?['queue_order'] as int? ?? 0) + 1;
 
       // Create consultation
       await supabase.from('consultations').insert({
         'patient_id': _selectedPatient!.id,
         'doctor_id': currentUserId,
         'status': 'waiting',
-        'scheduled_time': time.toIso8601String(),
+        'scheduled_time': time.toUtc().toIso8601String(),
         'appointment_type': scheduledTime != null ? 'scheduled' : 'walk-in',
         'queue_order': nextQueueOrder,
       });
 
       // Update patient visit type
-      await supabase.from('patients').update({
-        'visit_type': _visitType == 'New Session' ? 'New' : 'Follow-up',
-      }).eq('id', _selectedPatient!.id);
+      await supabase
+          .from('patients')
+          .update({
+            'visit_type': _visitType == 'New Session' ? 'New' : 'Follow-up',
+          })
+          .eq('id', _selectedPatient!.id);
 
       if (mounted) {
         Navigator.of(context).pop(true);
@@ -233,8 +245,10 @@ class _ScheduleAppointmentDialogState extends State<ScheduleAppointmentDialog> {
                           value == null ? 'Please select a patient' : null,
                     ),
                     const SizedBox(height: 16),
-                    const Text('Visit Type',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Visit Type',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,

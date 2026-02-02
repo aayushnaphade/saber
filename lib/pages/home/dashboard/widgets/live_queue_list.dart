@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:saber/data/models/dashboard_models.dart';
 
 class LiveQueueList extends StatelessWidget {
-final List<QueueItem> queue;
+  final List<QueueItem> queue;
   final Function(QueueItem) onStartSession;
   final Function(QueueItem)? onCancel;
   final Function(int, int)? onReorder;
@@ -20,19 +20,23 @@ final List<QueueItem> queue;
     final theme = Theme.of(context);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Live Queue',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+              Flexible(
+                child: Text(
+                  'Live Queue',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -53,63 +57,58 @@ final List<QueueItem> queue;
         const SizedBox(height: 16),
         if (queue.isEmpty)
           _buildEmptyState(context)
+        else if (queue.isEmpty)
+          _buildEmptyState(context)
         else
-          LayoutBuilder(
-            builder: (context, constraints) {
-              // Calculate if we need scrolling (more than 5 items)
-              const itemHeight = 76.0; // Approximate height per item
-              final needsScroll = queue.length > 5;
-              final containerHeight = needsScroll 
-                  ? 400.0 
-                  : (queue.length * itemHeight).clamp(itemHeight, 400.0);
-
-              return Container(
-                height: containerHeight,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: theme.colorScheme.outlineVariant.withOpacity(0.5),
-                  ),
+          Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Theme(
+                data: theme.copyWith(
+                  canvasColor:
+                      Colors.transparent, // Fix for ghosting during drag
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Theme(
-                    data: theme.copyWith(
-                      canvasColor: Colors.transparent, // Fix for ghosting during drag
-                    ),
-                    child: ReorderableListView.builder(
-                      padding: const EdgeInsets.all(0),
-                      itemCount: queue.length,
-                      onReorder: onReorder ?? (oldIndex, newIndex) {},
-                      itemBuilder: (context, index) {
-                        final item = queue[index];
-                        return Column(
-                          key: ValueKey(item.id),
-                          children: [
-                            _buildQueueItem(context, item, index),
-                            if (index < queue.length - 1)
-                              Divider(
-                                height: 1,
-                                thickness: 1,
-                                color: theme.colorScheme.outlineVariant.withOpacity(0.2),
-                              ),
-                          ],
-                        );
-                      },
-                      proxyDecorator: (child, index, animation) {
-                        return Material(
-                          elevation: 8,
-                          color: theme.colorScheme.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          child: child,
-                        );
-                      },
-                    ),
-                  ),
+                child: ReorderableListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(0),
+                  itemCount: queue.length,
+                  onReorder: onReorder ?? (oldIndex, newIndex) {},
+                  itemBuilder: (context, index) {
+                    final item = queue[index];
+                    return Column(
+                      key: ValueKey(item.id),
+                      children: [
+                        _buildQueueItem(context, item, index),
+                        if (index < queue.length - 1)
+                          Divider(
+                            height: 1,
+                            thickness: 1,
+                            color: theme.colorScheme.outlineVariant.withOpacity(
+                              0.2,
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                  proxyDecorator: (child, index, animation) {
+                    return Material(
+                      elevation: 8,
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      child: child,
+                    );
+                  },
                 ),
-              );
-            },
+              ),
+            ),
           ),
       ],
     );
@@ -137,7 +136,9 @@ final List<QueueItem> queue;
             Text(
               'New patients will appear here',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurfaceVariant.withOpacity(0.7),
               ),
             ),
           ],
@@ -149,7 +150,7 @@ final List<QueueItem> queue;
   Widget _buildQueueItem(BuildContext context, QueueItem item, int index) {
     final theme = Theme.of(context);
     final isFirst = index == 0;
-    
+
     // Determine status color
     Color statusColor;
     switch (item.status.toLowerCase()) {
@@ -174,21 +175,25 @@ final List<QueueItem> queue;
               backgroundColor: theme.colorScheme.surfaceContainerHighest,
               foregroundColor: theme.colorScheme.onSurfaceVariant,
               child: Text(
-                item.patientName.isNotEmpty ? item.patientName[0] : '?',
+                '${index + 1}',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
                     children: [
-                      Text(
-                        item.patientName,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          item.patientName,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -207,24 +212,31 @@ final List<QueueItem> queue;
                   Row(
                     children: [
                       Icon(
-                        Icons.access_time, 
-                        size: 14, 
-                        color: theme.colorScheme.onSurfaceVariant
+                        Icons.access_time,
+                        size: 14,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 4),
-                      Builder(
-                        builder: (context) {
-                          final duration = DateTime.now().difference(item.registeredTime);
-                          final hours = duration.inHours;
-                          final minutes = duration.inMinutes.remainder(60);
-                          final timeString = hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m';
-                          return Text(
-                            '$timeString waited',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          );
-                        },
+                      Flexible(
+                        child: Builder(
+                          builder: (context) {
+                            final duration = DateTime.now().difference(
+                              item.registeredTime,
+                            );
+                            final hours = duration.inHours;
+                            final minutes = duration.inMinutes.remainder(60);
+                            final timeString = hours > 0
+                                ? '${hours}h ${minutes}m'
+                                : '${minutes}m';
+                            return Text(
+                              '$timeString waited',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ),
@@ -236,9 +248,7 @@ final List<QueueItem> queue;
               decoration: BoxDecoration(
                 color: statusColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: statusColor.withOpacity(0.2),
-                ),
+                border: Border.all(color: statusColor.withOpacity(0.2)),
               ),
               child: Text(
                 item.patientType,
@@ -246,23 +256,28 @@ final List<QueueItem> queue;
                   color: statusColor,
                   fontWeight: FontWeight.bold,
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(width: 8),
             // Action button (Start or arrow)
             // Action button (Start)
-            if (item.status.toLowerCase() != 'in consultation' && item.status.toLowerCase() != 'in_progress')
+            if (item.status.toLowerCase() != 'in consultation' &&
+                item.status.toLowerCase() != 'in_progress')
               IconButton(
                 icon: const Icon(Icons.play_arrow_rounded),
                 color: theme.colorScheme.primary,
                 onPressed: () => onStartSession(item),
                 tooltip: 'Start Session',
               ),
-            
+
             // More options (Cancel)
             if (onCancel != null)
               PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: theme.colorScheme.onSurfaceVariant),
+                icon: Icon(
+                  Icons.more_vert,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
                 onSelected: (value) {
                   if (value == 'cancel') {
                     onCancel!(item);
@@ -273,7 +288,11 @@ final List<QueueItem> queue;
                     value: 'cancel',
                     child: Row(
                       children: [
-                        Icon(Icons.cancel_outlined, color: Colors.red, size: 20),
+                        Icon(
+                          Icons.cancel_outlined,
+                          color: Colors.red,
+                          size: 20,
+                        ),
                         SizedBox(width: 8),
                         Text('Cancel', style: TextStyle(color: Colors.red)),
                       ],

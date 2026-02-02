@@ -9,7 +9,7 @@ class DashboardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       physics: const NeverScrollableScrollPhysics(),
@@ -18,7 +18,7 @@ class DashboardSkeleton extends StatelessWidget {
         children: [
           _buildHeaderSkeleton(context),
           const SizedBox(height: AppSpacing.xl),
-          if (width >= 600)
+          if (width >= 1100)
             _buildDesktopLayoutSkeleton(context)
           else
             _buildMobileLayoutSkeleton(context),
@@ -30,7 +30,7 @@ class DashboardSkeleton extends StatelessWidget {
   Widget _buildMobileLayoutSkeleton(BuildContext context) {
     return Column(
       children: [
-        _buildLiveQueueCardSkeleton(),
+        _buildLiveQueueCardSkeleton(context),
         const SizedBox(height: AppSpacing.lg),
         _buildStatsGridSkeleton(context),
         const SizedBox(height: AppSpacing.lg),
@@ -40,84 +40,89 @@ class DashboardSkeleton extends StatelessWidget {
   }
 
   Widget _buildDesktopLayoutSkeleton(BuildContext context) {
-    return Column(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildLiveQueueCardSkeleton(),
-        const SizedBox(height: AppSpacing.lg),
-        _buildStatsGridSkeleton(context),
-        const SizedBox(height: AppSpacing.lg),
-        _buildQueueListSkeleton(context),
+        Expanded(
+          flex: 3,
+          child: Column(
+            children: [
+              _buildLiveQueueCardSkeleton(context),
+              const SizedBox(height: AppSpacing.lg),
+              _buildQueueListSkeleton(context),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.lg),
+        Expanded(flex: 2, child: _buildStatsGridSkeleton(context)),
       ],
     );
   }
 
   Widget _buildHeaderSkeleton(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SkeletonLoader(width: 140, height: 14),
-            SizedBox(height: AppSpacing.xs),
-            SkeletonLoader(width: 120, height: 24),
-            SizedBox(height: AppSpacing.xs),
-            SkeletonLoader(width: 200, height: 32),
-          ],
+        // Leading Avatar/Logo
+        const SkeletonLoader(
+          width: 56,
+          height: 56,
+          borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
-        Row(
-          children: [
-            const SkeletonLoader.circle(size: 48),
-            const SizedBox(width: AppSpacing.md),
-            SkeletonLoader(
-              width: 120,
-              height: 32,
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ],
+        const SizedBox(width: AppSpacing.md),
+
+        // Middle Text Content
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonLoader(width: 100, height: 12), // Clinic Name/Date
+              SizedBox(height: 8),
+              SkeletonLoader(width: 160, height: 24), // Greeting
+              SizedBox(height: 8),
+              SkeletonLoader(width: 200, height: 32), // Doctor Name
+            ],
+          ),
+        ),
+
+        // Trailing AI Pulse Status
+        const SizedBox(width: AppSpacing.md),
+        SkeletonLoader(
+          width: 80,
+          height: 32,
+          borderRadius: BorderRadius.circular(20),
         ),
       ],
     );
   }
 
-  Widget _buildLiveQueueCardSkeleton() {
+  Widget _buildLiveQueueCardSkeleton(BuildContext context) {
     return Container(
       width: double.infinity,
       height: 200,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.indigo.shade900.withOpacity(0.8),
-            Colors.deepPurple.shade900.withOpacity(0.8),
-          ],
-        ),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.indigo.withOpacity(0.2),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: Colors.white54,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              const SkeletonLoader(width: 80, height: 12),
+              SkeletonLoader.circle(size: 8),
+              SizedBox(width: 8),
+              SkeletonLoader(width: 80, height: 12),
             ],
           ),
           const SizedBox(height: 24),
@@ -148,17 +153,11 @@ class DashboardSkeleton extends StatelessWidget {
   Widget _buildStatsGridSkeleton(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-          child: _buildSingleStatSkeleton(context),
-        ),
+        Expanded(child: _buildSingleStatSkeleton(context)),
         const SizedBox(width: 12),
-        Expanded(
-          child: _buildSingleStatSkeleton(context),
-        ),
+        Expanded(child: _buildSingleStatSkeleton(context)),
         const SizedBox(width: 12),
-        Expanded(
-          child: _buildSingleStatSkeleton(context),
-        ),
+        Expanded(child: _buildSingleStatSkeleton(context)),
       ],
     );
   }
@@ -181,13 +180,17 @@ class DashboardSkeleton extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const SkeletonLoader(
-                  width: 36,
-                  height: 36,
-                  borderRadius: BorderRadius.all(Radius.circular(12))),
-              SkeletonLoader(
-                  width: 50,
-                  height: 20,
-                  borderRadius: BorderRadius.circular(10)),
+                width: 32,
+                height: 32,
+                borderRadius: BorderRadius.all(Radius.circular(10)),
+              ),
+              Flexible(
+                child: SkeletonLoader(
+                  width: 40,
+                  height: 18,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ],
           ),
           const Spacer(),
@@ -208,9 +211,10 @@ class DashboardSkeleton extends StatelessWidget {
           children: [
             const SkeletonLoader(width: 150, height: 28),
             SkeletonLoader(
-                width: 80,
-                height: 24,
-                borderRadius: BorderRadius.circular(12)),
+              width: 80,
+              height: 24,
+              borderRadius: BorderRadius.circular(12),
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -227,7 +231,9 @@ class DashboardSkeleton extends StatelessWidget {
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3),
+                color: Theme.of(
+                  context,
+                ).colorScheme.outlineVariant.withOpacity(0.3),
               ),
               boxShadow: [
                 BoxShadow(
@@ -252,7 +258,11 @@ class DashboardSkeleton extends StatelessWidget {
                   ),
                 ),
                 SizedBox(width: 12),
-                SkeletonLoader(width: 70, height: 28, borderRadius: BorderRadius.all(Radius.circular(14))),
+                SkeletonLoader(
+                  width: 70,
+                  height: 28,
+                  borderRadius: BorderRadius.all(Radius.circular(14)),
+                ),
               ],
             ),
           ),

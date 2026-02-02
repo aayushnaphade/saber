@@ -125,19 +125,15 @@ class _RecentPageState extends State<RecentPage> {
             SliverPadding(
               padding: const .only(bottom: 8),
               sliver: SliverAppBar(
-                collapsedHeight: kToolbarHeight,
-                expandedHeight: 200,
+                floating: true,
                 pinned: true,
-                scrolledUnderElevation: 1,
-                flexibleSpace: FlexibleSpaceBar(
-                  title: Text(
-                    'Calendar',
-                    style: TextStyle(color: colorScheme.onSurface),
-                  ),
-                  centerTitle: false,
-                  titlePadding: const EdgeInsetsDirectional.only(
-                    start: 16,
-                    bottom: 16,
+                snap: true,
+                centerTitle: false,
+                title: Text(
+                  'Calendar',
+                  style: TextStyle(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 actions: const [SyncingButton()],
@@ -148,10 +144,7 @@ class _RecentPageState extends State<RecentPage> {
                 padding: EdgeInsets.symmetric(horizontal: 16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    PatientHistoryCalendar(),
-                    SizedBox(height: 24),
-                  ],
+                  children: [PatientHistoryCalendar(), SizedBox(height: 24)],
                 ),
               ),
             ),

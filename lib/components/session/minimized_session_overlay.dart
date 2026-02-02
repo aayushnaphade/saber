@@ -1,10 +1,12 @@
 import 'dart:ui';
+import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saber/data/session_manager.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/main.dart';
+import 'package:path/path.dart' as p;
 
 class MinimizedSessionOverlay extends StatelessWidget {
   const MinimizedSessionOverlay({super.key, required this.router});
@@ -277,15 +279,41 @@ class MinimizedSessionOverlay extends StatelessWidget {
                   const SizedBox(width: 16),
                   Expanded(
                     child: FilledButton(
-                      onPressed: () {
+                      onPressed: () async {
                         final consultationId = SessionManager().consultationId;
                         if (consultationId != null) {
-                          SupabaseDashboardService.completeConsultation(
-                            consultationId,
-                          );
+                          try {
+                            await SupabaseDashboardService.cancelAppointment(
+                              consultationId,
+                            );
+                          } catch (e) {
+                            debugPrint(
+                              'Failed to cancel appointment in DB: $e',
+                            );
+                          }
                         }
+
+                        // Delete local files
+                        final path = SessionManager().activeSession?.filePath;
+                        if (path != null) {
+                          try {
+                            final parentDir = p.dirname(path);
+                            final parentDirName = p.basename(parentDir);
+
+                            if (parentDirName.startsWith('session_')) {
+                              await FileManager.deleteDirectory(parentDir);
+                            } else {
+                              await FileManager.deleteFile(path);
+                            }
+                          } catch (e) {
+                            debugPrint('Error deleting file: $e');
+                          }
+                        }
+
                         SessionManager().terminate();
-                        Navigator.pop(dialogContext);
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                        }
                       },
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.red,

@@ -15,6 +15,7 @@ import 'package:flutter/foundation.dart' show clampDouble;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:vector_math/vector_math_64.dart' show Matrix4, Quad, Vector3;
 
@@ -763,7 +764,12 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
     } else {
       _gestureType ??= _getGestureType(details);
     }
-    if (!_gestureIsSupported(_gestureType) && !isCurrentGestureADrawGesture) {
+    if (isCurrentGestureADrawGesture) {
+      widget.onDrawUpdate?.call(details);
+      return;
+    }
+
+    if (!_gestureIsSupported(_gestureType)) {
       return;
     }
 
@@ -822,20 +828,16 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
           return;
         }
 
-        if (isCurrentGestureADrawGesture) {
-          widget.onDrawUpdate?.call(details);
-        } else {
-          _currentAxis ??= _getPanAxis(_referenceFocalPoint!, focalPointScene);
-          // Translate so that the same point in the scene is underneath the
-          // focal point before and after the movement.
-          final Offset translationChange =
-              focalPointScene - _referenceFocalPoint!;
-          _transformer.value = _matrixTranslate(
-            _transformer.value,
-            translationChange,
-          );
-          _referenceFocalPoint = _transformer.toScene(details.localFocalPoint);
-        }
+        _currentAxis ??= _getPanAxis(_referenceFocalPoint!, focalPointScene);
+        // Translate so that the same point in the scene is underneath the
+        // focal point before and after the movement.
+        final Offset translationChange =
+            focalPointScene - _referenceFocalPoint!;
+        _transformer.value = _matrixTranslate(
+          _transformer.value,
+          translationChange,
+        );
+        _referenceFocalPoint = _transformer.toScene(details.localFocalPoint);
     }
   }
 
@@ -1045,7 +1047,17 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
   void _handleTransformation() {
     // A change to the TransformationController's value is a change to the
     // state.
-    setState(() {});
+    if (!mounted) return;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {});
+        }
+      });
+    } else {
+      setState(() {});
+    }
   }
 
   @override

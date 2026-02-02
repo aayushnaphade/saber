@@ -21,10 +21,22 @@ abstract class RoutePaths {
 
   static const prefixOfHome = '/home';
 
-  static String editFilePath(String filePath, {String? consultationId, bool readOnly = false}) {
+  static String editFilePath(
+    String filePath, {
+    String? consultationId,
+    String? patientName,
+    String? patientId,
+    bool readOnly = false,
+  }) {
     var uri = '$edit?path=${Uri.encodeQueryComponent(filePath)}';
     if (consultationId != null) {
       uri += '&consultation_id=${Uri.encodeQueryComponent(consultationId)}';
+    }
+    if (patientName != null) {
+      uri += '&patient_name=${Uri.encodeQueryComponent(patientName)}';
+    }
+    if (patientId != null) {
+      uri += '&patient_id=${Uri.encodeQueryComponent(patientId)}';
     }
     if (readOnly) {
       uri += '&readOnly=true';
@@ -127,10 +139,7 @@ class _Route {
       NavigationRailDestination(
         label: Text(
           label,
-          style: const TextStyle(
-            fontSize: 15,
-            letterSpacing: 0.2,
-          ),
+          style: const TextStyle(fontSize: 15, letterSpacing: 0.2),
           overflow: TextOverflow.fade,
           maxLines: 1,
           softWrap: false,

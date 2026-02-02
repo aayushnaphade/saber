@@ -179,7 +179,8 @@ class App extends StatefulWidget {
   const App({super.key});
 
   static final log = Logger('App');
-  static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> rootNavigatorKey =
+      GlobalKey<NavigatorState>();
 
   static String getInitialLocation() {
     // Check if user is authenticated
@@ -206,7 +207,7 @@ class App extends StatefulWidget {
       // If authenticated, check role for tablet access
       if (isAuthenticated) {
         final role = stows.userRole.value;
-        // Note: For existing sessions, role might be empty initially 
+        // Note: For existing sessions, role might be empty initially
         // until tryRestoreSession completes, but the router refresh
         // will trigger again once the role is synced.
         if (role.isNotEmpty && role != 'doctor') {
@@ -239,15 +240,17 @@ class App extends StatefulWidget {
       ),
       ShellRoute(
         builder: (context, state, child) {
-          final subpage = state.pathParameters['subpage'] ?? HomePage.dashboardSubpage;
+          final subpage =
+              state.pathParameters['subpage'] ?? HomePage.dashboardSubpage;
           return HomePage(subpage: subpage, child: child);
         },
         routes: [
           GoRoute(
             path: RoutePaths.home,
             pageBuilder: (context, state) {
-              final subpage = state.pathParameters['subpage'] ?? HomePage.dashboardSubpage;
-              
+              final subpage =
+                  state.pathParameters['subpage'] ?? HomePage.dashboardSubpage;
+
               Widget child;
               switch (subpage) {
                 case HomePage.dashboardSubpage:
@@ -299,6 +302,8 @@ class App extends StatefulWidget {
           path: state.uri.queryParameters['path'],
           pdfPath: state.uri.queryParameters['pdfPath'],
           consultationId: state.uri.queryParameters['consultation_id'],
+          patientName: state.uri.queryParameters['patient_name'],
+          patientId: state.uri.queryParameters['patient_id'],
           readOnly: state.uri.queryParameters['readOnly'] == 'true',
         ),
       ),
@@ -315,8 +320,9 @@ class App extends StatefulWidget {
         path: RoutePaths.sessionViewer,
         builder: (context, state) {
           final patientId = state.pathParameters['patientId']!;
-          final sessionNumber =
-              int.parse(state.pathParameters['sessionNumber']!);
+          final sessionNumber = int.parse(
+            state.pathParameters['sessionNumber']!,
+          );
           final extra = state.extra as Map<String, dynamic>;
           final allSessions = extra['allSessions'] as List<SessionInfo>;
 

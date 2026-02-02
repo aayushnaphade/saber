@@ -59,18 +59,28 @@ class SupabaseDashboardService {
 
   static QueueItem _mapToQueueItem(Map<String, dynamic> item, int position) {
     final patient = item['patients'];
-    final patientName = patient is Map ? patient['full_name'] as String? ?? 'Unknown' : 'Unknown';
+    final patientName = patient is Map
+        ? patient['full_name'] as String? ?? 'Unknown'
+        : 'Unknown';
     final status = item['status'] as String? ?? 'waiting';
-    
+
     final age = patient is Map ? patient['age'] as int? ?? 0 : 0;
-    final gender = patient is Map ? patient['gender'] as String? ?? 'Unknown' : 'Unknown';
-    final visitType = patient is Map ? patient['visit_type'] as String? ?? 'New Patient' : 'New Patient';
-    
+    final gender = patient is Map
+        ? patient['gender'] as String? ?? 'Unknown'
+        : 'Unknown';
+    final visitType = patient is Map
+        ? patient['visit_type'] as String? ?? 'New Patient'
+        : 'New Patient';
+
     final createdAtStr = item['created_at'] as String?;
-    final registeredTime = createdAtStr != null ? DateTime.parse(createdAtStr) : DateTime.now();
+    final registeredTime = createdAtStr != null
+        ? DateTime.parse(createdAtStr).toLocal()
+        : DateTime.now();
 
     // Calculate estimated wait time (mock logic for now: 15 mins per person ahead)
-    final waitTime = position == 0 ? Duration.zero : Duration(minutes: (position - 1) * 15);
+    final waitTime = position == 0
+        ? Duration.zero
+        : Duration(minutes: (position - 1) * 15);
 
     return QueueItem(
       id: item['id'] as String? ?? '',
@@ -78,7 +88,9 @@ class SupabaseDashboardService {
       patientId: item['patient_id'] as String? ?? '',
       position: position,
       estimatedWaitTime: waitTime,
-      status: status == 'in_progress' ? 'In Consultation' : (status == 'waiting' ? 'Waiting' : status),
+      status: status == 'in_progress'
+          ? 'In Consultation'
+          : (status == 'waiting' ? 'Waiting' : status),
       age: age,
       gender: gender,
       registeredTime: registeredTime,
@@ -87,7 +99,9 @@ class SupabaseDashboardService {
   }
 
   /// Updates the queue order of consultations
-  static Future<void> updateQueueOrder(List<Map<String, dynamic>> updates) async {
+  static Future<void> updateQueueOrder(
+    List<Map<String, dynamic>> updates,
+  ) async {
     try {
       await supabase.rpc(
         'update_queue_order_batch',
@@ -154,7 +168,11 @@ class SupabaseDashboardService {
           id: item['id'],
           patientName: patientName,
           patientId: item['patient_id'],
-          time: DateTime.parse(item['scheduled_time'] ?? item['created_at']),
+          time: DateTime.parse(
+            item['scheduled_time'] ??
+                item['session_start_time'] ??
+                item['created_at'],
+          ).toLocal(),
           reason: visitType ?? 'General Consultation',
           status: status,
           appointmentType: appointmentTypeStr ?? 'walk-in',
@@ -172,11 +190,7 @@ class SupabaseDashboardService {
   static Future<DashboardStats> getStats() async {
     try {
       final now = DateTime.now();
-      final startOfDay = DateTime(
-        now.year,
-        now.month,
-        now.day,
-      ).toUtc();
+      final startOfDay = DateTime(now.year, now.month, now.day).toUtc();
       final startOfDayStr = startOfDay.toIso8601String();
       final endOfDayStr = DateTime(
         now.year,
@@ -233,11 +247,15 @@ class SupabaseDashboardService {
         comparisonDate.month,
         comparisonDate.day,
       ).toUtc();
-      
+
       // Best Practice: Time-of-Day (TOD) matching
       // We compare metrics up to the same hour/minute of the comparative day to avoid the "morning dip".
-      final durationIntoDay = now.difference(DateTime(now.year, now.month, now.day));
-      final endOfComparisonWindow = startOfComparisonDay.add(durationIntoDay).toIso8601String();
+      final durationIntoDay = now.difference(
+        DateTime(now.year, now.month, now.day),
+      );
+      final endOfComparisonWindow = startOfComparisonDay
+          .add(durationIntoDay)
+          .toIso8601String();
       final startOfComparisonDayStr = startOfComparisonDay.toIso8601String();
 
       final previousDataResponse = await supabase
@@ -249,7 +267,7 @@ class SupabaseDashboardService {
 
       final List previousData = (previousDataResponse as List?) ?? [];
       final previousSessionsCount = previousData.length;
-      
+
       int previousTotalMinutes = 0;
       for (final session in previousData) {
         if (session is Map) {
@@ -270,14 +288,19 @@ class SupabaseDashboardService {
       // Calculate trends
       double consultationsTrend = 0.0;
       if (previousSessionsCount > 0) {
-        consultationsTrend = ((completedSessions - previousSessionsCount) / previousSessionsCount) * 100;
+        consultationsTrend =
+            ((completedSessions - previousSessionsCount) /
+                previousSessionsCount) *
+            100;
       } else if (completedSessions > 0) {
         consultationsTrend = 100.0; // From 0 to something is 100% gain
       }
 
       double timeTrend = 0.0;
       if (previousTotalMinutes > 0) {
-        timeTrend = ((totalMinutes - previousTotalMinutes) / previousTotalMinutes) * 100;
+        timeTrend =
+            ((totalMinutes - previousTotalMinutes) / previousTotalMinutes) *
+            100;
       } else if (totalMinutes > 0) {
         timeTrend = 100.0;
       }
@@ -325,11 +348,13 @@ class SupabaseDashboardService {
 
   /// Reschedules an appointment
   static Future<void> rescheduleAppointment(
-      String consultationId, DateTime newTime) async {
+    String consultationId,
+    DateTime newTime,
+  ) async {
     try {
       await supabase
           .from('consultations')
-          .update({'created_at': newTime.toIso8601String()})
+          .update({'created_at': newTime.toUtc().toIso8601String()})
           .eq('id', consultationId);
     } catch (e) {
       log.severe('Error rescheduling appointment: $e');
@@ -344,7 +369,7 @@ class SupabaseDashboardService {
           .from('consultations')
           .update({
             'status': 'completed',
-            'session_end_time': DateTime.now().toIso8601String(),
+            'session_end_time': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', consultationId);
       log.info('Consultation $consultationId marked as completed');
@@ -359,7 +384,11 @@ class SupabaseDashboardService {
   static Future<int> cancelPastPendingSessions() async {
     try {
       final now = DateTime.now();
-      final startOfToday = DateTime(now.year, now.month, now.day).toUtc().toIso8601String();
+      final startOfToday = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).toUtc().toIso8601String();
 
       final response = await supabase
           .from('consultations')
@@ -382,8 +411,9 @@ class SupabaseDashboardService {
   /// Check for scheduling conflicts
   /// Returns list of conflicting appointments for the given time slot
   static Future<List<Appointment>> checkTimeSlotConflicts(
-      DateTime scheduledTime,
-      {String? excludeConsultationId}) async {
+    DateTime scheduledTime, {
+    String? excludeConsultationId,
+  }) async {
     try {
       // Check within a 30-minute window
       final start = scheduledTime.subtract(const Duration(minutes: 15));
@@ -392,8 +422,8 @@ class SupabaseDashboardService {
       var query = supabase
           .from('consultations')
           .select('*, patients(full_name, visit_type, gender, age)')
-          .gte('scheduled_time', start.toIso8601String())
-          .lte('scheduled_time', end.toIso8601String())
+          .gte('scheduled_time', start.toUtc().toIso8601String())
+          .lte('scheduled_time', end.toUtc().toIso8601String())
           .neq('status', 'cancelled')
           .neq('status', 'completed');
 
@@ -429,7 +459,11 @@ class SupabaseDashboardService {
           id: item['id'],
           patientName: patientName,
           patientId: item['patient_id'],
-          time: DateTime.parse(item['scheduled_time'] ?? item['created_at']),
+          time: DateTime.parse(
+            item['scheduled_time'] ??
+                item['session_start_time'] ??
+                item['created_at'],
+          ).toLocal(),
           reason: visitType ?? 'General Consultation',
           status: status,
           appointmentType: appointmentTypeStr ?? 'walk-in',
@@ -445,13 +479,15 @@ class SupabaseDashboardService {
 
   /// Fetches consultation history for a given date range
   static Future<List<Appointment>> getConsultationHistory(
-      DateTime start, DateTime end) async {
+    DateTime start,
+    DateTime end,
+  ) async {
     try {
       final response = await supabase
           .from('consultations')
           .select('*, patients(full_name, visit_type, gender, age)')
-          .gte('created_at', start.toIso8601String())
-          .lte('created_at', end.toIso8601String())
+          .gte('created_at', start.toUtc().toIso8601String())
+          .lte('created_at', end.toUtc().toIso8601String())
           .order('created_at', ascending: false);
 
       return (response as List).map((item) {
@@ -480,7 +516,11 @@ class SupabaseDashboardService {
           id: item['id'],
           patientName: patientName,
           patientId: item['patient_id'],
-          time: DateTime.parse(item['created_at']),
+          time: DateTime.parse(
+            item['scheduled_time'] ??
+                item['session_start_time'] ??
+                item['created_at'],
+          ).toLocal(),
           reason: visitType ?? 'General Consultation',
           status: status,
           appointmentType: appointmentTypeStr ?? 'walk-in',
@@ -502,18 +542,19 @@ class SupabaseDashboardService {
       AIInsight(
         id: '1',
         title: 'High Volume Expected',
-        description: 'Based on historical data, Monday mornings have 20% more walk-ins.',
+        description:
+            'Based on historical data, Monday mornings have 20% more walk-ins.',
         type: InsightType.trend,
         timestamp: DateTime.now(),
       ),
       AIInsight(
         id: '2',
         title: 'Pending Lab Reports',
-        description: '3 patients from yesterday are waiting for blood test results.',
+        description:
+            '3 patients from yesterday are waiting for blood test results.',
         type: InsightType.action,
         timestamp: DateTime.now().subtract(const Duration(hours: 2)),
       ),
     ];
   }
 }
-

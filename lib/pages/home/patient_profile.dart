@@ -199,7 +199,9 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     });
 
     try {
-      debugPrint('PatientProfile: _loadPatientData started for ${widget.patientId}');
+      debugPrint(
+        'PatientProfile: _loadPatientData started for ${widget.patientId}',
+      );
       final loadedPatient = await SupabasePatientService.getPatient(
         widget.patientId,
       );
@@ -292,10 +294,13 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
           patient: patient!,
           existingIntake: _patientIntake,
           doctorName: _doctorName,
-          readOnly: _patientIntake != null, // Read-only if viewing existing intake
+          readOnly:
+              _patientIntake != null, // Read-only if viewing existing intake
           onSave: (intake) async {
             try {
-              final savedIntake = await SupabaseIntakeService.upsertIntake(intake);
+              final savedIntake = await SupabaseIntakeService.upsertIntake(
+                intake,
+              );
               setState(() {
                 _patientIntake = savedIntake;
               });
@@ -363,7 +368,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       if (sessions.isEmpty) {
         // Show intake form first for new patients
         await _showIntakeForm();
-        
+
         // If intake was cancelled and we don't have an intake, don't proceed with session
         if (_patientIntake == null) {
           return;
@@ -409,18 +414,23 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
           if (existing != null) {
             consultationId = existing['id'];
             _log.info('Using existing consultation: $consultationId');
-            
+
             // If it was waiting, move to in_progress
             if (existing['status'] == 'waiting') {
               await supabase
                   .from('consultations')
-                  .update({'status': 'in_progress', 'session_start_time': DateTime.now().toIso8601String()})
+                  .update({
+                    'status': 'in_progress',
+                    'session_start_time': DateTime.now()
+                        .toUtc()
+                        .toIso8601String(),
+                  })
                   .eq('id', consultationId!);
             }
           } else {
             // 2. No existing consultation found, create a new walk-in one
             _log.info('No active consultation found, creating new walk-in...');
-            
+
             // Get max queue order to maintain consistency
             final maxOrderResponse = await supabase
                 .from('consultations')
@@ -440,8 +450,10 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                   'patient_id': patient!.id,
                   'doctor_id': user.id,
                   'status': 'in_progress',
-                  'session_start_time': DateTime.now().toIso8601String(),
-                  'scheduled_time': DateTime.now().toIso8601String(),
+                  'session_start_time': DateTime.now()
+                      .toUtc()
+                      .toIso8601String(),
+                  'scheduled_time': DateTime.now().toUtc().toIso8601String(),
                   'appointment_type': 'walk-in',
                   'queue_order': nextQueueOrder,
                 })
@@ -459,12 +471,12 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
 
       // Navigate to editor with new document
       if (mounted) {
-        context.push(
-          RoutePaths.editFilePath(
-            documentPath,
-            consultationId: consultationId,
-          ),
+        await context.push(
+          RoutePaths.editFilePath(documentPath, consultationId: consultationId),
         );
+        if (mounted) {
+          _loadPatientData();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -490,7 +502,11 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Patient status updated to $_getStatusDisplayName($newStatus)')),
+          SnackBar(
+            content: Text(
+              'Patient status updated to $_getStatusDisplayName($newStatus)',
+            ),
+          ),
         );
       }
     } catch (e) {
@@ -582,6 +598,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               ],
             )
           : AppBar(
+              centerTitle: false,
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () {
@@ -596,7 +613,10 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                 },
                 tooltip: 'Back',
               ),
-              title: const Text('Patient Profile'),
+              title: const Text(
+                'Patient Profile',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               backgroundColor: Colors.transparent,
               elevation: 0,
               actions: [
@@ -651,12 +671,16 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                       PopupMenuItem(
                         value: 'intake',
                         child: ListTile(
-                          leading: Icon(_patientIntake != null 
-                              ? Icons.assignment_turned_in_outlined 
-                              : Icons.assignment_outlined),
-                          title: Text(_patientIntake != null 
-                              ? 'View/Edit Intake Form' 
-                              : 'Fill Intake Form'),
+                          leading: Icon(
+                            _patientIntake != null
+                                ? Icons.assignment_turned_in_outlined
+                                : Icons.assignment_outlined,
+                          ),
+                          title: Text(
+                            _patientIntake != null
+                                ? 'View/Edit Intake Form'
+                                : 'Fill Intake Form',
+                          ),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
@@ -723,7 +747,11 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                 children: [
                   Row(
                     children: [
-                      const SkeletonLoader(width: 64, height: 64, shape: BoxShape.circle),
+                      const SkeletonLoader(
+                        width: 64,
+                        height: 64,
+                        shape: BoxShape.circle,
+                      ),
                       SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Column(
@@ -735,7 +763,11 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                           ],
                         ),
                       ),
-                      SkeletonLoader(width: 100, height: 32, borderRadius: BorderRadius.circular(16)),
+                      SkeletonLoader(
+                        width: 100,
+                        height: 32,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ],
                   ),
                   SizedBox(height: AppSpacing.md),
@@ -743,11 +775,23 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                   SizedBox(height: AppSpacing.md),
                   Row(
                     children: [
-                      SkeletonLoader(width: 80, height: 24, borderRadius: BorderRadius.circular(12)),
+                      SkeletonLoader(
+                        width: 80,
+                        height: 24,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       SizedBox(width: AppSpacing.sm),
-                      SkeletonLoader(width: 80, height: 24, borderRadius: BorderRadius.circular(12)),
+                      SkeletonLoader(
+                        width: 80,
+                        height: 24,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       SizedBox(width: AppSpacing.sm),
-                      SkeletonLoader(width: 120, height: 24, borderRadius: BorderRadius.circular(12)),
+                      SkeletonLoader(
+                        width: 120,
+                        height: 24,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ],
                   ),
                 ],
@@ -764,11 +808,23 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                 children: [
                   SkeletonLoader(width: 180, height: 20),
                   SizedBox(height: AppSpacing.lg),
-                  SkeletonLoader(width: double.infinity, height: 60, borderRadius: BorderRadius.circular(12)),
+                  SkeletonLoader(
+                    width: double.infinity,
+                    height: 60,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   SizedBox(height: AppSpacing.sm),
-                  SkeletonLoader(width: double.infinity, height: 60, borderRadius: BorderRadius.circular(12)),
+                  SkeletonLoader(
+                    width: double.infinity,
+                    height: 60,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   SizedBox(height: AppSpacing.sm),
-                  SkeletonLoader(width: double.infinity, height: 60, borderRadius: BorderRadius.circular(12)),
+                  SkeletonLoader(
+                    width: double.infinity,
+                    height: 60,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ],
               ),
             ),
@@ -850,9 +906,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        side: BorderSide(
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Padding(
         padding: EdgeInsets.all(AppSpacing.lg),
@@ -891,75 +945,6 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                         style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
-                      SizedBox(height: AppSpacing.xs),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.badge_outlined,
-                            size: 16,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                          SizedBox(width: AppSpacing.xs),
-                          Expanded(
-                            child: Text(
-                              'ID: ${patient!.id.substring(0, 8)}...',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                fontFamily: 'monospace',
-                              ),
-                            ),
-                          ),
-                          InkWell(
-                            onTap: () {
-                              Clipboard.setData(ClipboardData(text: patient!.id));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Patient ID copied'),
-                                  duration: Duration(seconds: 1),
-                                ),
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
-                            child: Padding(
-                              padding: EdgeInsets.all(AppSpacing.xs),
-                              child: Icon(Icons.copy, size: 16),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                // Status badge
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
-                  ),
-                  decoration: BoxDecoration(
-                    color: MedicalColors.getStatusColor(patient!.status.name).withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(AppRadius.full),
-                    border: Border.all(
-                      color: MedicalColors.getStatusColor(patient!.status.name),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _getStatusIcon(patient!.status),
-                        size: 16,
-                        color: MedicalColors.getStatusColor(patient!.status.name),
-                      ),
-                      SizedBox(width: AppSpacing.xs),
-                      Text(
-                        _getStatusDisplayName(patient!.status),
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: MedicalColors.getStatusColor(patient!.status.name),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -974,11 +959,26 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               runSpacing: AppSpacing.sm,
               children: [
                 if (patient!.age != null)
-                  _buildInfoChip(Icons.cake_outlined, '${patient!.age} years'),
+                  _buildInfoChip(
+                    Icons.cake_outlined,
+                    '${patient!.age} years',
+                    color: Colors.blue.withOpacity(0.1),
+                    contentColor: Colors.blue,
+                  ),
                 if (patient!.gender != null)
-                  _buildInfoChip(Icons.person_outline, patient!.gender!),
+                  _buildInfoChip(
+                    Icons.person_outline,
+                    patient!.gender!,
+                    color: Colors.purple.withOpacity(0.1),
+                    contentColor: Colors.purple,
+                  ),
                 if (patient!.phoneNumber != null)
-                  _buildInfoChip(Icons.phone_outlined, patient!.phoneNumber!),
+                  _buildInfoChip(
+                    Icons.phone_outlined,
+                    patient!.phoneNumber!,
+                    color: Colors.green.withOpacity(0.1),
+                    contentColor: Colors.green,
+                  ),
                 if (patient!.lastVisit != null)
                   _buildInfoChip(
                     Icons.event_outlined,
@@ -992,14 +992,19 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String label) {
+  Widget _buildInfoChip(
+    IconData icon,
+    String label, {
+    Color? color,
+    Color? contentColor,
+  }) {
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: color ?? Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Row(
@@ -1008,13 +1013,15 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
           Icon(
             icon,
             size: 16,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color:
+                contentColor ?? Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           SizedBox(width: AppSpacing.xs),
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface,
+              color: contentColor ?? Theme.of(context).colorScheme.onSurface,
+              fontWeight: contentColor != null ? FontWeight.w600 : null,
             ),
           ),
         ],
@@ -1060,9 +1067,9 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                 Expanded(
                   child: Text(
                     'Medical Information',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1156,7 +1163,9 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       padding: EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: isEmpty
-            ? Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3)
+            ? Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest.withOpacity(0.3)
             : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: isEmpty
@@ -1218,18 +1227,20 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   Widget _buildIntakeStatusCard() {
     final theme = Theme.of(context);
     final hasIntake = _patientIntake != null;
-    
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: hasIntake 
-              ? MedicalColors.infoBorder 
+          color: hasIntake
+              ? MedicalColors.infoBorder
               : theme.colorScheme.outlineVariant,
         ),
       ),
-      color: hasIntake ? MedicalColors.infoBg : null,
+      color: hasIntake
+          ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.1)
+          : null,
       child: InkWell(
         onTap: _showIntakeForm,
         borderRadius: BorderRadius.circular(12),
@@ -1240,17 +1251,17 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: hasIntake 
+                  color: hasIntake
                       ? MedicalColors.info.withOpacity(0.2)
                       : theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                  hasIntake 
-                      ? Icons.assignment_turned_in_outlined 
+                  hasIntake
+                      ? Icons.assignment_turned_in_outlined
                       : Icons.assignment_outlined,
-                  color: hasIntake 
-                      ? MedicalColors.info 
+                  color: hasIntake
+                      ? MedicalColors.info
                       : theme.colorScheme.onSurfaceVariant,
                   size: 24,
                 ),
@@ -1279,29 +1290,33 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                       Wrap(
                         spacing: 6,
                         runSpacing: 4,
-                        children: _patientIntake!.getSymptomCategoryCounts()
+                        children: _patientIntake!
+                            .getSymptomCategoryCounts()
                             .entries
                             .where((e) => e.value > 0)
                             .take(4)
-                            .map((e) => Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.surface,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: theme.colorScheme.outline.withOpacity(0.3),
+                            .map(
+                              (e) => Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: theme.colorScheme.outline
+                                        .withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  '${e.key}: ${e.value}',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
-                              child: Text(
-                                '${e.key}: ${e.value}',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ))
+                            )
                             .toList(),
                       ),
                     ] else ...[
@@ -1318,8 +1333,8 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               ),
               Icon(
                 Icons.chevron_right,
-                color: hasIntake 
-                    ? MedicalColors.info 
+                color: hasIntake
+                    ? MedicalColors.info
                     : theme.colorScheme.onSurfaceVariant,
               ),
             ],
@@ -1328,7 +1343,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       ),
     );
   }
-  
+
   String _formatDate(DateTime date) {
     return DateFormat('MMM dd, yyyy').format(date);
   }
@@ -1337,7 +1352,12 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Clinical Records', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+        Text(
+          'Clinical Records',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
         SizedBox(height: AppSpacing.xs),
         Text(
           'Detailed logs and AI reports for each session',
@@ -1455,7 +1475,9 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               ),
             ),
             color: isSelected
-                ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                ? Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withOpacity(0.3)
                 : Theme.of(context).colorScheme.surface,
             child: InkWell(
               onLongPress: () {
@@ -1484,7 +1506,9 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                       : Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer.withOpacity(0.5),
                             shape: BoxShape.circle,
                           ),
                           child: Text(
@@ -1501,14 +1525,22 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                   ),
                   subtitle: Row(
                     children: [
-                      const Icon(Icons.calendar_today, size: 12, color: Colors.grey),
+                      const Icon(
+                        Icons.calendar_today,
+                        size: 12,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         DateFormat.yMMMd().format(session.createdDate),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       const SizedBox(width: 12),
-                      const Icon(Icons.description_outlined, size: 12, color: Colors.grey),
+                      const Icon(
+                        Icons.description_outlined,
+                        size: 12,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${session.fileCount} pages',
@@ -1516,27 +1548,41 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                       ),
                     ],
                   ),
-                   trailing: _isSelectionMode
+                  trailing: _isSelectionMode
                       ? null
                       : Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // AI Report Icon
-                            IconButton(
-                              icon: const Icon(Icons.auto_awesome, color: Colors.blue),
-                              onPressed: () => _openSession(session),
-                              tooltip: 'View AI Report',
-                            ),
-                            // View Notes Icon
-                            IconButton(
-                              icon: const Icon(Icons.visibility_outlined),
+                            // View Notes Button
+                            FilledButton.tonal(
                               onPressed: () {
-                                final sessionPath = '${patient!.documentFolderPath(DocumentType.sessionNote)}/${session.folderName}';
-                                final documentPath = '$sessionPath/${session.folderName}_notes.sbn';
-                                context.push(RoutePaths.editFilePath(documentPath, readOnly: true));
+                                final sessionPath =
+                                    '${patient!.documentFolderPath(DocumentType.sessionNote)}/${session.folderName}';
+                                final documentPath =
+                                    '$sessionPath/${session.folderName}_notes.sbn';
+                                context.push(
+                                  RoutePaths.editFilePath(
+                                    documentPath,
+                                    readOnly: true,
+                                  ),
+                                );
                               },
-                              tooltip: 'View handwritten notes',
+                              style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.visibility, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('View Notes'),
+                                ],
+                              ),
                             ),
+                            const SizedBox(width: 8),
                             const Icon(Icons.chevron_right, color: Colors.grey),
                           ],
                         ),
@@ -1548,7 +1594,6 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       },
     );
   }
-
 
   void _openSession(SessionInfo session) {
     if (patient == null) return;
@@ -1570,19 +1615,6 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         return 'Discharged';
       case PatientStatus.archived:
         return 'Archived';
-    }
-  }
-
-  IconData _getStatusIcon(PatientStatus status) {
-    switch (status) {
-      case PatientStatus.waiting:
-        return Icons.schedule;
-      case PatientStatus.active:
-        return Icons.medical_services;
-      case PatientStatus.discharged:
-        return Icons.check_circle;
-      case PatientStatus.archived:
-        return Icons.archive;
     }
   }
 }
@@ -1607,7 +1639,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
   late TextEditingController allergiesController;
   late TextEditingController addressController;
   String? selectedGender;
-  
+
   final formKey = GlobalKey<FormState>();
 
   @override
@@ -1695,10 +1727,11 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                       // Section 1: Basic Information
                       Text(
                         'Basic Information',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -1754,7 +1787,10 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                                 border: const OutlineInputBorder(),
                               ),
                               items: const [
-                                DropdownMenuItem(value: 'Male', child: Text('Male')),
+                                DropdownMenuItem(
+                                  value: 'Male',
+                                  child: Text('Male'),
+                                ),
                                 DropdownMenuItem(
                                   value: 'Female',
                                   child: Text('Female'),
@@ -1764,7 +1800,8 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                                   child: Text('Other'),
                                 ),
                               ],
-                              onChanged: (value) => setState(() => selectedGender = value),
+                              onChanged: (value) =>
+                                  setState(() => selectedGender = value),
                             ),
                           ),
                         ],
@@ -1808,14 +1845,15 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      
+
                       // Section 2: Medical Details
                       Text(
                         'Medical Details',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -1827,19 +1865,21 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                                 labelText: 'Weight (kg)',
                                 hintText: 'Enter weight',
                                 border: const OutlineInputBorder(),
-                                prefixIcon: const Icon(Icons.monitor_weight_outlined),
+                                prefixIcon: const Icon(
+                                  Icons.monitor_weight_outlined,
+                                ),
                                 filled: true,
                                 fillColor: Theme.of(context)
                                     .colorScheme
                                     .surfaceContainerHighest
                                     .withOpacity(0.3),
                               ),
-                              keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                             ),
                           ),
-
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -1890,7 +1930,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                   FilledButton.icon(
                     onPressed: () {
                       if (!formKey.currentState!.validate()) return;
-                      
+
                       final updatedPatient = Patient(
                         id: widget.patient.id,
                         createdAt: widget.patient.createdAt,
@@ -1900,11 +1940,11 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                         status: widget.patient.status,
                         lastVisit: widget.patient.lastVisit,
                         doctorId: widget.patient.doctorId,
-                        phoneNumber: phoneController.text.trim().isEmpty 
-                            ? null 
+                        phoneNumber: phoneController.text.trim().isEmpty
+                            ? null
                             : phoneController.text.trim(),
-                        email: emailController.text.trim().isEmpty 
-                            ? null 
+                        email: emailController.text.trim().isEmpty
+                            ? null
                             : emailController.text.trim(),
                         medicalHistory: widget.patient.medicalHistory,
                         isActive: widget.patient.isActive,
@@ -1933,7 +1973,6 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
     );
   }
 }
-
 
 class _SyncConflictDialog extends StatefulWidget {
   const _SyncConflictDialog({required this.fileNames});

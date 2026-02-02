@@ -66,27 +66,33 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
 
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Theme.of(
-              context,
-            ).colorScheme.primaryContainer.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(16),
+        // 1. Always show user avatar on the left
+        if (widget.avatarUrl != null)
+          CircleAvatar(
+            radius: 28,
+            backgroundImage: NetworkImage(widget.avatarUrl!),
+          )
+        else
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+            child: Icon(
+              Icons.person,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+            ),
           ),
-          child: Image.asset(
-            'assets/android/playstore-icon.png',
-            width: 50,
-            height: 50,
-          ),
-        ),
+
         const SizedBox(width: 16),
+
+        // 2. Greeting and Name in the middle
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                dateStr.toUpperCase(),
+                stows.clinicName.value.isNotEmpty
+                    ? stows.clinicName.value.toUpperCase()
+                    : dateStr.toUpperCase(),
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                   letterSpacing: 1.5,
@@ -117,13 +123,11 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
             ],
           ),
         ),
-        if (widget.avatarUrl != null) ...[
-          CircleAvatar(
-            radius: 24,
-            backgroundImage: NetworkImage(widget.avatarUrl!),
-          ),
-          const SizedBox(width: 16),
-        ],
+
+        const SizedBox(width: 16),
+
+        // 3. Right side: Online Status + Clinic Logo
+        // 3. Right side: Online Status
         _buildAIPulse(context),
       ],
     );
@@ -140,7 +144,7 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
     final statusColor = isOnline
         ? Theme.of(context).colorScheme.primary
         : Theme.of(context).colorScheme.error;
-    final statusText = isOnline ? 'SynapseAI Active' : 'Offline';
+    final statusText = isOnline ? 'Online' : 'Offline';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
