@@ -111,43 +111,50 @@ class _StatCardState extends State<StatCard> {
                               ),
                               child: Icon(widget.icon, color: baseColor, size: 20),
                             ),
-
+                            
                             // Trend Pill
                             if (widget.trend != null)
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.sm,
-                                  vertical: AppSpacing.xs,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: widget.isPositiveTrend
-                                      ? MedicalColors.positiveMetric.withOpacity(0.08)
-                                      : MedicalColors.negativeMetric.withOpacity(0.08),
-                                  borderRadius: AppRadius.pillRadius,
-                                      ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      widget.isPositiveTrend
-                                          ? Icons.trending_up_rounded
-                                          : Icons.trending_down_rounded,
-                                      size: 16,
-                                      color: widget.isPositiveTrend
-                                          ? MedicalColors.positiveMetric
-                                          : MedicalColors.negativeMetric,
-                                    ),
-                                    SizedBox(width: AppSpacing.xs),
-                                    Text(
-                                      widget.trend!,
-                                      style: AppTypography.labelSmall(context).copyWith(
+                              Flexible(
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.sm,
+                                    vertical: AppSpacing.xs,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: widget.isPositiveTrend
+                                        ? MedicalColors.positiveMetric.withOpacity(0.08)
+                                        : MedicalColors.negativeMetric.withOpacity(0.08),
+                                    borderRadius: AppRadius.pillRadius,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        widget.isPositiveTrend
+                                            ? Icons.trending_up_rounded
+                                            : Icons.trending_down_rounded,
+                                        size: 14,
                                         color: widget.isPositiveTrend
                                             ? MedicalColors.positiveMetric
                                             : MedicalColors.negativeMetric,
-                                        fontWeight: FontWeight.w700,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 4),
+                                      Flexible( // Allow text to shrink
+                                        child: Text(
+                                          widget.trend!,
+                                          style: AppTypography.labelSmall(context).copyWith(
+                                            color: widget.isPositiveTrend
+                                                ? MedicalColors.positiveMetric
+                                                : MedicalColors.negativeMetric,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 10,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                           ],
@@ -156,6 +163,8 @@ class _StatCardState extends State<StatCard> {
                         Text(
                           widget.value,
                           style: AppTypography.dataValue(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         SizedBox(height: AppSpacing.xs + 2),
                         Text(
@@ -164,6 +173,8 @@ class _StatCardState extends State<StatCard> {
                             color: theme.colorScheme.onSurfaceVariant,
                             fontWeight: FontWeight.w600,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),

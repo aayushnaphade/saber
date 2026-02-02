@@ -5,16 +5,14 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/dashboard_models.dart';
-import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
-import 'package:saber/pages/home/dashboard/widgets/ai_insights_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/live_queue_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/live_queue_list.dart';
-import 'package:saber/pages/home/dashboard/widgets/quick_actions.dart';
 import 'package:saber/pages/home/dashboard/widgets/stat_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/welcome_header.dart';
+import 'package:saber/pages/home/dashboard/dashboard_skeleton.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -33,15 +31,14 @@ class _DashboardPageState extends State<DashboardPage> {
   // Dashboard Data
   var _isLoading = true;
   var _stats = const DashboardStats(
-    patientsToday: 0,
-    pendingReports: 0,
+    consultationsToday: 0,
+    pendingConsultations: 0,
     completedSessions: 0,
     totalConsultationMinutes: 0,
   );
   List<QueueItem> _queue = [];
   QueueItem? _activeConsultation;
   List<Appointment> _appointments = [];
-  List<AIInsight> _insights = [];
 
   @override
   void initState() {
@@ -88,7 +85,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _fetchDashboardData() async {
-    debugPrint('Dashboard: Fetching dashboard stats/queue/appointments...');
+    debugPrint('Dashboard: Fetching data from Supabase...');
     try {
       // Clean up past pending sessions first
       await SupabaseDashboardService.cancelPastPendingSessions();
@@ -100,24 +97,18 @@ class _DashboardPageState extends State<DashboardPage> {
         SupabaseDashboardService.getActiveConsultation(),
       ]);
 
-      debugPrint(
-        'Dashboard: Fetch complete. Stats: ${results[0]}, Queue: ${(results[1] as List).length}, Appts: ${(results[2] as List).length}',
-      );
+      if (!mounted) return;
 
-      if (mounted) {
-        setState(() {
-          _stats = results[0] as DashboardStats;
-          _queue = results[1] as List<QueueItem>;
-          _appointments = results[2] as List<Appointment>;
-          _activeConsultation = results[3] as QueueItem?;
-          // Fetch insights from service (currently mocked inside service)
-          SupabaseDashboardService.getInsights().then((value) {
-            if (mounted) setState(() => _insights = value);
-          });
-        });
-      }
-    } catch (e) {
-      debugPrint('Error fetching dashboard data: $e');
+      setState(() {
+        _stats = results[0] as DashboardStats;
+        _queue = results[1] as List<QueueItem>;
+        _appointments = results[2] as List<Appointment>;
+        _activeConsultation = results[3] as QueueItem?;
+      });
+      
+      debugPrint('Dashboard: UI Update triggered with ${_queue.length} queue items');
+    } catch (e, stack) {
+      debugPrint('Dashboard: Error in _fetchDashboardData: $e\n$stack');
     }
   }
 
@@ -246,26 +237,6 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  Future<void> _handleRescheduleAppointment(
-      String consultationId, DateTime newTime) async {
-    try {
-      await SupabaseDashboardService.rescheduleAppointment(
-          consultationId, newTime);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Appointment rescheduled')),
-        );
-        _fetchDashboardData();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(ErrorHandler.getFriendlyErrorMessage(e))),
-        );
-      }
-    }
-  }
-
   Future<void> _handleReorder(int oldIndex, int newIndex) async {
     setState(() {
       if (oldIndex < newIndex) {
@@ -300,7 +271,11 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: SafeArea(
+          child: DashboardSkeleton(),
+        ),
+      );
     }
 
     return Scaffold(
@@ -318,9 +293,10 @@ class _DashboardPageState extends State<DashboardPage> {
                 const SizedBox(height: 32),
 
                 // Main Grid Layout
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    if (constraints.maxWidth > 900) {
+                Builder(
+                  builder: (context) {
+                    final width = MediaQuery.of(context).size.width;
+                    if (width >= 600) {
                       return _buildDesktopLayout(
                         _stats,
                         _queue,
@@ -392,59 +368,56 @@ class _DashboardPageState extends State<DashboardPage> {
     List<QueueItem> queue,
     List<Appointment> appointments,
   ) {
-    final waitingCount = queue.length; // Queue only contains waiting patients now
+    final waitingCount = queue.length;
     final currentPatient = _activeConsultation ?? (queue.isNotEmpty ? queue.first : null);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
       children: [
-        // Left Column (Main Actions & Queue)
-        Expanded(
-          flex: 2,
-          child: Column(
-            children: [
-              LiveQueueCard(
-                waitingCount: waitingCount,
-                currentPatient: currentPatient,
-                onStartSession: currentPatient != null
-                    ? () => _handleStartSession(currentPatient)
-                    : () {},
-                onViewProfile: currentPatient != null
-                    ? () => context.go(
-                          RoutePaths.patientDetail
-                              .replaceFirst(':patientId', currentPatient.patientId),
-                        )
-                    : null,
-                onCancel: currentPatient != null
-                    ? () => _handleCancelAppointment(currentPatient.id)
-                    : null,
-              ),
-              const SizedBox(height: 24),
-              _buildStatsGrid(stats),
-              const SizedBox(height: 24),
-              LiveQueueList(
-                queue: queue,
-                onStartSession: _handleStartSession,
-                onCancel: (item) => _handleCancelAppointment(item.id),
-                onReorder: _handleReorder,
-              ),
-            ],
-          ),
+        LiveQueueCard(
+          waitingCount: waitingCount,
+          currentPatient: currentPatient,
+          onStartSession: currentPatient != null
+              ? () => _handleStartSession(currentPatient)
+              : () {},
+          onViewProfile: currentPatient != null
+              ? () => context.go(
+                    RoutePaths.patientDetail
+                        .replaceFirst(':patientId', currentPatient.patientId),
+                  )
+              : null,
+          onCancel: currentPatient != null
+              ? () => _handleCancelAppointment(currentPatient.id)
+              : null,
+        ),
+        const SizedBox(height: 24),
+        _buildStatsGrid(stats),
+        const SizedBox(height: 24),
+        LiveQueueList(
+          queue: queue,
+          onStartSession: _handleStartSession,
+          onCancel: (item) => _handleCancelAppointment(item.id),
+          onReorder: _handleReorder,
         ),
       ],
     );
   }
 
   Widget _buildStatsGrid(DashboardStats stats) {
+    String formatTrend(double? trend) {
+      if (trend == null || trend.abs() < 0.1) return '0%';
+      final prefix = trend > 0 ? '+' : '';
+      return '$prefix${trend.toStringAsFixed(1)}%';
+    }
+
     return Row(
       children: [
         Expanded(
           child: StatCard(
-            label: 'Patients Today',
-            value: stats.patientsToday.toString(),
-            icon: Icons.people_outline,
-            trend: '+12%',
-            isPositiveTrend: true,
+            label: 'Consultations Done',
+            value: stats.consultationsToday.toString(),
+            icon: Icons.check_circle_outline,
+            trend: formatTrend(stats.consultationsTrend),
+            isPositiveTrend: (stats.consultationsTrend ?? 0) >= 0,
           ),
         ),
         const SizedBox(width: 12),
@@ -454,8 +427,8 @@ class _DashboardPageState extends State<DashboardPage> {
             value: '${stats.totalConsultationMinutes}m',
             icon: Icons.timer_outlined,
             color: Colors.orange,
-            // trend: '-2m', // Trend logic removed for now
-            isPositiveTrend: true,
+            trend: formatTrend(stats.timeTrend),
+            isPositiveTrend: (stats.timeTrend ?? 0) >= 0,
           ),
         ),
         const SizedBox(width: 12),

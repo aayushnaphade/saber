@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:collapsible/collapsible.dart';
 import 'package:file_picker/file_picker.dart';
@@ -135,6 +137,8 @@ class Editor extends StatefulWidget {
 
 class EditorState extends State<Editor> {
   final log = Logger('EditorState');
+
+  bool _isClearing = false;
 
   late var coreInfo = EditorCoreInfo(filePath: '');
 
@@ -1724,7 +1728,7 @@ class EditorState extends State<Editor> {
         stows.editorToolbarAlignment.value == AxisDirection.left ||
         stows.editorToolbarAlignment.value == AxisDirection.right;
 
-    final Widget canvas = CanvasGestureDetector(
+    final Widget actualCanvas = CanvasGestureDetector(
       key: _canvasGestureDetectorKey,
       filePath: coreInfo.filePath,
       isDrawGesture: isDrawGesture,
@@ -1759,6 +1763,45 @@ class EditorState extends State<Editor> {
         );
       },
       transformationController: _transformationController,
+    );
+
+    final Widget canvas = Stack(
+      children: [
+        if (_isClearing)
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 1500),
+            builder: (context, value, child) {
+              return Stack(
+                children: [
+                  // The content sliding out
+                  Transform.translate(
+                    offset: Offset(value * MediaQuery.of(context).size.width, -value * 100),
+                    child: Transform.rotate(
+                      angle: value * 0.1,
+                      child: Opacity(
+                        opacity: (1.0 - value * 1.5).clamp(0.0, 1.0),
+                        child: child,
+                      ),
+                    ),
+                  ),
+                  // Wind streaks
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: WindPainter(
+                        progress: value,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+            child: actualCanvas,
+          )
+        else
+          actualCanvas,
+      ],
     );
 
     final Widget? readonlyBanner = coreInfo.readOnlyBecauseOfVersion
@@ -2336,33 +2379,7 @@ class EditorState extends State<Editor> {
                       triggerSave: saveToFile,
                     ),
                   if (widget.isWhiteboard)
-                    IconButton(
-                        tooltip: 'Clear Whiteboard',
-                        icon: const Icon(Icons.delete_sweep_outlined),
-                        onPressed: () {
-                           showDialog(
-                              context: context,
-                              builder: (context) => AdaptiveAlertDialog(
-                                 title: const Text('Clear Whiteboard?'),
-                                 content: const Text('This will erase everything on the whiteboard.'),
-                                 actions: [
-                                    CupertinoDialogAction(
-                                       onPressed: () => Navigator.pop(context),
-                                       child: Text(t.common.cancel),
-                                    ),
-                                    CupertinoDialogAction(
-                                       onPressed: () {
-                                          Navigator.pop(context);
-                                          clearAllPages();
-                                          setState(() {});
-                                       },
-                                       child: Text(t.common.done),
-                                    ),
-                                 ],
-                              ),
-                           );
-                        },
-                    ),
+                    _buildClearWhiteboardButton(context),
                   if (!widget.isWhiteboard) const SizedBox(width: 16),
                   if (!widget.readOnly && !widget.isWhiteboard)
                     _buildTerminateButton(context),
@@ -3197,6 +3214,157 @@ class EditorState extends State<Editor> {
     );
   }
 
+  Widget _buildClearWhiteboardButton(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: FilledButton.icon(
+        onPressed: () => _confirmClearWhiteboard(context),
+        style: FilledButton.styleFrom(
+          backgroundColor: Colors.orange.withValues(alpha: 0.1),
+          foregroundColor: Colors.orange.shade800,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: const StadiumBorder(),
+          side: BorderSide(color: Colors.orange.withValues(alpha: 0.2)),
+        ),
+        icon: const Icon(Icons.delete_sweep_outlined, size: 20),
+        label: const Text(
+          'Clear',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+      ),
+    );
+  }
+
+  void _confirmClearWhiteboard(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 400),
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 30,
+                offset: const Offset(0, 15),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.delete_sweep_rounded,
+                  color: Colors.orange,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Clear Whiteboard?',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'This will erase all drawings and images on the whiteboard. This action cannot be undone.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.5,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(height: 32),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: Text(
+                        t.common.cancel,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        _handleClearWithAnimation();
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Clear All',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleClearWithAnimation() {
+    setState(() {
+      _isClearing = true;
+    });
+
+    // Clear actual data halfway through the "wind blow"
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (mounted) {
+        clearAllPages();
+        setState(() {});
+      }
+    });
+
+    // Reset after animation finishes
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        setState(() {
+          _isClearing = false;
+        });
+      }
+    });
+  }
+
   @override
   void dispose() {
     unawaited(_cleanUpAsync());
@@ -3873,5 +4041,38 @@ class EditorState extends State<Editor> {
       ),
     );
   }
+}
+
+class WindPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+
+  WindPainter({required this.progress, required this.color});
+
+  @override
+  void paint(ui.Canvas canvas, Size size) {
+    final paint = ui.Paint()
+      ..color = color.withOpacity(0.3 * (1.0 - progress))
+      ..strokeWidth = 3.0
+      ..style = ui.PaintingStyle.stroke;
+
+    final random = math.Random(42);
+    for (int i = 0; i < 40; i++) {
+      final y = random.nextDouble() * size.height;
+      // Start X moves across the screen based on progress
+      final speedFactor = random.nextDouble() * 2 + 1;
+      final startX = (random.nextDouble() * size.width) + (progress * size.width * speedFactor) - size.width;
+      final length = random.nextDouble() * 300 + 100;
+      
+      canvas.drawLine(
+        ui.Offset(startX, y),
+        ui.Offset(startX + length, y),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant WindPainter oldDelegate) => oldDelegate.progress != progress;
 }
 

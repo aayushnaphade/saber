@@ -38,21 +38,22 @@ class LiveQueueCard extends StatelessWidget {
       child: Stack(
         children: [
           Positioned.fill(
-            child: AnimatedMeshGradient(
-              colors: isDark
-                  ? [
-                      const Color(0xFF0B1120), // Very dark blue/slate
-                      const Color(0xFF0F172A), // Slate 900
-                      const Color(0xFF172554), // Blue 950
-                      const Color(0xFF1E1B4B), // Indigo 950
-                    ]
-                  : [
-                      Colors.indigo.shade900,
-                      Colors.blue.shade800,
-                      Colors.cyan.shade800,
-                      Colors.deepPurple.shade900,
-                    ],
-              options: AnimatedMeshGradientOptions(grain: 0.2, speed: 5),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [
+                          const Color(0xFF0B1120), // Very dark blue/slate
+                          const Color(0xFF1E1B4B), // Indigo 950
+                        ]
+                      : [
+                          Colors.indigo.shade900,
+                          Colors.deepPurple.shade900,
+                        ],
+                ),
+              ),
             ),
           ),
           Padding(

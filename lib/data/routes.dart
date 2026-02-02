@@ -135,7 +135,9 @@ class _Route {
           maxLines: 1,
           softWrap: false,
         ),
-        icon: icon,
-        selectedIcon: icon,
+        icon: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: icon,
+        ),
       );
 }

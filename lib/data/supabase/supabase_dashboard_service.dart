@@ -20,8 +20,8 @@ class SupabaseDashboardService {
       if (response == null) return null;
 
       return _mapToQueueItem(response, 0); // Position 0 for active
-    } catch (e) {
-      log.severe('Error fetching active consultation: $e');
+    } catch (e, stack) {
+      log.severe('Error fetching active consultation: $e', e, stack);
       return null;
     }
   }
@@ -43,39 +43,42 @@ class SupabaseDashboardService {
       int position = 1;
 
       for (final item in response as List) {
-        queue.add(_mapToQueueItem(item, position++));
+        try {
+          queue.add(_mapToQueueItem(item, position++));
+        } catch (e) {
+          log.warning('Error mapping queue item: $e');
+        }
       }
 
       return queue;
-    } catch (e) {
-      log.severe('Error fetching live queue: $e');
+    } catch (e, stack) {
+      log.severe('Error fetching live queue: $e', e, stack);
       return [];
     }
   }
 
   static QueueItem _mapToQueueItem(Map<String, dynamic> item, int position) {
     final patient = item['patients'];
-    final patientName = patient != null ? patient['full_name'] : 'Unknown';
-    final status = item['status'] as String;
+    final patientName = patient is Map ? patient['full_name'] as String? ?? 'Unknown' : 'Unknown';
+    final status = item['status'] as String? ?? 'waiting';
     
-    final age = patient?['age'] as int? ?? 0;
+    final age = patient is Map ? patient['age'] as int? ?? 0 : 0;
+    final gender = patient is Map ? patient['gender'] as String? ?? 'Unknown' : 'Unknown';
+    final visitType = patient is Map ? patient['visit_type'] as String? ?? 'New Patient' : 'New Patient';
     
-    final gender = patient?['gender'] as String? ?? 'Unknown';
-    // Use visit_type from patient or default to 'New Patient'
-    final visitType = patient?['visit_type'] as String? ?? 'New Patient';
-    final registeredTime = DateTime.parse(item['created_at']);
+    final createdAtStr = item['created_at'] as String?;
+    final registeredTime = createdAtStr != null ? DateTime.parse(createdAtStr) : DateTime.now();
 
     // Calculate estimated wait time (mock logic for now: 15 mins per person ahead)
-    // If active (position 0), wait time is 0
     final waitTime = position == 0 ? Duration.zero : Duration(minutes: (position - 1) * 15);
 
     return QueueItem(
-      id: item['id'],
+      id: item['id'] as String? ?? '',
       patientName: patientName,
-      patientId: item['patient_id'],
+      patientId: item['patient_id'] as String? ?? '',
       position: position,
       estimatedWaitTime: waitTime,
-      status: status == 'in_progress' ? 'In Consultation' : 'Waiting',
+      status: status == 'in_progress' ? 'In Consultation' : (status == 'waiting' ? 'Waiting' : status),
       age: age,
       gender: gender,
       registeredTime: registeredTime,
@@ -173,53 +176,136 @@ class SupabaseDashboardService {
         now.year,
         now.month,
         now.day,
+      ).toUtc();
+      final startOfDayStr = startOfDay.toIso8601String();
+      final endOfDayStr = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        23,
+        59,
+        59,
       ).toUtc().toIso8601String();
 
-      // Count patients today
-      final patientsToday = await supabase
-          .from('consultations')
-          .count(CountOption.exact)
-          .gte('created_at', startOfDay);
-
-      final completedSessionsData = await supabase
+      // Count consultations done today (Completed status with session_end_time today)
+      final completedTodayResponse = await supabase
           .from('consultations')
           .select('session_start_time, session_end_time')
-          .gte('created_at', startOfDay)
-          .eq('status', 'completed');
+          .eq('status', 'completed')
+          .gte('session_end_time', startOfDayStr)
+          .lte('session_end_time', endOfDayStr);
 
-      final completedSessions = (completedSessionsData as List).length;
+      final List completedTodayData = (completedTodayResponse as List?) ?? [];
+      final completedSessions = completedTodayData.length;
 
       int totalMinutes = 0;
-      for (final session in completedSessionsData as List) {
-        final startStr = session['session_start_time'] as String?;
-        final endStr = session['session_end_time'] as String?;
-        if (startStr != null && endStr != null) {
-          final start = DateTime.parse(startStr);
-          final end = DateTime.parse(endStr);
-          totalMinutes += end.difference(start).inMinutes;
+      for (final session in completedTodayData) {
+        if (session is Map) {
+          final startStr = session['session_start_time'] as String?;
+          final endStr = session['session_end_time'] as String?;
+          if (startStr != null && endStr != null) {
+            try {
+              final start = DateTime.parse(startStr);
+              final end = DateTime.parse(endStr);
+              totalMinutes += end.difference(start).inMinutes;
+            } catch (e) {
+              log.warning('Error parsing session times: $e');
+            }
+          }
         }
       }
 
-      // Count pending (waiting)
-      final pending = await supabase
+      // Percentage calculation logic (Comparing against previous working day's same time window)
+      DateTime comparisonDate;
+      if (now.weekday == DateTime.monday) {
+        // If Monday, compare with Saturday
+        comparisonDate = now.subtract(const Duration(days: 2));
+      } else if (now.weekday == DateTime.sunday) {
+        // If Sunday, compare with Saturday
+        comparisonDate = now.subtract(const Duration(days: 1));
+      } else {
+        // Otherwise compare with yesterday
+        comparisonDate = now.subtract(const Duration(days: 1));
+      }
+
+      final startOfComparisonDay = DateTime(
+        comparisonDate.year,
+        comparisonDate.month,
+        comparisonDate.day,
+      ).toUtc();
+      
+      // Best Practice: Time-of-Day (TOD) matching
+      // We compare metrics up to the same hour/minute of the comparative day to avoid the "morning dip".
+      final durationIntoDay = now.difference(DateTime(now.year, now.month, now.day));
+      final endOfComparisonWindow = startOfComparisonDay.add(durationIntoDay).toIso8601String();
+      final startOfComparisonDayStr = startOfComparisonDay.toIso8601String();
+
+      final previousDataResponse = await supabase
+          .from('consultations')
+          .select('session_start_time, session_end_time')
+          .eq('status', 'completed')
+          .gte('session_end_time', startOfComparisonDayStr)
+          .lte('session_end_time', endOfComparisonWindow);
+
+      final List previousData = (previousDataResponse as List?) ?? [];
+      final previousSessionsCount = previousData.length;
+      
+      int previousTotalMinutes = 0;
+      for (final session in previousData) {
+        if (session is Map) {
+          final startStr = session['session_start_time'] as String?;
+          final endStr = session['session_end_time'] as String?;
+          if (startStr != null && endStr != null) {
+            try {
+              final start = DateTime.parse(startStr);
+              final end = DateTime.parse(endStr);
+              previousTotalMinutes += end.difference(start).inMinutes;
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+      }
+
+      // Calculate trends
+      double consultationsTrend = 0.0;
+      if (previousSessionsCount > 0) {
+        consultationsTrend = ((completedSessions - previousSessionsCount) / previousSessionsCount) * 100;
+      } else if (completedSessions > 0) {
+        consultationsTrend = 100.0; // From 0 to something is 100% gain
+      }
+
+      double timeTrend = 0.0;
+      if (previousTotalMinutes > 0) {
+        timeTrend = ((totalMinutes - previousTotalMinutes) / previousTotalMinutes) * 100;
+      } else if (totalMinutes > 0) {
+        timeTrend = 100.0;
+      }
+
+      final int pendingCount = await supabase
           .from('consultations')
           .count(CountOption.exact)
-          .gte('created_at', startOfDay)
-          .eq('status', 'waiting');
+          .eq('status', 'waiting')
+          .or('scheduled_time.gte.$startOfDayStr,created_at.gte.$startOfDayStr')
+          .lte('created_at', endOfDayStr);
 
       return DashboardStats(
-        patientsToday: patientsToday,
-        pendingReports: pending, // Using pending consultations as proxy
+        consultationsToday: completedSessions,
+        pendingConsultations: pendingCount,
         completedSessions: completedSessions,
         totalConsultationMinutes: totalMinutes,
+        consultationsTrend: consultationsTrend,
+        timeTrend: timeTrend,
       );
-    } catch (e) {
-      log.severe('Error fetching stats: $e');
+    } catch (e, stack) {
+      log.severe('Error fetching stats: $e', e, stack);
       return const DashboardStats(
-        patientsToday: 0,
-        pendingReports: 0,
+        consultationsToday: 0,
+        pendingConsultations: 0,
         completedSessions: 0,
         totalConsultationMinutes: 0,
+        consultationsTrend: 0.0,
+        timeTrend: 0.0,
       );
     }
   }

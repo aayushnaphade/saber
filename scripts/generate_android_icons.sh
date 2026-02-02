@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Configuration
-SOURCE_LOGO="/Users/copernicus/Documents/synapsai/synapse/public/logo_backup.png"
-FOREGROUND_SOURCE="/Users/copernicus/Documents/synapsai/synapse/public/android_foreground_master.png"
+SOURCE_LOGO="/Users/copernicus/Documents/synapsai/synapse/public/legacy_logo_white.png"
+FOREGROUND_SOURCE="/Users/copernicus/Documents/synapsai/synapse/public/android_foreground_white.png"
 RES_DIR="/Users/copernicus/Documents/synapsai/saber/android/app/src/main/res"
 
 # Densities and sizes (Legacy Launcher, Foreground)

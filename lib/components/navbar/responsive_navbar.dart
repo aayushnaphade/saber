@@ -94,6 +94,7 @@ class _ResponsiveNavbarState extends State<ResponsiveNavbar> {
     if (ResponsiveNavbar.isLargeScreen) {
       return Scaffold(
         body: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             VerticalNavbar(
               destinations: _railDestinations!,

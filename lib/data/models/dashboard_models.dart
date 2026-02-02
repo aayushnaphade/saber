@@ -57,16 +57,20 @@ class QueueItem {
 }
 
 class DashboardStats {
-  final int patientsToday;
-  final int pendingReports;
+  final int consultationsToday;
+  final int pendingConsultations;
   final int completedSessions;
   final int totalConsultationMinutes;
+  final double? consultationsTrend; // Percentage change
+  final double? timeTrend; // Percentage change
 
   const DashboardStats({
-    required this.patientsToday,
-    required this.pendingReports,
+    required this.consultationsToday,
+    required this.pendingConsultations,
     required this.completedSessions,
     required this.totalConsultationMinutes,
+    this.consultationsTrend = 0.0,
+    this.timeTrend = 0.0,
   });
 }
 
@@ -131,10 +135,12 @@ class AIInsight {
 class MockDashboardData {
   static DashboardStats getStats() {
     return const DashboardStats(
-      patientsToday: 12,
-      pendingReports: 3,
+      consultationsToday: 12,
+      pendingConsultations: 3,
       completedSessions: 5,
       totalConsultationMinutes: 45,
+      consultationsTrend: 12.5,
+      timeTrend: -5.0,
     );
   }
 

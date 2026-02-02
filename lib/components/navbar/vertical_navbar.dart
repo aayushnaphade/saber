@@ -67,15 +67,25 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
 
   @override
   Widget build(BuildContext context) {
+    // Add a unique key based on expanded state to force partial redraws if needed,
+    // though proper widget refactoring is key.
+    // Here we use a stable structure.
+    
     final theme = Theme.of(context);
     final backgroundColor = switch (theme.platform) {
       TargetPlatform.linux => Colors.transparent,
       _ => theme.colorScheme.surfaceContainer,
     };
 
+    const animationDuration = Duration(milliseconds: 300);
+    const animationCurve = Curves.easeInOut;
+
     return Material(
       color: backgroundColor,
-      child: DecoratedBox(
+      child: AnimatedContainer(
+        duration: animationDuration,
+        curve: animationCurve,
+        width: expanded ? 240 : 72,
         decoration: BoxDecoration(
           gradient: theme.brightness == Brightness.light
               ? LinearGradient(
@@ -106,88 +116,209 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
                 ),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: kToolbarHeight),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () {
-                  setState(() {
-                    expanded = !expanded;
-                  });
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: AnimatedRotation(
-                    duration: const Duration(milliseconds: 300),
-                    turns: expanded ? 0.5 : 0,
-                    child: AdaptiveIcon(
-                      icon: Icons.chevron_right,
-                      cupertinoIcon: CupertinoIcons.chevron_right,
-                      size: 28,
-                      color: theme.colorScheme.primary,
+              child: Align(
+                alignment: expanded ? Alignment.centerLeft : Alignment.center,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    setState(() {
+                      expanded = !expanded;
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: AnimatedRotation(
+                      duration: animationDuration,
+                      curve: animationCurve,
+                      turns: expanded ? 0.5 : 0,
+                      child: AdaptiveIcon(
+                        icon: Icons.chevron_right,
+                        cupertinoIcon: CupertinoIcons.chevron_right,
+                        size: 28,
+                        color: theme.colorScheme.primary,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
             Expanded(
-              child: NavigationRail(
-                destinations: widget.destinations,
-                selectedIndex: widget.selectedIndex,
-                backgroundColor: Colors.transparent,
-                groupAlignment: 0.0,
-                extended: expanded,
-                minExtendedWidth: 240,
-                onDestinationSelected: widget.onDestinationSelected,
-                useIndicator: true,
-                indicatorColor: theme.colorScheme.primary.withAlpha(40),
-                unselectedLabelTextStyle: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                selectedLabelTextStyle: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.primary,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (int i = 0; i < widget.destinations.length; i++)
+                      _buildType3RailItem(
+                        context,
+                        destination: widget.destinations[i],
+                        isSelected: i == widget.selectedIndex,
+                        onTap: () => widget.onDestinationSelected?.call(i),
+                        duration: animationDuration,
+                        curve: animationCurve,
+                      ),
+                  ],
                 ),
               ),
             ),
             Padding(
               padding: const EdgeInsets.all(8),
-              child: expanded
-                  ? Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: FilledButton.icon(
-                        onPressed: _handleLogout,
-                        icon: const Icon(Icons.logout_rounded, size: 20),
-                        label: const Text(
-                          'Sign Out',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: theme.colorScheme.error,
-                          foregroundColor: theme.colorScheme.onError,
-                          minimumSize: const Size.fromHeight(48),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    )
-                  : IconButton(
-                      onPressed: _handleLogout,
-                      icon: Icon(
-                        Icons.logout_rounded,
-                        size: 24,
-                        color: theme.colorScheme.error,
-                      ),
-                      tooltip: 'Sign Out',
-                    ),
+              child: _buildSignOutButton(theme, animationDuration, animationCurve),
             ),
             const SizedBox(height: 16),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSignOutButton(ThemeData theme, Duration duration, Curve curve) {
+    return Tooltip(
+      message: expanded ? '' : 'Sign Out',
+      child: AnimatedPadding(
+        duration: duration,
+        curve: curve,
+        padding: EdgeInsets.symmetric(horizontal: expanded ? 12 : 8),
+        child: Material(
+          color: expanded ? theme.colorScheme.error : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: _handleLogout,
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              height: 48,
+              child: AnimatedPadding(
+                duration: duration,
+                curve: curve,
+                padding: EdgeInsets.symmetric(horizontal: expanded ? 12 : 0),
+                child: OverflowBox(
+                  alignment: Alignment.centerLeft,
+                  minWidth: 0,
+                  maxWidth: 240,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ClipRect(
+                        child: Align(
+                          widthFactor: 1.0, 
+                          child: Icon(
+                            Icons.logout_rounded, 
+                            size: expanded ? 24 : 32,
+                            color: expanded ? theme.colorScheme.onError : theme.colorScheme.error,
+                          ),
+                        ),
+                      ),
+                      AnimatedContainer(
+                        duration: duration,
+                        curve: curve,
+                        width: expanded ? 12 : 0,
+                      ),
+                      AnimatedOpacity(
+                        duration: duration,
+                        curve: curve,
+                        opacity: expanded ? 1.0 : 0.0,
+                        child: Text(
+                          'Sign Out',
+                          softWrap: false,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onError,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildType3RailItem(
+    BuildContext context, {
+    required NavigationRailDestination destination,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required Duration duration,
+    required Curve curve,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    final iconWidget = isSelected ? (destination.selectedIcon ?? destination.icon) : destination.icon;
+    
+    final baseStyle = isSelected
+        ? theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: colorScheme.primary,
+          )
+        : theme.textTheme.bodyMedium?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w500,
+          );
+
+    return Tooltip(
+      message: expanded ? '' : (destination.label as Text).data ?? '',
+      child: AnimatedPadding(
+        duration: duration,
+        curve: curve,
+        padding: EdgeInsets.symmetric(horizontal: expanded ? 12 : 8, vertical: 4),
+        child: Material(
+          color: isSelected ? colorScheme.primary.withAlpha(40) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: SizedBox(
+              height: 58,
+              child: AnimatedPadding(
+                duration: duration,
+                curve: curve,
+                padding: EdgeInsets.symmetric(horizontal: expanded ? 12 : 8),
+                child: OverflowBox(
+                  alignment: Alignment.centerLeft,
+                  minWidth: 0,
+                  maxWidth: 240,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconTheme(
+                        data: IconThemeData(
+                          color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                          size: 24, 
+                        ),
+                        child: iconWidget,
+                      ),
+                      AnimatedContainer(
+                        duration: duration,
+                        curve: curve,
+                        width: expanded ? 12 : 0,
+                      ),
+                      AnimatedOpacity(
+                        duration: duration,
+                        curve: curve,
+                        opacity: expanded ? 1.0 : 0.0,
+                        child: DefaultTextStyle(
+                          style: baseStyle ?? const TextStyle(),
+                          maxLines: 1,
+                          softWrap: false,
+                          child: destination.label,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

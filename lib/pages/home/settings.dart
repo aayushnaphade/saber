@@ -546,6 +546,10 @@ class _SettingsPageState extends State<SettingsPage> {
                           _buildAIReportsSection(colorScheme, isDark),
                           const SizedBox(height: 16),
                           _buildAppPreferencesSection(colorScheme, isDark),
+                          if (stows.userRole.value == 'doctor') ...[
+                            const SizedBox(height: 16),
+                            _buildTeamSection(colorScheme, isDark),
+                          ],
                           const SizedBox(height: 32),
                         ],
                       ),
@@ -1100,6 +1104,21 @@ class _SettingsPageState extends State<SettingsPage> {
               builder: (context) => const AppSettingsPage(),
             ),
           );
+        },
+      ),
+    );
+  }
+
+  Widget _buildTeamSection(ColorScheme colorScheme, bool isDark) {
+    return _buildGlassCard(
+      colorScheme: colorScheme,
+      isDark: isDark,
+      child: SettingsButton(
+        title: 'Team Management',
+        subtitle: 'Manage your clinic team',
+        icon: Icons.manage_accounts_outlined,
+        onPressed: () {
+          context.go('/home/team');
         },
       ),
     );
