@@ -225,7 +225,9 @@ class _SettingsPageState extends State<SettingsPage> {
       final fileName =
           '${user.id}/${DateTime.now().millisecondsSinceEpoch}.$fileExt';
 
-      await supabase.storage.from('avatars').uploadBinary(
+      await supabase.storage
+          .from('avatars')
+          .uploadBinary(
             fileName,
             bytes,
             fileOptions: FileOptions(contentType: 'image/$fileExt'),
@@ -407,7 +409,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
         // If verification successful, update to new password
         await SupabaseAuthService.updatePassword(passwordController.text);
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Password updated successfully')),
@@ -416,13 +418,13 @@ class _SettingsPageState extends State<SettingsPage> {
       } catch (e) {
         if (mounted) {
           String errorMessage = ErrorHandler.getFriendlyErrorMessage(e);
-          
+
           // Check if it's an authentication error (wrong current password)
           if (e.toString().contains('Invalid login credentials') ||
               e.toString().contains('invalid_grant')) {
             errorMessage = 'Current password is incorrect';
           }
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(errorMessage),
@@ -542,14 +544,14 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: Column(
                         children: [
                           _buildProfileSection(colorScheme, isDark),
-                          const SizedBox(height: 16),
-                          _buildAIReportsSection(colorScheme, isDark),
-                          const SizedBox(height: 16),
-                          _buildAppPreferencesSection(colorScheme, isDark),
                           if (stows.userRole.value == 'doctor') ...[
                             const SizedBox(height: 16),
                             _buildTeamSection(colorScheme, isDark),
                           ],
+                          const SizedBox(height: 16),
+                          _buildAIReportsSection(colorScheme, isDark),
+                          const SizedBox(height: 16),
+                          _buildAppPreferencesSection(colorScheme, isDark),
                           const SizedBox(height: 32),
                         ],
                       ),
@@ -635,8 +637,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       CircleAvatar(
                         radius: 32,
                         backgroundColor: colorScheme.primaryContainer,
-                        backgroundImage:
-                            _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
+                        backgroundImage: _avatarUrl != null
+                            ? NetworkImage(_avatarUrl!)
+                            : null,
                         child: _avatarUrl == null
                             ? Icon(
                                 Icons.person,
@@ -686,26 +689,20 @@ class _SettingsPageState extends State<SettingsPage> {
                           _nameController.text.isNotEmpty
                               ? _nameController.text
                               : 'Your Profile',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
+                          style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           user.email ?? '',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
                   ),
                   Icon(
-                    _profileExpanded
-                        ? Icons.expand_less
-                        : Icons.expand_more,
+                    _profileExpanded ? Icons.expand_less : Icons.expand_more,
                     color: colorScheme.onSurfaceVariant,
                   ),
                 ],
@@ -720,7 +717,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   const Divider(),
                   const SizedBox(height: 16),
-                  
+
                   // Read-only or editable fields based on _isEditingProfile
                   if (!_isEditingProfile) ...[
                     // Read-only view
@@ -760,7 +757,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       colorScheme: colorScheme,
                     ),
                     const SizedBox(height: 24),
-                    
+
                     // Edit and Change Password buttons
                     Row(
                       children: [
@@ -795,7 +792,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                   )
                                 : const Icon(Icons.lock_reset),
                             label: Text(
-                              _isUpdatingPassword ? 'Updating...' : 'Change Password',
+                              _isUpdatingPassword
+                                  ? 'Updating...'
+                                  : 'Change Password',
                             ),
                             style: FilledButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -842,8 +841,9 @@ class _SettingsPageState extends State<SettingsPage> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              prefixIcon:
-                                  const Icon(Icons.medical_services_outlined),
+                              prefixIcon: const Icon(
+                                Icons.medical_services_outlined,
+                              ),
                               filled: true,
                               fillColor: colorScheme.surfaceContainerHighest
                                   .withOpacity(0.3),
@@ -858,8 +858,9 @@ class _SettingsPageState extends State<SettingsPage> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              prefixIcon:
-                                  const Icon(Icons.local_hospital_outlined),
+                              prefixIcon: const Icon(
+                                Icons.local_hospital_outlined,
+                              ),
                               filled: true,
                               fillColor: colorScheme.surfaceContainerHighest
                                   .withOpacity(0.3),
@@ -894,7 +895,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                   icon: const Icon(Icons.close),
                                   label: const Text('Cancel'),
                                   style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -910,7 +913,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                       : () async {
                                           await _saveProfile();
                                           if (mounted) {
-                                            setState(() => _isEditingProfile = false);
+                                            setState(
+                                              () => _isEditingProfile = false,
+                                            );
                                           }
                                         },
                                   icon: _isSavingProfile
@@ -924,10 +929,14 @@ class _SettingsPageState extends State<SettingsPage> {
                                         )
                                       : const Icon(Icons.save),
                                   label: Text(
-                                    _isSavingProfile ? 'Saving...' : 'Save Changes',
+                                    _isSavingProfile
+                                        ? 'Saving...'
+                                        : 'Save Changes',
                                   ),
                                   style: FilledButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -971,10 +980,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [
-                          colorScheme.primary,
-                          colorScheme.tertiary,
-                        ],
+                        colors: [colorScheme.primary, colorScheme.tertiary],
                       ),
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -991,26 +997,20 @@ class _SettingsPageState extends State<SettingsPage> {
                       children: [
                         Text(
                           'AI & Reports',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
+                          style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'Configure AI-powered features',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
                   ),
                   Icon(
-                    _aiReportsExpanded
-                        ? Icons.expand_less
-                        : Icons.expand_more,
+                    _aiReportsExpanded ? Icons.expand_less : Icons.expand_more,
                     color: colorScheme.onSurfaceVariant,
                   ),
                 ],
@@ -1036,8 +1036,11 @@ class _SettingsPageState extends State<SettingsPage> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.bolt,
-                                size: 18, color: colorScheme.primary),
+                            Icon(
+                              Icons.bolt,
+                              size: 18,
+                              color: colorScheme.primary,
+                            ),
                             const SizedBox(width: 8),
                             const Text('Fast'),
                           ],
@@ -1048,8 +1051,11 @@ class _SettingsPageState extends State<SettingsPage> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.science,
-                                size: 18, color: colorScheme.tertiary),
+                            Icon(
+                              Icons.science,
+                              size: 18,
+                              color: colorScheme.tertiary,
+                            ),
                             const SizedBox(width: 8),
                             const Text('Deep'),
                           ],
@@ -1065,9 +1071,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     title: Text(
                       'More AI Features',
-                      style: TextStyle(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      style: TextStyle(color: colorScheme.onSurfaceVariant),
                     ),
                     subtitle: Text(
                       'Coming soon...',
@@ -1100,9 +1104,7 @@ class _SettingsPageState extends State<SettingsPage> {
         icon: Icons.settings_applications,
         onPressed: () {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const AppSettingsPage(),
-            ),
+            MaterialPageRoute(builder: (context) => const AppSettingsPage()),
           );
         },
       ),
@@ -1159,10 +1161,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: child,
-      ),
+      child: ClipRRect(borderRadius: BorderRadius.circular(20), child: child),
     );
   }
 
@@ -1177,9 +1176,7 @@ class _SettingsPageState extends State<SettingsPage> {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withOpacity(0.2),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withOpacity(0.3),
-        ),
+        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.3)),
       ),
       child: Row(
         children: [
@@ -1192,15 +1189,15 @@ class _SettingsPageState extends State<SettingsPage> {
                 Text(
                   label,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
                 ),
               ],
             ),

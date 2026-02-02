@@ -43,7 +43,7 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
           .select('id')
           .limit(1)
           .timeout(const Duration(seconds: 5));
-      
+
       if (mounted) {
         setState(() {
           _isOnline = true;
@@ -76,8 +76,8 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
           ),
           child: Image.asset(
             'assets/android/playstore-icon.png',
-            width: 32,
-            height: 32,
+            width: 50,
+            height: 50,
           ),
         ),
         const SizedBox(width: 16),
@@ -103,9 +103,11 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
                 ),
               ),
               Text(
-                widget.doctorName.isNotEmpty 
-                  ? (stows.userRole.value == 'doctor' ? 'Dr. ${widget.doctorName}' : widget.doctorName)
-                  : (stows.userRole.value == 'doctor' ? 'Doctor' : 'User'),
+                widget.doctorName.isNotEmpty
+                    ? (stows.userRole.value == 'doctor'
+                          ? 'Dr. ${widget.doctorName}'
+                          : widget.doctorName)
+                    : (stows.userRole.value == 'doctor' ? 'Doctor' : 'User'),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.onSurface,
@@ -116,7 +118,10 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
           ),
         ),
         if (widget.avatarUrl != null) ...[
-          CircleAvatar(radius: 24, backgroundImage: NetworkImage(widget.avatarUrl!)),
+          CircleAvatar(
+            radius: 24,
+            backgroundImage: NetworkImage(widget.avatarUrl!),
+          ),
           const SizedBox(width: 16),
         ],
         _buildAIPulse(context),
@@ -132,21 +137,19 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
 
   Widget _buildAIPulse(BuildContext context) {
     final isOnline = _isOnline;
-    final statusColor = isOnline 
+    final statusColor = isOnline
         ? Theme.of(context).colorScheme.primary
         : Theme.of(context).colorScheme.error;
-    final statusText = isOnline ? 'Synapsai Active' : 'Offline';
+    final statusText = isOnline ? 'SynapseAI Active' : 'Offline';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: isOnline 
+        color: isOnline
             ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5)
             : Theme.of(context).colorScheme.errorContainer.withOpacity(0.5),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: statusColor.withOpacity(0.2),
-        ),
+        border: Border.all(color: statusColor.withOpacity(0.2)),
       ),
       child: Row(
         children: [
@@ -156,20 +159,22 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
             decoration: BoxDecoration(
               color: statusColor,
               shape: BoxShape.circle,
-              boxShadow: isOnline ? [
-                BoxShadow(
-                  color: statusColor.withOpacity(0.5),
-                  blurRadius: 6,
-                  spreadRadius: 2,
-                ),
-              ] : null,
+              boxShadow: isOnline
+                  ? [
+                      BoxShadow(
+                        color: statusColor.withOpacity(0.5),
+                        blurRadius: 6,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null,
             ),
           ),
           const SizedBox(width: 8),
           Text(
             statusText,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: isOnline 
+              color: isOnline
                   ? Theme.of(context).colorScheme.onPrimaryContainer
                   : Theme.of(context).colorScheme.onErrorContainer,
               fontWeight: FontWeight.w600,

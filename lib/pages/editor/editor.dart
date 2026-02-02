@@ -64,6 +64,7 @@ import 'package:saber/data/routes.dart';
 import 'package:saber/data/session_manager.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
+import 'package:saber/main.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
 import 'package:saber/data/tools/highlighter.dart';
@@ -210,10 +211,11 @@ class EditorState extends State<Editor> {
   bool _hasLoadedIntake = false;
   bool _isIntakeExpanded = false;
   Offset? _intakeOverlayPosition; // null means use default right-side position
-  
+
   // Vitals overlay state
   List<Vitals> _vitalsHistory = [];
-  bool _showVitalsOverlay = false; // Only show in minimized form if there are vitals entries
+  bool _showVitalsOverlay =
+      false; // Only show in minimized form if there are vitals entries
   bool _isVitalsExpanded = false;
   Offset? _vitalsOverlayPosition;
 
@@ -226,11 +228,10 @@ class EditorState extends State<Editor> {
   List<PreviousSessionNote> _previousNotes = [];
   bool _isLoadingPreviousNotes = false;
   Offset? _previousNotesOverlayPosition;
-  
+
   // Medication History overlay state
   bool _showMedicationHistoryOverlay = false;
   Offset? _medicationHistoryOverlayPosition;
-
 
   // used to prevent accidentally drawing when pinch zooming
   var lastSeenPointerCount = 0;
@@ -269,7 +270,7 @@ class EditorState extends State<Editor> {
       }
 
       debugPrint('Editor: Starting parallel initialization');
-      
+
       // Load core strokes with timeout
       final strokesFuture = _initStrokes().timeout(
         const Duration(seconds: 5),
@@ -289,16 +290,18 @@ class EditorState extends State<Editor> {
           log.warning('Editor: _loadPatientIntake timed out!');
         },
       );
-      
+
       await Future.wait([strokesFuture, intakeFuture]);
-      
+
       // Ensure we have at least one page to avoid layout errors
       if (coreInfo.pages.isEmpty) {
         log.warning('Editor: Loaded file has no pages. Adding default page.');
         coreInfo.pages.add(EditorPage(size: EditorPage.defaultSize));
       }
 
-      debugPrint('Editor: Parallel initialization complete. Pages: ${coreInfo.pages.length}');
+      debugPrint(
+        'Editor: Parallel initialization complete. Pages: ${coreInfo.pages.length}',
+      );
 
       if (widget.pdfPath != null) {
         debugPrint('Editor: Importing PDF: ${widget.pdfPath}');
@@ -316,7 +319,6 @@ class EditorState extends State<Editor> {
           consultationId: widget.consultationId,
         );
       }
-      
     } catch (e, stack) {
       log.severe('Editor: Critical error in _initAsync', e, stack);
     }
@@ -354,13 +356,13 @@ class EditorState extends State<Editor> {
       // Path format: .../patients/{patient_id}/session_notes/session_X/...
       String filePath = coreInfo.filePath;
       log.info('Attempting to load intake. Raw FilePath: $filePath');
-      
+
       String? patientId;
-      
+
       // Normalize path separators
       final normalizedPath = filePath.replaceAll('\\', '/');
       final parts = normalizedPath.split('/');
-      
+
       // Find 'patients' segment and get the next segment
       final patientsIndex = parts.indexOf('patients');
       if (patientsIndex != -1 && patientsIndex + 1 < parts.length) {
@@ -368,14 +370,15 @@ class EditorState extends State<Editor> {
       }
 
       if (patientId != null) {
-        _patientId = patientId; // Store patient ID for potential intake creation
-        
+        _patientId =
+            patientId; // Store patient ID for potential intake creation
+
         log.info('Found patient ID: $patientId. Loading intake and vitals...');
 
         final intake = await SupabaseIntakeService.getIntake(patientId);
         final vitals = await SupabaseVitalsService.getVitalsHistory(patientId);
         final patient = await SupabasePatientService.getPatient(patientId);
-        
+
         if (mounted) {
           setState(() {
             if (intake != null) _patientIntake = intake;
@@ -383,11 +386,13 @@ class EditorState extends State<Editor> {
             if (patient != null) _patientName = patient.fullName;
             // Show vitals overlay in minimized form only if there are vitals entries
             _showVitalsOverlay = vitals.isNotEmpty;
-            
+
             // Vitals overlay logic handled by initialization
           });
-          log.info('Loaded intake and vitals for patient: $patientId. Vitals count: ${vitals.length}');
-        }  
+          log.info(
+            'Loaded intake and vitals for patient: $patientId. Vitals count: ${vitals.length}',
+          );
+        }
       } else {
         log.warning('Could not extract patient ID from path: $filePath');
       }
@@ -403,7 +408,9 @@ class EditorState extends State<Editor> {
     if (widget.readOnly) {
       coreInfo.readOnly = true;
     }
-    debugPrint('Editor: EditorCoreInfo load complete. ReadOnly: ${coreInfo.readOnly}');
+    debugPrint(
+      'Editor: EditorCoreInfo load complete. ReadOnly: ${coreInfo.readOnly}',
+    );
     if (coreInfo.readOnly) {
       log.info('Loaded file as read-only');
     }
@@ -1136,7 +1143,6 @@ class EditorState extends State<Editor> {
       // Mark consultation as completed if this is a session note
       // REMOVED: Logic moved to Report Generation verification step
       // to prevent premature status updates.
-
     } catch (e) {
       log.severe('Failed to save file: $e', e);
       savingState.value = .waitingToSave;
@@ -1527,7 +1533,7 @@ class EditorState extends State<Editor> {
     // If we have a patient intake, we can open it.
     // If we don't have one, we need at least the patient ID to create one.
     if (_patientIntake == null && _patientId == null) return;
-    
+
     final patientId = _patientIntake?.patientId ?? _patientId!;
 
     try {
@@ -1540,7 +1546,8 @@ class EditorState extends State<Editor> {
             patient: patient,
             existingIntake: _patientIntake,
             doctorName: _doctorName,
-            readOnly: true, // Start in read-only mode to prevent accidental edits
+            readOnly:
+                true, // Start in read-only mode to prevent accidental edits
             onSave: (intake) async {
               try {
                 final savedIntake = await SupabaseIntakeService.upsertIntake(
@@ -1580,10 +1587,7 @@ class EditorState extends State<Editor> {
     }
   }
 
-
-
   @override
-
   Future<void> _generateReport(BuildContext context) async {
     // 1. Capture Screenshots of ALL pages
     final screenshotController = ScreenshotController();
@@ -1613,10 +1617,7 @@ class EditorState extends State<Editor> {
               const SizedBox(height: 16),
               const Text(
                 'Digitizing clinical notes...',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -1671,9 +1672,7 @@ class EditorState extends State<Editor> {
               ),
             ),
           ),
-          delay: const Duration(
-            milliseconds: 100,
-          ), // Allow time for rendering
+          delay: const Duration(milliseconds: 100), // Allow time for rendering
           pixelRatio: 2.0, // Higher quality for OCR
           context: context,
           targetSize: targetSize,
@@ -1684,9 +1683,7 @@ class EditorState extends State<Editor> {
         );
 
         if (imageBytes.isEmpty) {
-          throw Exception(
-            'Failed to capture page ${i + 1}: empty image bytes',
-          );
+          throw Exception('Failed to capture page ${i + 1}: empty image bytes');
         }
 
         imageBytesList.add(imageBytes);
@@ -1696,9 +1693,7 @@ class EditorState extends State<Editor> {
       // ignore: use_build_context_synchronously
       if (!context.mounted) return;
 
-      final reportData = await ReportGenerator.generateReport(
-        imageBytesList,
-      );
+      final reportData = await ReportGenerator.generateReport(imageBytesList);
 
       // 3. Show Split Screen / Report View
       // ignore: use_build_context_synchronously
@@ -1776,7 +1771,10 @@ class EditorState extends State<Editor> {
                 children: [
                   // The content sliding out
                   Transform.translate(
-                    offset: Offset(value * MediaQuery.of(context).size.width, -value * 100),
+                    offset: Offset(
+                      value * MediaQuery.of(context).size.width,
+                      -value * 100,
+                    ),
                     child: Transform.rotate(
                       angle: value * 0.1,
                       child: Opacity(
@@ -2000,7 +1998,9 @@ class EditorState extends State<Editor> {
           exportAsSba: exportAsSba,
           exportAsPdf: exportAsPdf,
           exportAsPng: null,
-          toggleMedicationHistory: _patientId != null ? _toggleMedicationHistoryOverlay : null,
+          toggleMedicationHistory: _patientId != null
+              ? _toggleMedicationHistoryOverlay
+              : null,
         ),
       ),
     );
@@ -2011,7 +2011,7 @@ class EditorState extends State<Editor> {
     // ----------------------------------------------------------------------
     // We use a SINGLE LayoutBuilder and Stack here to prevent layout cycles/ANRs
     // caused by nested LayoutBuilders in previous implementations.
-    
+
     Widget finalCanvasWithOverlay = LayoutBuilder(
       builder: (context, constraints) {
         // 1. Base Layer: The Editor Canvas
@@ -2031,9 +2031,49 @@ class EditorState extends State<Editor> {
         // 1. Intake Button
         if (_patientId != null || _patientIntake != null) {
           final top = baseTop + (buttonIndex * btnGap);
-          
+
+          // Always add the button
+          stackChildren.add(
+            Positioned(
+              right: 16,
+              top: top,
+              child: Tooltip(
+                message: _patientIntake != null
+                    ? 'View Intake Form'
+                    : 'Fill Intake Form',
+                child: Material(
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(20),
+                  color: colorScheme.surface,
+                  child: InkWell(
+                    onTap: _patientIntake != null
+                        ? () => setState(() {
+                            _showIntakeOverlay = !_showIntakeOverlay;
+                            _intakeOverlayPosition = null;
+                          })
+                        : _openIntakeFormEditor,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.all(btnPadding),
+                      child: Icon(
+                        _patientIntake != null
+                            ? Icons.assignment_ind_outlined
+                            : Icons.assignment_outlined,
+                        size: iconSize,
+                        color: _patientIntake != null
+                            ? null
+                            : colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+
+          // Add the overlay on top if active
           if (_showIntakeOverlay) {
-             stackChildren.add(
+            stackChildren.add(
               _intakeOverlayPosition != null
                   ? Positioned(
                       left: _intakeOverlayPosition!.dx,
@@ -2046,215 +2086,187 @@ class EditorState extends State<Editor> {
                       child: _buildDraggableIntakeOverlay(constraints),
                     ),
             );
-          } else {
-            stackChildren.add(
-              Positioned(
-                right: 16,
-                top: top,
-                child: Tooltip(
-                  message: _patientIntake != null ? 'View Intake Form' : 'Fill Intake Form',
-                  child: Material(
-                    elevation: 4,
-                    borderRadius: BorderRadius.circular(20),
-                    color: colorScheme.surface,
-                    child: InkWell(
-                      onTap: _patientIntake != null 
-                        ? () => setState(() {
-                            _showIntakeOverlay = true;
-                            _intakeOverlayPosition = null;
-                          })
-                        : _openIntakeFormEditor,
-                      borderRadius: BorderRadius.circular(20),
-                      child: Padding(
-                        padding: const EdgeInsets.all(btnPadding),
-                        child: Icon(
-                          _patientIntake != null ? Icons.assignment_ind_outlined : Icons.assignment_outlined,
-                          size: iconSize,
-                          color: _patientIntake != null ? null : colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
           }
           buttonIndex++;
         }
 
         // 2. Vitals Button (Always visible for patients)
         if (_patientId != null) {
-           final top = baseTop + (buttonIndex * btnGap);
-           
-           if (_showVitalsOverlay) {
-             stackChildren.add(
-               _vitalsOverlayPosition != null
-                   ? Positioned(
-                       left: _vitalsOverlayPosition!.dx,
-                       top: _vitalsOverlayPosition!.dy,
-                       child: _buildDraggableVitalsOverlay(constraints),
-                     )
-                   : Positioned(
-                       right: 16,
-                       top: top,
-                       child: _buildDraggableVitalsOverlay(constraints),
-                     ),
-             );
-           } else {
-             stackChildren.add(
-               Positioned(
-                  right: 16,
-                  top: top,
-                  child: Tooltip(
-                    message: 'Show Vitals',
-                    child: Material(
-                      elevation: 4,
-                      borderRadius: BorderRadius.circular(20),
-                      color: colorScheme.surface,
-                      child: InkWell(
-                        onTap: () {
-                          setState(() {
-                            _showVitalsOverlay = true;
-                            _vitalsOverlayPosition = null;
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(20),
-                        child: Padding(
-                          padding: const EdgeInsets.all(btnPadding),
-                          child: Icon(
-                            Icons.monitor_heart_outlined,
-                            size: iconSize,
-                            color: Colors.pink,
-                          ),
-                        ),
+          final top = baseTop + (buttonIndex * btnGap);
+
+          // Always add the button
+          stackChildren.add(
+            Positioned(
+              right: 16,
+              top: top,
+              child: Tooltip(
+                message: 'Show Vitals',
+                child: Material(
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(20),
+                  color: colorScheme.surface,
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _showVitalsOverlay = !_showVitalsOverlay;
+                        _vitalsOverlayPosition = null;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.all(btnPadding),
+                      child: Icon(
+                        Icons.monitor_heart_outlined,
+                        size: iconSize,
+                        color: Colors.pink,
                       ),
                     ),
                   ),
                 ),
-             );
-           }
-           buttonIndex++;
+              ),
+            ),
+          );
+
+          // Add the overlay on top if active
+          if (_showVitalsOverlay) {
+            stackChildren.add(
+              _vitalsOverlayPosition != null
+                  ? Positioned(
+                      left: _vitalsOverlayPosition!.dx,
+                      top: _vitalsOverlayPosition!.dy,
+                      child: _buildDraggableVitalsOverlay(constraints),
+                    )
+                  : Positioned(
+                      right: 16,
+                      top: top,
+                      child: _buildDraggableVitalsOverlay(constraints),
+                    ),
+            );
+          }
+          buttonIndex++;
         }
 
         // 3. Previous Session Notes Button
         if (_patientId != null) {
-           final top = baseTop + (buttonIndex * btnGap);
-           
-           if (_showPreviousNotesOverlay) {
-             stackChildren.add(
-               _previousNotesOverlayPosition != null
-                   ? Positioned(
-                       left: _previousNotesOverlayPosition!.dx,
-                       top: _previousNotesOverlayPosition!.dy,
-                       child: _buildDraggablePreviousNotesOverlay(constraints),
-                     )
-                   : Positioned(
-                       right: 16,
-                       top: top,
-                       child: _buildDraggablePreviousNotesOverlay(constraints),
-                     ),
-             );
-           } else {
-             stackChildren.add(
-               Positioned(
-                  right: 16,
-                  top: top,
-                  child: Tooltip(
-                    message: 'Previous Session Notes',
-                    child: Material(
-                      elevation: 4,
-                      borderRadius: BorderRadius.circular(20),
-                      color: colorScheme.surface,
-                      child: InkWell(
-                        onTap: _togglePreviousNotesOverlay,
-                        borderRadius: BorderRadius.circular(20),
-                        child: Padding(
-                          padding: const EdgeInsets.all(btnPadding),
-                          child: _isLoadingPreviousNotes 
-                              ? const SizedBox(
-                                  width: iconSize,
-                                  height: iconSize,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(
-                                  Icons.history_edu,
-                                  size: iconSize,
-                                  color: Colors.purple,
-                                ),
-                        ),
-                      ),
+          final top = baseTop + (buttonIndex * btnGap);
+
+          // Always add the button
+          stackChildren.add(
+            Positioned(
+              right: 16,
+              top: top,
+              child: Tooltip(
+                message: 'Previous Session Notes',
+                child: Material(
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(20),
+                  color: colorScheme.surface,
+                  child: InkWell(
+                    onTap: _togglePreviousNotesOverlay,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.all(btnPadding),
+                      child: _isLoadingPreviousNotes
+                          ? const SizedBox(
+                              width: iconSize,
+                              height: iconSize,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(
+                              Icons.history_edu,
+                              size: iconSize,
+                              color: Colors.purple,
+                            ),
                     ),
                   ),
                 ),
-             );
-           }
-           buttonIndex++;
+              ),
+            ),
+          );
+
+          // Add the overlay on top if active
+          if (_showPreviousNotesOverlay) {
+            stackChildren.add(
+              _previousNotesOverlayPosition != null
+                  ? Positioned(
+                      left: _previousNotesOverlayPosition!.dx,
+                      top: _previousNotesOverlayPosition!.dy,
+                      child: _buildDraggablePreviousNotesOverlay(constraints),
+                    )
+                  : Positioned(
+                      right: 16,
+                      top: top,
+                      child: _buildDraggablePreviousNotesOverlay(constraints),
+                    ),
+            );
+          }
+          buttonIndex++;
         }
 
         // 4. Medication History Button
         if (_patientId != null) {
-           final top = baseTop + (buttonIndex * btnGap);
-           
-           if (_showMedicationHistoryOverlay) {
-             stackChildren.add(
-               _medicationHistoryOverlayPosition != null
-                   ? Positioned(
-                       left: _medicationHistoryOverlayPosition!.dx,
-                       top: _medicationHistoryOverlayPosition!.dy,
-                       child: _buildDraggableMedicationHistoryOverlay(constraints),
-                     )
-                   : Positioned(
-                       right: 16,
-                       top: top,
-                       child: _buildDraggableMedicationHistoryOverlay(constraints),
-                     ),
-             );
-           } else {
-             stackChildren.add(
-               Positioned(
-                  right: 16,
-                  top: top,
-                  child: Tooltip(
-                    message: 'Medication History',
-                    child: Material(
-                      elevation: 4,
-                      borderRadius: BorderRadius.circular(20),
-                      color: colorScheme.surface,
-                      child: InkWell(
-                        onTap: () {
-                            setState(() {
-                              _showMedicationHistoryOverlay = true;
-                              _medicationHistoryOverlayPosition = null;
-                            });
-                        },
-                        borderRadius: BorderRadius.circular(20),
-                        child: Padding(
-                          padding: const EdgeInsets.all(btnPadding),
-                          child: Icon(
-                            Icons.medication_outlined,
-                            size: iconSize,
-                            color: Colors.teal,
-                          ),
-                        ),
+          final top = baseTop + (buttonIndex * btnGap);
+
+          // Always add the button
+          stackChildren.add(
+            Positioned(
+              right: 16,
+              top: top,
+              child: Tooltip(
+                message: 'Medication History',
+                child: Material(
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(20),
+                  color: colorScheme.surface,
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _showMedicationHistoryOverlay =
+                            !_showMedicationHistoryOverlay;
+                        _medicationHistoryOverlayPosition = null;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.all(btnPadding),
+                      child: Icon(
+                        Icons.medication_outlined,
+                        size: iconSize,
+                        color: Colors.teal,
                       ),
                     ),
                   ),
                 ),
-             );
-           }
-           buttonIndex++;
+              ),
+            ),
+          );
+
+          // Add the overlay on top if active
+          if (_showMedicationHistoryOverlay) {
+            stackChildren.add(
+              _medicationHistoryOverlayPosition != null
+                  ? Positioned(
+                      left: _medicationHistoryOverlayPosition!.dx,
+                      top: _medicationHistoryOverlayPosition!.dy,
+                      child: _buildDraggableMedicationHistoryOverlay(
+                        constraints,
+                      ),
+                    )
+                  : Positioned(
+                      right: 16,
+                      top: top,
+                      child: _buildDraggableMedicationHistoryOverlay(
+                        constraints,
+                      ),
+                    ),
+            );
+          }
+          buttonIndex++;
         }
 
-        // --------------------------------------------------------------------
-        // FINAL STACK
-        // --------------------------------------------------------------------
-        return Stack(
-          children: stackChildren,
-        );
+        return Stack(children: stackChildren);
       },
     );
-
-
 
     final Widget body;
     if (isToolbarVertical) {
@@ -2303,7 +2315,9 @@ class EditorState extends State<Editor> {
             // The pop happened. Use a post-frame callback to trigger minimization
             // to avoid state changes during the transition/pop processing.
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!widget.readOnly && SessionManager().hasActiveSession && SessionManager().isMinimized == false) {
+              if (!widget.readOnly &&
+                  SessionManager().hasActiveSession &&
+                  SessionManager().isMinimized == false) {
                 SessionManager().minimize();
               }
             });
@@ -2319,38 +2333,38 @@ class EditorState extends State<Editor> {
                 title: widget.customTitle != null
                     ? Text(widget.customTitle!)
                     : _patientName != null
-                        ? Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _patientName!,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                coreInfo.fileName,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.normal,
-                                ),
-                              ),
-                            ],
-                          )
-                        : Form(
-                            key: _filenameFormKey,
-                            autovalidateMode: AutovalidateMode.onUserInteraction,
-                            child: TextFormField(
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                              ),
-                              controller: filenameTextEditingController,
-                              onChanged: renameFile,
-                              autofocus: needsNaming,
-                              validator: _validateFilenameTextField,
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _patientName!,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
+                          Text(
+                            coreInfo.fileName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Form(
+                        key: _filenameFormKey,
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                        child: TextFormField(
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                          ),
+                          controller: filenameTextEditingController,
+                          onChanged: renameFile,
+                          autofocus: needsNaming,
+                          validator: _validateFilenameTextField,
+                        ),
+                      ),
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new_rounded),
                   onPressed: () {
@@ -2364,7 +2378,8 @@ class EditorState extends State<Editor> {
                         context.pop();
                       } else {
                         // If no session terminated, minimize first before moving
-                        if (!widget.readOnly && SessionManager().hasActiveSession) {
+                        if (!widget.readOnly &&
+                            SessionManager().hasActiveSession) {
                           SessionManager().minimize();
                         }
                         context.go(HomeRoutes.getRoute(0));
@@ -2378,285 +2393,408 @@ class EditorState extends State<Editor> {
                       savingState: savingState,
                       triggerSave: saveToFile,
                     ),
-                  if (widget.isWhiteboard)
-                    _buildClearWhiteboardButton(context),
+                  if (widget.isWhiteboard) _buildClearWhiteboardButton(context),
                   if (!widget.isWhiteboard) const SizedBox(width: 16),
                   if (!widget.readOnly && !widget.isWhiteboard)
                     _buildTerminateButton(context),
                   if (!widget.isWhiteboard) const SizedBox(width: 20),
                   if (!widget.isWhiteboard)
-                  Container(
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.blue.shade500, Colors.blue.shade700],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.blue.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.blue.shade500, Colors.blue.shade700],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      ],
-                    ),
-                    child: TextButton.icon(
-                      icon: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
-                      label: const Text(
-                        'Finish Session',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.blue.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      onPressed: coreInfo.readOnly ? null : () async {
-                        // First, check if a report already exists for this session
-                        log.info('Checking for existing report with path: ${coreInfo.filePath}');
-                        ClinicalReport? existingReport;
-                        try {
-                          existingReport = await SupabaseReportService.getReportBySourcePath(coreInfo.filePath);
-                          if (existingReport != null) {
-                            log.info('Found existing report: ${existingReport.id}');
-                          } else {
-                            log.info('No existing report found for this session');
-                          }
-                        } catch (e) {
-                          log.warning('Failed to check for existing report: $e');
-                        }
+                      child: TextButton.icon(
+                        icon: const Icon(
+                          Icons.auto_awesome,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        label: const Text(
+                          'Finish Session',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onPressed: coreInfo.readOnly
+                            ? null
+                            : () async {
+                                // First, check if a report already exists for this session
+                                log.info(
+                                  'Checking for existing report with path: ${coreInfo.filePath}',
+                                );
+                                ClinicalReport? existingReport;
+                                try {
+                                  existingReport =
+                                      await SupabaseReportService.getReportBySourcePath(
+                                        coreInfo.filePath,
+                                      );
+                                  if (existingReport != null) {
+                                    log.info(
+                                      'Found existing report: ${existingReport.id}',
+                                    );
+                                  } else {
+                                    log.info(
+                                      'No existing report found for this session',
+                                    );
+                                  }
+                                } catch (e) {
+                                  log.warning(
+                                    'Failed to check for existing report: $e',
+                                  );
+                                }
 
-                        if (existingReport != null) {
-                          // Show existing report without confirmation
-                          if (!context.mounted) return;
-                          log.info('Showing existing report instead of generating new one');
-                          _showReportDialog(
-                            context, 
-                            existingReport.structuredData, 
-                            <Uint8List>[],
-                            onRegenerate: () async {
-                              // Close the current dialog
-                              Navigator.pop(context);
-                              
-                              // Show confirmation dialog for regeneration
-                              final confirmRegen = await showDialog<bool>(
-                                context: context,
-                                barrierDismissible: false,
-                                builder: (dialogContext) => Dialog(
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Container(
-                                    constraints: const BoxConstraints(maxWidth: 400),
-                                    padding: const EdgeInsets.all(24),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        // Warning icon with gradient background
-                                        Container(
-                                          width: 80,
-                                          height: 80,
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              colors: [Colors.orange.shade400, Colors.orange.shade700],
-                                              begin: Alignment.topLeft,
-                                              end: Alignment.bottomRight,
+                                if (existingReport != null) {
+                                  // Show existing report without confirmation
+                                  if (!context.mounted) return;
+                                  log.info(
+                                    'Showing existing report instead of generating new one',
+                                  );
+                                  _showReportDialog(
+                                    context,
+                                    existingReport.structuredData,
+                                    <Uint8List>[],
+                                    onRegenerate: () async {
+                                      // Close the current dialog
+                                      Navigator.pop(context);
+
+                                      // Show confirmation dialog for regeneration
+                                      final confirmRegen = await showDialog<bool>(
+                                        context: context,
+                                        barrierDismissible: false,
+                                        builder: (dialogContext) => Dialog(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              20,
                                             ),
-                                            shape: BoxShape.circle,
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.orange.withValues(alpha: 0.3),
-                                                blurRadius: 12,
-                                                spreadRadius: 2,
+                                          ),
+                                          child: Container(
+                                            constraints: const BoxConstraints(
+                                              maxWidth: 400,
+                                            ),
+                                            padding: const EdgeInsets.all(24),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                // Warning icon with gradient background
+                                                Container(
+                                                  width: 80,
+                                                  height: 80,
+                                                  decoration: BoxDecoration(
+                                                    gradient: LinearGradient(
+                                                      colors: [
+                                                        Colors.orange.shade400,
+                                                        Colors.orange.shade700,
+                                                      ],
+                                                      begin: Alignment.topLeft,
+                                                      end:
+                                                          Alignment.bottomRight,
+                                                    ),
+                                                    shape: BoxShape.circle,
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.orange
+                                                            .withValues(
+                                                              alpha: 0.3,
+                                                            ),
+                                                        blurRadius: 12,
+                                                        spreadRadius: 2,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.refresh,
+                                                    color: Colors.white,
+                                                    size: 40,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 24),
+                                                // Title
+                                                Text(
+                                                  'Regenerate Report?',
+                                                  style: Theme.of(dialogContext)
+                                                      .textTheme
+                                                      .headlineSmall
+                                                      ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                                const SizedBox(height: 12),
+                                                // Description
+                                                Text(
+                                                  'This will generate a new AI report for this session. The current report will be replaced. This action cannot be undone.',
+                                                  style: Theme.of(dialogContext)
+                                                      .textTheme
+                                                      .bodyMedium
+                                                      ?.copyWith(
+                                                        color:
+                                                            Theme.of(
+                                                                  dialogContext,
+                                                                )
+                                                                .colorScheme
+                                                                .onSurfaceVariant,
+                                                      ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                                const SizedBox(height: 24),
+                                                // Action buttons
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: OutlinedButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                              dialogContext,
+                                                              false,
+                                                            ),
+                                                        style: OutlinedButton.styleFrom(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                vertical: 14,
+                                                              ),
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  12,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        child: Text(
+                                                          t.common.cancel,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 12),
+                                                    Expanded(
+                                                      child: FilledButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                              dialogContext,
+                                                              true,
+                                                            ),
+                                                        style: FilledButton.styleFrom(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                vertical: 14,
+                                                              ),
+                                                          backgroundColor:
+                                                              Colors
+                                                                  .orange
+                                                                  .shade700,
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  12,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        child: const Text(
+                                                          'Regenerate',
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      );
+
+                                      // If confirmed, delete the old report and generate a new one
+                                      if (confirmRegen == true &&
+                                          context.mounted) {
+                                        try {
+                                          // Delete the existing report from database
+                                          await SupabaseReportService.deleteReport(
+                                            existingReport!.id,
+                                          );
+                                          log.info(
+                                            'Deleted existing report ${existingReport!.id}',
+                                          );
+
+                                          // Generate new report
+                                          _generateReport(context);
+                                        } catch (e) {
+                                          log.severe(
+                                            'Failed to delete existing report',
+                                            e,
+                                          );
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Failed to regenerate report: $e',
+                                                ),
+                                                backgroundColor: Theme.of(
+                                                  context,
+                                                ).colorScheme.error,
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      }
+                                    },
+                                  );
+                                  return;
+                                }
+
+                                // No existing report, show confirmation dialog
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (dialogContext) => Dialog(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Container(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 400,
+                                      ),
+                                      padding: const EdgeInsets.all(24),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          // Icon with gradient background
+                                          Container(
+                                            width: 80,
+                                            height: 80,
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  Colors.blue.shade400,
+                                                  Colors.blue.shade700,
+                                                ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              ),
+                                              shape: BoxShape.circle,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.blue.withValues(
+                                                    alpha: 0.3,
+                                                  ),
+                                                  blurRadius: 12,
+                                                  spreadRadius: 2,
+                                                ),
+                                              ],
+                                            ),
+                                            child: const Icon(
+                                              Icons.auto_awesome,
+                                              color: Colors.white,
+                                              size: 40,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 24),
+                                          // Title
+                                          Text(
+                                            'Generate AI Report?',
+                                            style: Theme.of(dialogContext)
+                                                .textTheme
+                                                .headlineSmall
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 12),
+                                          // Description
+                                          Text(
+                                            'This will finalize the session and generate a comprehensive clinical report using AI. The editor will be locked after generation.',
+                                            style: Theme.of(dialogContext)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  color: Theme.of(dialogContext)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 24),
+                                          // Action buttons
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: OutlinedButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        dialogContext,
+                                                        false,
+                                                      ),
+                                                  style: OutlinedButton.styleFrom(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          vertical: 14,
+                                                        ),
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  child: Text(t.common.cancel),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: FilledButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        dialogContext,
+                                                        true,
+                                                      ),
+                                                  style: FilledButton.styleFrom(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          vertical: 14,
+                                                        ),
+                                                    backgroundColor:
+                                                        Colors.blue.shade700,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  child: const Text(
+                                                    'Generate Report',
+                                                  ),
+                                                ),
                                               ),
                                             ],
                                           ),
-                                          child: const Icon(
-                                            Icons.refresh,
-                                            color: Colors.white,
-                                            size: 40,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 24),
-                                        // Title
-                                        Text(
-                                          'Regenerate Report?',
-                                          style: Theme.of(dialogContext).textTheme.headlineSmall?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                        const SizedBox(height: 12),
-                                        // Description
-                                        Text(
-                                          'This will generate a new AI report for this session. The current report will be replaced. This action cannot be undone.',
-                                          style: Theme.of(dialogContext).textTheme.bodyMedium?.copyWith(
-                                            color: Theme.of(dialogContext).colorScheme.onSurfaceVariant,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                        const SizedBox(height: 24),
-                                        // Action buttons
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: OutlinedButton(
-                                                onPressed: () => Navigator.pop(dialogContext, false),
-                                                style: OutlinedButton.styleFrom(
-                                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                ),
-                                                child: Text(t.common.cancel),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: FilledButton(
-                                                onPressed: () => Navigator.pop(dialogContext, true),
-                                                style: FilledButton.styleFrom(
-                                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                                  backgroundColor: Colors.orange.shade700,
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                ),
-                                                child: const Text('Regenerate'),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
-                              );
-                              
-                              // If confirmed, delete the old report and generate a new one
-                              if (confirmRegen == true && context.mounted) {
-                                try {
-                                  // Delete the existing report from database
-                                  await SupabaseReportService.deleteReport(existingReport!.id);
-                                  log.info('Deleted existing report ${existingReport!.id}');
-                                  
-                                  // Generate new report
+                                );
+
+                                if (confirm == true && context.mounted) {
                                   _generateReport(context);
-                                } catch (e) {
-                                  log.severe('Failed to delete existing report', e);
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Failed to regenerate report: $e'),
-                                        backgroundColor: Theme.of(context).colorScheme.error,
-                                      ),
-                                    );
-                                  }
                                 }
-                              }
-                            },
-                          );
-                          return;
-                        }
-
-                        // No existing report, show confirmation dialog
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (dialogContext) => Dialog(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Container(
-                              constraints: const BoxConstraints(maxWidth: 400),
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // Icon with gradient background
-                                  Container(
-                                    width: 80,
-                                    height: 80,
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [Colors.blue.shade400, Colors.blue.shade700],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.blue.withValues(alpha: 0.3),
-                                          blurRadius: 12,
-                                          spreadRadius: 2,
-                                        ),
-                                      ],
-                                    ),
-                                    child: const Icon(
-                                      Icons.auto_awesome,
-                                      color: Colors.white,
-                                      size: 40,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                  // Title
-                                  Text(
-                                    'Generate AI Report?',
-                                    style: Theme.of(dialogContext).textTheme.headlineSmall?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  // Description
-                                  Text(
-                                    'This will finalize the session and generate a comprehensive clinical report using AI. The editor will be locked after generation.',
-                                    style: Theme.of(dialogContext).textTheme.bodyMedium?.copyWith(
-                                      color: Theme.of(dialogContext).colorScheme.onSurfaceVariant,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 24),
-                                  // Action buttons
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          onPressed: () => Navigator.pop(dialogContext, false),
-                                          style: OutlinedButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(vertical: 14),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                          ),
-                                          child: Text(t.common.cancel),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: FilledButton(
-                                          onPressed: () => Navigator.pop(dialogContext, true),
-                                          style: FilledButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(vertical: 14),
-                                            backgroundColor: Colors.blue.shade700,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                          ),
-                                          child: const Text('Generate Report'),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-
-                        if (confirm == true && context.mounted) {
-                          _generateReport(context);
-                        }
-                      },
+                              },
+                      ),
                     ),
-                  ),
                   if (coreInfo.readOnly)
                     Padding(
                       padding: const EdgeInsets.only(right: 8.0),
@@ -2667,11 +2805,19 @@ class EditorState extends State<Editor> {
                           });
                         },
                         icon: const Icon(Icons.edit, color: Colors.blue),
-                        label: const Text('Unlock to Edit', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                        label: const Text(
+                          'Unlock to Edit',
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         style: TextButton.styleFrom(
                           backgroundColor: Colors.blue.withOpacity(0.1),
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
@@ -3154,7 +3300,9 @@ class EditorState extends State<Editor> {
                       onPressed: () => Navigator.pop(dialogContext),
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                       child: Text(
                         'Keep Writing',
@@ -3170,9 +3318,13 @@ class EditorState extends State<Editor> {
                     child: FilledButton(
                       onPressed: () {
                         // 1. Mark as completed in DB if we have a consultation ID
-                        final consultationId = widget.consultationId ?? SessionManager().consultationId;
+                        final consultationId =
+                            widget.consultationId ??
+                            SessionManager().consultationId;
                         if (consultationId != null) {
-                          SupabaseDashboardService.completeConsultation(consultationId);
+                          SupabaseDashboardService.completeConsultation(
+                            consultationId,
+                          );
                         }
 
                         // 2. Terminate local state
@@ -3196,7 +3348,9 @@ class EditorState extends State<Editor> {
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         elevation: 0,
                       ),
                       child: const Text(
@@ -3300,7 +3454,9 @@ class EditorState extends State<Editor> {
                       onPressed: () => Navigator.pop(dialogContext),
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                       child: Text(
                         t.common.cancel,
@@ -3322,14 +3478,14 @@ class EditorState extends State<Editor> {
                         backgroundColor: Colors.orange,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         elevation: 0,
                       ),
                       child: const Text(
                         'Clear All',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
@@ -3399,12 +3555,15 @@ class EditorState extends State<Editor> {
       coreInfo.dispose();
     }
   }
+
   void _showReportDialog(
     BuildContext context,
     Map<String, dynamic> reportData,
     List<Uint8List> imageBytesList, {
     VoidCallback? onRegenerate,
   }) {
+    final reportViewKey = GlobalKey();
+
     showDialog(
       context: context,
 
@@ -3416,299 +3575,329 @@ class EditorState extends State<Editor> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: Theme.of(context).brightness == Brightness.dark
-                ? [
-                    const Color(0xFF1E1E1E), // Dark Dialog
-                    const Color(0xFF2C2C2C), // Slightly lighter
-                  ]
-                : [
-                    const Color(0xFFF5F7FA), // Very light grey
-                    const Color(0xFFE4EBF5), // Subtle blue-grey
-                  ],
+                  ? [
+                      const Color(0xFF1E1E1E), // Dark Dialog
+                      const Color(0xFF2C2C2C), // Slightly lighter
+                    ]
+                  : [
+                      const Color(0xFFF5F7FA), // Very light grey
+                      const Color(0xFFE4EBF5), // Subtle blue-grey
+                    ],
             ),
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final isPortrait = constraints.maxHeight > constraints.maxWidth;
-              
+              // Use orientation from MediaQuery to avoid flipping layout when keyboard appears
+              final isPortrait =
+                  MediaQuery.of(context).orientation == Orientation.portrait;
+
               // Common Image Preview Widget
               Widget buildImagePreview() => ListView.separated(
-                    padding: const EdgeInsets.all(24),
-                    itemCount: imageBytesList.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 24),
-                    itemBuilder: (context, index) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
+                padding: const EdgeInsets.all(24),
+                itemCount: imageBytesList.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 24),
+                itemBuilder: (context, index) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.memory(
-                            imageBytesList[index],
-                            gaplessPlayback: true,
-                            cacheWidth: 1024,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      );
-                    },
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.memory(
+                        imageBytesList[index],
+                        gaplessPlayback: true,
+                        cacheWidth: 1024,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   );
+                },
+              );
 
-             // Common Report View Widget
-             Widget buildReportView() => ReportView(
-                  reportData: reportData,
-                  onRegenerate: onRegenerate,
-                  onVerify: () async {
-                    try {
-                      // Convert to Markdown
-                      final sb = StringBuffer();
-                      sb.writeln('# 📋 Clinical Assessment Report');
-                      sb.writeln();
-                      sb.writeln('---');
-                      sb.writeln();
-                      if (_patientName != null) {
-                        sb.writeln('**👤 Patient:** $_patientName');
+              // Common Report View Widget
+              Widget buildReportView() => ReportView(
+                key: reportViewKey,
+                reportData: reportData,
+                onRegenerate: onRegenerate,
+                onVerify: () async {
+                  try {
+                    // Convert to Markdown
+                    final sb = StringBuffer();
+                    sb.writeln('# 📋 Clinical Assessment Report');
+                    sb.writeln();
+                    sb.writeln('---');
+                    sb.writeln();
+                    if (_patientName != null) {
+                      sb.writeln('**👤 Patient:** $_patientName');
+                    }
+                    sb.writeln(
+                      '**📅 Date:** ${DateFormat.yMMMd().format(DateTime.now())}',
+                    );
+                    if (_doctorName != null) {
+                      sb.writeln('**👨‍⚕️ Doctor:** $_doctorName');
+                    }
+                    sb.writeln();
+                    sb.writeln('---');
+                    sb.writeln();
+
+                    sb.writeln('### 🕒 Current Symptoms (HPI)');
+                    sb.writeln(
+                      reportData['current_symptoms'] ?? 'Not mentioned',
+                    );
+                    sb.writeln();
+
+                    sb.writeln('### 👤 Premorbid Personality');
+                    sb.writeln(
+                      reportData['premorbid_personality'] ?? 'Not mentioned',
+                    );
+                    sb.writeln();
+
+                    sb.writeln('### 📜 Past History');
+                    sb.writeln(reportData['past_history'] ?? 'Not mentioned');
+                    sb.writeln();
+
+                    sb.writeln('### 👨‍👩‍👧‍👦 Family History');
+                    sb.writeln(reportData['family_history'] ?? 'Not mentioned');
+                    sb.writeln();
+
+                    sb.writeln('### 🏥 Mental Status Examination');
+                    final mse = reportData['mental_status_examination'];
+                    if (mse is Map) {
+                      mse.forEach((key, value) {
+                        final formattedKey = key
+                            .toString()
+                            .replaceAll('_', ' ')
+                            .toUpperCase();
+                        sb.writeln('- **$formattedKey:** $value');
+                      });
+                    } else if (mse is String) {
+                      sb.writeln(mse);
+                    } else {
+                      sb.writeln('*Not mentioned*');
+                    }
+                    sb.writeln();
+
+                    sb.writeln('### 🏁 Diagnosis');
+                    sb.writeln(
+                      '**${reportData['provided_diagnosis'] ?? 'Not mentioned'}**',
+                    );
+                    sb.writeln();
+
+                    sb.writeln('---');
+                    sb.writeln();
+                    sb.writeln('### 💊 Prescribed Medications');
+                    final meds = reportData['medications'] as List?;
+                    if (meds != null && meds.isNotEmpty) {
+                      sb.writeln(
+                        '| Medication | Frequency | Duration | Remarks |',
+                      );
+                      sb.writeln('| :--- | :--- | :--- | :--- |');
+                      for (final m in meds) {
+                        if (m is Map) {
+                          final name = m['name'] ?? 'N/A';
+                          final freq = m['frequency'] ?? 'N/A';
+                          final duration = m['duration'] ?? 'N/A';
+                          final remarks = m['remarks'] ?? '';
+                          sb.writeln(
+                            '| **$name** | $freq | $duration | $remarks |',
+                          );
+                        }
                       }
-                      sb.writeln('**📅 Date:** ${DateFormat.yMMMd().format(DateTime.now())}');
-                      if (_doctorName != null) {
-                        sb.writeln('**👨‍⚕️ Doctor:** $_doctorName');
+                    } else {
+                      sb.writeln('*None prescribed or not mentioned.*');
+                    }
+                    sb.writeln();
+                    sb.writeln('---');
+                    sb.writeln();
+                    sb.write(
+                      '> *This report was automatically generated by Synapse AI based on clinical notes.*',
+                    );
+
+                    // Determine path
+                    String filePath = coreInfo.filePath;
+                    String? patientId;
+
+                    // Ensure we have a valid absolute path
+                    // If the path is just '/patients/...' on mobile, it's likely relative to the app sandbox
+                    if (!File(filePath).isAbsolute ||
+                        (Platform.isAndroid || Platform.isIOS) &&
+                            filePath.startsWith('/patients')) {
+                      if (filePath.startsWith('/')) {
+                        filePath = filePath.substring(1);
                       }
-                      sb.writeln();
-                      sb.writeln('---');
-                      sb.writeln();
 
-                      sb.writeln('### 🕒 Current Symptoms (HPI)');
-                      sb.writeln(
-                        reportData['current_symptoms'] ?? 'Not mentioned',
-                      );
-                      sb.writeln();
-
-                      sb.writeln('### 👤 Premorbid Personality');
-                      sb.writeln(
-                        reportData['premorbid_personality'] ?? 'Not mentioned',
-                      );
-                      sb.writeln();
-
-                      sb.writeln('### 📜 Past History');
-                      sb.writeln(
-                        reportData['past_history'] ?? 'Not mentioned',
-                      );
-                      sb.writeln();
-
-                      sb.writeln('### 👨‍👩‍👧‍👦 Family History');
-                      sb.writeln(
-                        reportData['family_history'] ?? 'Not mentioned',
-                      );
-                      sb.writeln();
-
-                      sb.writeln('### 🏥 Mental Status Examination');
-                      final mse = reportData['mental_status_examination'];
-                      if (mse is Map) {
-                        mse.forEach((key, value) {
-                          final formattedKey = key
-                              .toString()
-                              .replaceAll('_', ' ')
-                              .toUpperCase();
-                          sb.writeln('- **$formattedKey:** $value');
-                        });
-                      } else if (mse is String) {
-                        sb.writeln(mse);
-                      } else {
-                        sb.writeln('*Not mentioned*');
+                      // Attempt to extract patient ID from path "patients/{id}/..."
+                      final parts = filePath.split('/');
+                      if (parts.length >= 2 && parts[0] == 'patients') {
+                        patientId = parts[1];
                       }
-                      sb.writeln();
 
-                      sb.writeln('### 🏁 Diagnosis');
-                      sb.writeln(
-                        '**${reportData['provided_diagnosis'] ?? 'Not mentioned'}**',
+                      // Use FileManager.documentsDirectory to ensure we are in the 'Saber' subfolder
+                      filePath = p.join(
+                        FileManager.documentsDirectory,
+                        filePath,
                       );
-                      sb.writeln();
+                    }
 
-                      sb.writeln('---');
-                      sb.writeln();
-                      sb.writeln('### 💊 Prescribed Medications');
-                      final meds = reportData['medications'] as List?;
-                      if (meds != null && meds.isNotEmpty) {
-                        sb.writeln('| Medication | Frequency | Duration | Remarks |');
-                        sb.writeln('| :--- | :--- | :--- | :--- |');
-                        for (final m in meds) {
-                          if (m is Map) {
-                            final name = m['name'] ?? 'N/A';
-                            final freq = m['frequency'] ?? 'N/A';
-                            final duration = m['duration'] ?? 'N/A';
-                            final remarks = m['remarks'] ?? '';
-                            sb.writeln(
-                              '| **$name** | $freq | $duration | $remarks |',
+                    // Submit to Supabase if we found a patient ID
+                    if (patientId != null) {
+                      try {
+                        log.info(
+                          'Saving report with sourceDocumentPath: ${coreInfo.filePath}',
+                        );
+                        await SupabaseReportService.createReport(
+                          patientId: patientId,
+                          structuredData: reportData,
+                          markdownContent: sb.toString(),
+                          sourceDocumentPath: coreInfo.filePath,
+                        );
+                        log.info(
+                          'Report saved to Supabase for patient $patientId',
+                        );
+                      } catch (dbError) {
+                        log.severe('Failed to save report to DB', dbError);
+                        // Don't block local file save if DB fails
+                      }
+
+                      // Send medications to Pharmacy (prescriptions table)
+                      try {
+                        final medications = reportData['medications'];
+                        if (medications is List && medications.isNotEmpty) {
+                          // Fetch patient name if possible for the pharmacy
+                          String? patientName;
+                          try {
+                            final pData =
+                                await SupabasePatientService.getPatient(
+                                  patientId,
+                                );
+                            patientName = pData?.fullName;
+                          } catch (e) {
+                            // ignore
+                          }
+
+                          // Convert medications to List<Map<String, dynamic>>
+                          final medsList = medications
+                              .whereType<Map<String, dynamic>>()
+                              .map((m) {
+                                final newMap = Map<String, dynamic>.from(m);
+                                // Map remarks to instructions for pharmacy compatibility
+                                if (newMap.containsKey('remarks')) {
+                                  newMap['instructions'] = newMap['remarks'];
+                                }
+                                return newMap;
+                              })
+                              .toList();
+
+                          if (medsList.isNotEmpty) {
+                            await SupabasePrescriptionService.createPrescription(
+                              patientId: patientId,
+                              consultationId: widget.consultationId,
+                              medications: medsList,
+                              patientName: patientName,
                             );
+                            log.info('Prescriptions sent to pharmacy');
                           }
                         }
-                      } else {
-                        sb.writeln('*None prescribed or not mentioned.*');
-                      }
-                      sb.writeln();
-                      sb.writeln('---');
-                      sb.writeln();
-                      sb.write('> *This report was automatically generated by Synapse AI based on clinical notes.*');
-
-
-                      // Determine path
-                      String filePath = coreInfo.filePath;
-                      String? patientId;
-
-                      // Ensure we have a valid absolute path
-                      // If the path is just '/patients/...' on mobile, it's likely relative to the app sandbox
-                      if (!File(filePath).isAbsolute ||
-                          (Platform.isAndroid || Platform.isIOS) &&
-                              filePath.startsWith('/patients')) {
-                        if (filePath.startsWith('/')) {
-                          filePath = filePath.substring(1);
-                        }
-
-                        // Attempt to extract patient ID from path "patients/{id}/..."
-                        final parts = filePath.split('/');
-                        if (parts.length >= 2 && parts[0] == 'patients') {
-                          patientId = parts[1];
-                        }
-
-                        // Use FileManager.documentsDirectory to ensure we are in the 'Saber' subfolder
-                        filePath = p.join(
-                          FileManager.documentsDirectory,
-                          filePath,
-                        );
+                      } catch (rxError) {
+                        log.severe('Failed to send prescriptions', rxError);
                       }
 
-                      // Submit to Supabase if we found a patient ID
-                      if (patientId != null) {
+                      // Mark consultation as completed
+                      if (widget.consultationId != null) {
                         try {
-                          log.info('Saving report with sourceDocumentPath: ${coreInfo.filePath}');
-                          await SupabaseReportService.createReport(
-                            patientId: patientId,
-                            structuredData: reportData,
-                            markdownContent: sb.toString(),
-                            sourceDocumentPath: coreInfo.filePath,
+                          await SupabaseDashboardService.completeConsultation(
+                            widget.consultationId!,
                           );
                           log.info(
-                            'Report saved to Supabase for patient $patientId',
+                            'Consultation ${widget.consultationId} marked as completed',
                           );
-                        } catch (dbError) {
-                          log.severe('Failed to save report to DB', dbError);
-                          // Don't block local file save if DB fails
-                        }
-
-                        // Send medications to Pharmacy (prescriptions table)
-                        try {
-                          final medications = reportData['medications'];
-                          if (medications is List && medications.isNotEmpty) {
-                            // Fetch patient name if possible for the pharmacy
-                            String? patientName;
-                            try {
-                              final pData = await SupabasePatientService
-                                  .getPatient(patientId);
-                              patientName = pData?.fullName;
-                            } catch (e) {
-                              // ignore
-                            }
-
-                            // Convert medications to List<Map<String, dynamic>>
-                            final medsList = medications
-                                .whereType<Map<String, dynamic>>()
-                                .map((m) {
-                              final newMap = Map<String, dynamic>.from(m);
-                              // Map remarks to instructions for pharmacy compatibility
-                              if (newMap.containsKey('remarks')) {
-                                newMap['instructions'] = newMap['remarks'];
-                              }
-                              return newMap;
-                            }).toList();
-
-                            if (medsList.isNotEmpty) {
-                              await SupabasePrescriptionService.createPrescription(
-                                patientId: patientId,
-                                consultationId: widget.consultationId,
-                                medications: medsList,
-                                patientName: patientName,
-                              );
-                              log.info('Prescriptions sent to pharmacy');
-                            }
-                          }
-                        } catch (rxError) {
-                          log.severe('Failed to send prescriptions', rxError);
-                        }
-
-                        // Mark consultation as completed
-                        if (widget.consultationId != null) {
-                          try {
-                            await SupabaseDashboardService
-                                .completeConsultation(
-                                  widget.consultationId!,
-                                );
-                            log.info(
-                              'Consultation ${widget.consultationId} marked as completed',
-                            );
-                          } catch (e) {
-                            log.warning(
-                              'Failed to mark consultation as completed: $e',
-                            );
-                          }
-                        }
-                      }
-
-                      // Save report to file
-                      final reportFileName =
-                          'clinical_report_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.md';
-                      final reportPath = p.join(
-                        p.dirname(filePath),
-                        reportFileName,
-                      );
-
-                      // Only try to write file if directory exists
-                      if (await Directory(p.dirname(filePath)).exists()) {
-                        await File(reportPath).writeAsString(sb.toString());
-
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Report verified and saved!'),
-                            ),
+                        } catch (e) {
+                          log.warning(
+                            'Failed to mark consultation as completed: $e',
                           );
-                          Navigator.pop(context); // Close dialog
-                          widget.onVerify?.call(); // Call original onVerify
                         }
-                      } else {
-                        log.warning(
-                          'Cannot save report locally: Directory not found ${p.dirname(filePath)}',
-                        );
-                        // Still show success if DB save worked
-                        if (context.mounted && patientId != null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Report saved to database!'),
-                            ),
-                          );
-                          Navigator.pop(context);
-                           widget.onVerify?.call(); // Call original onVerify
-                        }
-                      }
-                    } catch (e) {
-                      log.severe('Error saving report', e);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Failed to save report: $e'),
-                          ),
-                        );
                       }
                     }
-                  },
-                );
+
+                    // Save report to file
+                    final reportFileName =
+                        'clinical_report_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.md';
+                    final reportPath = p.join(
+                      p.dirname(filePath),
+                      reportFileName,
+                    );
+
+                    // Only try to write file if directory exists
+                    if (await Directory(p.dirname(filePath)).exists()) {
+                      await File(reportPath).writeAsString(sb.toString());
+
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Report verified and saved!'),
+                          ),
+                        );
+                        Navigator.pop(context); // Close dialog
+                        if (widget.onVerify != null) {
+                          widget.onVerify?.call();
+                        } else {
+                          // Production fallback: Terminate session and go to dashboard
+                          SessionManager().terminate();
+                          final targetContext =
+                              App.rootNavigatorKey.currentContext ?? context;
+                          if (targetContext.mounted) {
+                            GoRouter.of(
+                              targetContext,
+                            ).go(HomeRoutes.getRoute(0));
+                          }
+                        }
+                      }
+                    } else {
+                      log.warning(
+                        'Cannot save report locally: Directory not found ${p.dirname(filePath)}',
+                      );
+                      // Still show success if DB save worked
+                      if (context.mounted && patientId != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Report saved to database!'),
+                          ),
+                        );
+                        Navigator.pop(context);
+                        if (widget.onVerify != null) {
+                          widget.onVerify?.call();
+                        } else {
+                          // Production fallback: Terminate session and go to dashboard
+                          SessionManager().terminate();
+                          final targetContext =
+                              App.rootNavigatorKey.currentContext ?? context;
+                          if (targetContext.mounted) {
+                            GoRouter.of(
+                              targetContext,
+                            ).go(HomeRoutes.getRoute(0));
+                          }
+                        }
+                      }
+                    }
+                  } catch (e) {
+                    log.severe('Error saving report', e);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to save report: $e')),
+                      );
+                    }
+                  }
+                },
+              );
 
               if (isPortrait) {
                 return Column(
@@ -3718,7 +3907,7 @@ class EditorState extends State<Editor> {
                       flex: 4, // 40% height for the note
                       child: buildImagePreview(),
                     ),
-                    
+
                     Expanded(
                       flex: 6, // 60% height for the report
                       child: buildReportView(),
@@ -3734,7 +3923,7 @@ class EditorState extends State<Editor> {
                         flex: 4, // 40% width
                         child: buildImagePreview(),
                       ),
-                    
+
                     Expanded(
                       flex: 6, // 60% width for report
                       child: buildReportView(),
@@ -3747,7 +3936,6 @@ class EditorState extends State<Editor> {
         ),
       ),
     );
-
   }
 
   Widget _buildDraggableIntakeOverlay(BoxConstraints constraints) {
@@ -3756,9 +3944,7 @@ class EditorState extends State<Editor> {
       return Draggable(
         feedback: Opacity(
           opacity: 0.5,
-          child: Material(
-            child: _buildEmptyIntakeCard(),
-          ),
+          child: Material(child: _buildEmptyIntakeCard()),
         ),
         childWhenDragging: Container(),
         onDragEnd: (details) {
@@ -3773,7 +3959,7 @@ class EditorState extends State<Editor> {
         child: _buildEmptyIntakeCard(),
       );
     }
-    
+
     return Draggable(
       feedback: Opacity(
         opacity: 0.5,
@@ -3795,7 +3981,8 @@ class EditorState extends State<Editor> {
       child: IntakeOverlayCard(
         intake: _patientIntake!,
         isExpanded: _isIntakeExpanded,
-        onExpandChanged: (expanded) => setState(() => _isIntakeExpanded = expanded),
+        onExpandChanged: (expanded) =>
+            setState(() => _isIntakeExpanded = expanded),
         onClose: () => setState(() => _showIntakeOverlay = false),
         onEdit: _openIntakeFormEditor,
       ),
@@ -3805,7 +3992,7 @@ class EditorState extends State<Editor> {
   Widget _buildEmptyIntakeCard() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Container(
       width: 200,
       decoration: BoxDecoration(
@@ -3835,7 +4022,11 @@ class EditorState extends State<Editor> {
             ),
             child: Row(
               children: [
-                Icon(Icons.assignment_outlined, size: 16, color: colorScheme.primary),
+                Icon(
+                  Icons.assignment_outlined,
+                  size: 16,
+                  color: colorScheme.primary,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -3886,7 +4077,10 @@ class EditorState extends State<Editor> {
                   icon: const Icon(Icons.add, size: 16),
                   label: const Text('Fill Form'),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     textStyle: theme.textTheme.labelSmall,
                   ),
                 ),
@@ -3911,7 +4105,7 @@ class EditorState extends State<Editor> {
       ),
       childWhenDragging: Container(),
       onDragEnd: (details) {
-         final RenderBox? box = context.findRenderObject() as RenderBox?;
+        final RenderBox? box = context.findRenderObject() as RenderBox?;
         if (box != null) {
           final localPos = box.globalToLocal(details.offset);
           setState(() {
@@ -3922,7 +4116,8 @@ class EditorState extends State<Editor> {
       child: VitalsOverlayCard(
         vitalsHistory: _vitalsHistory,
         isExpanded: _isVitalsExpanded,
-        onExpandChanged: (expanded) => setState(() => _isVitalsExpanded = expanded),
+        onExpandChanged: (expanded) =>
+            setState(() => _isVitalsExpanded = expanded),
         onClose: () => setState(() => _showVitalsOverlay = false),
       ),
     );
@@ -3949,19 +4144,21 @@ class EditorState extends State<Editor> {
           currentSessionNum = int.tryParse(match.group(1)!);
         }
 
-        final notes =
-            await SupabaseConsultationService.getPreviousSessionNotes(
-                _patientId!,
-                excludeSessionNumber: currentSessionNum);
-        
-        log.info('Received ${notes.length} previous notes (excluded session $currentSessionNum)');
+        final notes = await SupabaseConsultationService.getPreviousSessionNotes(
+          _patientId!,
+          excludeSessionNumber: currentSessionNum,
+        );
+
+        log.info(
+          'Received ${notes.length} previous notes (excluded session $currentSessionNum)',
+        );
         setState(() {
           _previousNotes = notes;
           _isLoadingPreviousNotes = false;
-          _showPreviousNotesOverlay = true;
+          _showPreviousNotesOverlay = notes.isNotEmpty;
           _previousNotesOverlayPosition = null; // Use default
         });
-        
+
         if (notes.isEmpty && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('No previous session notes found')),
@@ -3972,7 +4169,13 @@ class EditorState extends State<Editor> {
         setState(() => _isLoadingPreviousNotes = false);
       }
     } else {
-      setState(() => _showPreviousNotesOverlay = true);
+      if (_previousNotes.isNotEmpty) {
+        setState(() => _showPreviousNotesOverlay = true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No previous session notes found')),
+        );
+      }
     }
   }
 
@@ -3981,36 +4184,29 @@ class EditorState extends State<Editor> {
       return const SizedBox.shrink();
     }
 
-    final defaultPos = Offset(constraints.maxWidth - 420, 150);
-    final pos = _previousNotesOverlayPosition ?? defaultPos;
-
-    return Positioned(
-      left: pos.dx,
-      top: pos.dy,
-      child: Draggable(
-        feedback: Opacity(
-          opacity: 0.5,
-          child: Material(
-            child: PreviousNotesOverlayCard(
-              notes: _previousNotes,
-              onClose: () {},
-            ),
+    return Draggable(
+      feedback: Opacity(
+        opacity: 0.5,
+        child: Material(
+          child: PreviousNotesOverlayCard(
+            notes: _previousNotes,
+            onClose: () {},
           ),
         ),
-        childWhenDragging: Container(),
-        onDragEnd: (details) {
-          final box = context.findRenderObject() as RenderBox?;
-          if (box != null) {
-            final localPos = box.globalToLocal(details.offset);
-            setState(() {
-              _previousNotesOverlayPosition = localPos;
-            });
-          }
-        },
-        child: PreviousNotesOverlayCard(
-          notes: _previousNotes,
-          onClose: () => setState(() => _showPreviousNotesOverlay = false),
-        ),
+      ),
+      childWhenDragging: Container(),
+      onDragEnd: (details) {
+        final box = context.findRenderObject() as RenderBox?;
+        if (box != null) {
+          final localPos = box.globalToLocal(details.offset);
+          setState(() {
+            _previousNotesOverlayPosition = localPos;
+          });
+        }
+      },
+      child: PreviousNotesOverlayCard(
+        notes: _previousNotes,
+        onClose: () => setState(() => _showPreviousNotesOverlay = false),
       ),
     );
   }
@@ -4025,19 +4221,17 @@ class EditorState extends State<Editor> {
   }
 
   Widget _buildDraggableMedicationHistoryOverlay(BoxConstraints constraints) {
-    return Positioned(
-      left: _medicationHistoryOverlayPosition?.dx ?? 200,
-      top: _medicationHistoryOverlayPosition?.dy ?? 100,
-      child: GestureDetector(
-        onPanUpdate: (details) {
-          setState(() {
-            _medicationHistoryOverlayPosition = (_medicationHistoryOverlayPosition ?? const Offset(200, 100)) + details.delta;
-          });
-        },
-        child: MedicationHistoryOverlay(
-          patientId: _patientId!,
-          onClose: () => setState(() => _showMedicationHistoryOverlay = false),
-        ),
+    return GestureDetector(
+      onPanUpdate: (details) {
+        setState(() {
+          _medicationHistoryOverlayPosition =
+              (_medicationHistoryOverlayPosition ?? const Offset(200, 100)) +
+              details.delta;
+        });
+      },
+      child: MedicationHistoryOverlay(
+        patientId: _patientId!,
+        onClose: () => setState(() => _showMedicationHistoryOverlay = false),
       ),
     );
   }
@@ -4061,9 +4255,12 @@ class WindPainter extends CustomPainter {
       final y = random.nextDouble() * size.height;
       // Start X moves across the screen based on progress
       final speedFactor = random.nextDouble() * 2 + 1;
-      final startX = (random.nextDouble() * size.width) + (progress * size.width * speedFactor) - size.width;
+      final startX =
+          (random.nextDouble() * size.width) +
+          (progress * size.width * speedFactor) -
+          size.width;
       final length = random.nextDouble() * 300 + 100;
-      
+
       canvas.drawLine(
         ui.Offset(startX, y),
         ui.Offset(startX + length, y),
@@ -4073,6 +4270,6 @@ class WindPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant WindPainter oldDelegate) => oldDelegate.progress != progress;
+  bool shouldRepaint(covariant WindPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
-

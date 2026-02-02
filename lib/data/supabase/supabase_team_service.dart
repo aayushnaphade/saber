@@ -62,15 +62,15 @@ class SupabaseTeamService {
       // Since Saber is a client app, it can't directly use admin.createUser.
       // We should ideally call a Supabase Edge Function or an RPC that handles this safely.
       // For now, we'll assume there is an Edge Function or we'll provide the logic to call it.
-      
+
       final response = await supabase.functions.invoke(
         'create-staff-member',
         body: {
+          'action': 'create',
           'fullName': fullName,
           'email': email,
           'password': password,
           'role': role,
-          'doctorId': user.id,
         },
       );
 
@@ -79,6 +79,25 @@ class SupabaseTeamService {
       }
     } catch (e) {
       _log.severe('Error adding staff member: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> revokeStaffMember(String staffId) async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) throw Exception('Not authenticated');
+
+      final response = await supabase.functions.invoke(
+        'create-staff-member',
+        body: {'action': 'revoke', 'staffId': staffId},
+      );
+
+      if (response.status != 200) {
+        throw Exception('Failed to revoke staff member: ${response.data}');
+      }
+    } catch (e) {
+      _log.severe('Error revoking staff member: $e');
       rethrow;
     }
   }

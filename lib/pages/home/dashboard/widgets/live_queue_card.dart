@@ -38,20 +38,38 @@ class LiveQueueCard extends StatelessWidget {
       child: Stack(
         children: [
           Positioned.fill(
+            child: AnimatedMeshGradient(
+              colors: isDark
+                  ? [
+                      const Color(0xFF001A4D), // Deep Dark Blue
+                      const Color(0xFF0038A8), // Royal Blue
+                      const Color(0xFF0056D2), // Medium Blue
+                      const Color(0xFF1E3A8A), // Indigo-Blue
+                    ]
+                  : [
+                      const Color(0xFF007AFF), // Vibrant Blue
+                      const Color(0xFF5AC8FA), // Cyan
+                      const Color(0xFFB4E5F2), // Sky Blue
+                      const Color(0xFF0038A8), // Royal Blue
+                    ],
+              options: AnimatedMeshGradientOptions(
+                speed: 1.5,
+                grain: isDark ? 0.03 : 0.02,
+                amplitude: 30,
+                frequency: 4,
+              ),
+            ),
+          ),
+          Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isDark
-                      ? [
-                          const Color(0xFF0B1120), // Very dark blue/slate
-                          const Color(0xFF1E1B4B), // Indigo 950
-                        ]
-                      : [
-                          Colors.indigo.shade900,
-                          Colors.deepPurple.shade900,
-                        ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(isDark ? 0.4 : 0.1),
+                    Colors.black.withOpacity(isDark ? 0.7 : 0.4),
+                  ],
                 ),
               ),
             ),
@@ -70,10 +88,10 @@ class LiveQueueCard extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: const Color(0xFF007AFF).withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.1),
+                          color: const Color(0xFF007AFF).withOpacity(0.4),
                         ),
                       ),
                       child: Row(
@@ -82,11 +100,11 @@ class LiveQueueCard extends StatelessWidget {
                             width: 8,
                             height: 8,
                             decoration: const BoxDecoration(
-                              color: Colors.white,
+                              color: Color(0xFF5AC8FA),
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.white24,
+                                  color: Color(0x665AC8FA),
                                   blurRadius: 8,
                                   spreadRadius: 2,
                                 ),
@@ -117,8 +135,8 @@ class LiveQueueCard extends StatelessWidget {
                 const SizedBox(height: 24),
                 if (currentPatient != null) ...[
                   Text(
-                    currentPatient!.status.toLowerCase() == 'in consultation' 
-                        ? 'Active Session' 
+                    currentPatient!.status.toLowerCase() == 'in consultation'
+                        ? 'Active Session'
                         : 'Next Patient',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: Colors.white.withOpacity(0.7),
@@ -176,12 +194,14 @@ class LiveQueueCard extends StatelessWidget {
                             elevation: 0,
                             side: isDark
                                 ? BorderSide(
-                                    color: Colors.white.withOpacity(0.2))
+                                    color: Colors.white.withOpacity(0.2),
+                                  )
                                 : BorderSide.none,
                           ),
                           icon: const Icon(Icons.play_arrow_rounded),
                           label: Text(
-                            currentPatient!.status.toLowerCase() == 'in consultation'
+                            currentPatient!.status.toLowerCase() ==
+                                    'in consultation'
                                 ? 'Continue Session'
                                 : 'Start Session',
                           ),
@@ -196,7 +216,8 @@ class LiveQueueCard extends StatelessWidget {
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.all(16),
                             side: BorderSide(
-                                color: Colors.white.withOpacity(0.2)),
+                              color: Colors.white.withOpacity(0.2),
+                            ),
                           ),
                           icon: const Icon(Icons.person_outline),
                           tooltip: 'View Patient Profile',
@@ -211,7 +232,8 @@ class LiveQueueCard extends StatelessWidget {
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.all(16),
                             side: BorderSide(
-                                color: Colors.white.withOpacity(0.2)),
+                              color: Colors.white.withOpacity(0.2),
+                            ),
                           ),
                           icon: const Icon(Icons.close),
                           tooltip: 'Cancel Appointment',
@@ -270,9 +292,7 @@ class LiveQueueCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: textColor.withOpacity(0.3),
-        ),
+        border: Border.all(color: textColor.withOpacity(0.3)),
       ),
       child: Text(
         gender,

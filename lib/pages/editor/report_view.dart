@@ -26,7 +26,7 @@ class _ReportViewState extends State<ReportView> {
   late TextEditingController _pastHistoryController;
   late TextEditingController _familyHistoryController;
   late TextEditingController _diagnosisController;
-  
+
   // MSE Controllers
   final Map<String, TextEditingController> _mseControllers = {};
 
@@ -36,16 +36,28 @@ class _ReportViewState extends State<ReportView> {
   @override
   void initState() {
     super.initState();
-    _currentSymptomsController = TextEditingController(text: widget.reportData['current_symptoms'] ?? '');
-    _premorbidPersonalityController = TextEditingController(text: widget.reportData['premorbid_personality'] ?? '');
-    _pastHistoryController = TextEditingController(text: widget.reportData['past_history'] ?? '');
-    _familyHistoryController = TextEditingController(text: widget.reportData['family_history'] ?? '');
-    _diagnosisController = TextEditingController(text: widget.reportData['provided_diagnosis'] ?? '');
+    _currentSymptomsController = TextEditingController(
+      text: widget.reportData['current_symptoms'] ?? '',
+    );
+    _premorbidPersonalityController = TextEditingController(
+      text: widget.reportData['premorbid_personality'] ?? '',
+    );
+    _pastHistoryController = TextEditingController(
+      text: widget.reportData['past_history'] ?? '',
+    );
+    _familyHistoryController = TextEditingController(
+      text: widget.reportData['family_history'] ?? '',
+    );
+    _diagnosisController = TextEditingController(
+      text: widget.reportData['provided_diagnosis'] ?? '',
+    );
 
     final mse = widget.reportData['mental_status_examination'];
     if (mse is Map) {
       mse.forEach((key, value) {
-        _mseControllers[key.toString()] = TextEditingController(text: value?.toString() ?? '');
+        _mseControllers[key.toString()] = TextEditingController(
+          text: value?.toString() ?? '',
+        );
       });
     } else if (mse is String) {
       _mseControllers['MSE'] = TextEditingController(text: mse);
@@ -87,22 +99,72 @@ class _ReportViewState extends State<ReportView> {
     }
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('Clinical Assessment Report'),
         actions: [
           if (widget.onRegenerate != null)
-            TextButton.icon(
-              onPressed: widget.onRegenerate,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Regenerate'),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.orange,
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: OutlinedButton.icon(
+                onPressed: widget.onRegenerate,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text(
+                  'Regenerate',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.orange.shade700,
+                  side: BorderSide(
+                    color: Colors.orange.shade700.withValues(alpha: 0.5),
+                  ),
+                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
               ),
             ),
-          TextButton.icon(
-            onPressed: _syncAndVerify,
-            icon: const Icon(Icons.check_circle),
-            label: const Text('Verify & Save'),
+          const SizedBox(width: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.blue.shade500, Colors.blue.shade700],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: TextButton.icon(
+                onPressed: _syncAndVerify,
+                icon: const Icon(
+                  Icons.check_circle_outline,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                label: const Text(
+                  'Verify & Save',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -113,7 +175,8 @@ class _ReportViewState extends State<ReportView> {
   void _syncAndVerify() {
     // Sync logic remains the same as controllers are updated in real-time
     widget.reportData['current_symptoms'] = _currentSymptomsController.text;
-    widget.reportData['premorbid_personality'] = _premorbidPersonalityController.text;
+    widget.reportData['premorbid_personality'] =
+        _premorbidPersonalityController.text;
     widget.reportData['past_history'] = _pastHistoryController.text;
     widget.reportData['family_history'] = _familyHistoryController.text;
     widget.reportData['provided_diagnosis'] = _diagnosisController.text;
@@ -130,22 +193,22 @@ class _ReportViewState extends State<ReportView> {
     final isDark = theme.brightness == Brightness.dark;
 
     // Bento Colors (Light/Dark variants)
-    final diagnosisColor = isDark 
-        ? Colors.deepPurple.shade900.withOpacity(0.3) 
+    final diagnosisColor = isDark
+        ? Colors.deepPurple.shade900.withOpacity(0.3)
         : Colors.purple.shade50;
-    final symptomsColor = isDark 
-        ? Colors.blue.shade900.withOpacity(0.3) 
+    final symptomsColor = isDark
+        ? Colors.blue.shade900.withOpacity(0.3)
         : Colors.blue.shade50;
-    final medicationsColor = isDark 
-        ? Colors.green.shade900.withOpacity(0.3) 
+    final medicationsColor = isDark
+        ? Colors.green.shade900.withOpacity(0.3)
         : Colors.green.shade50;
-    final mseColor = isDark 
-        ? Colors.teal.shade900.withOpacity(0.3) 
+    final mseColor = isDark
+        ? Colors.teal.shade900.withOpacity(0.3)
         : Colors.teal.shade50;
     final premorbidColor = isDark
         ? Colors.orange.shade900.withOpacity(0.3)
         : Colors.orange.shade50;
-    
+
     // New Colors for History Sections
     final pastHistoryColor = isDark
         ? Colors.amber.shade900.withOpacity(0.3)
@@ -175,11 +238,13 @@ class _ReportViewState extends State<ReportView> {
                 readOnly: widget.readonly,
                 color: diagnosisColor,
                 icon: Icons.local_hospital,
-                iconColor: isDark ? Colors.purple.shade200 : Colors.purple.shade300,
+                iconColor: isDark
+                    ? Colors.purple.shade200
+                    : Colors.purple.shade300,
                 isLarge: true,
               ),
             ),
-          
+
           // Symptoms (Half Width)
           if (isEditing || hasText(_currentSymptomsController))
             StaggeredGridTile.fit(
@@ -193,7 +258,7 @@ class _ReportViewState extends State<ReportView> {
                 iconColor: isDark ? Colors.blue.shade200 : Colors.blue.shade300,
               ),
             ),
-          
+
           // Medications (Half Width)
           if (isEditing || _medications.isNotEmpty)
             StaggeredGridTile.fit(
@@ -203,7 +268,7 @@ class _ReportViewState extends State<ReportView> {
                   color: medicationsColor,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
-                     if (!isDark)
+                    if (!isDark)
                       BoxShadow(
                         color: Colors.black.withOpacity(0.05),
                         blurRadius: 10,
@@ -218,22 +283,32 @@ class _ReportViewState extends State<ReportView> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.medication, 
-                             color: isDark ? Colors.green.shade200 : Colors.green.shade300, 
-                             size: 20),
+                        Icon(
+                          Icons.medication,
+                          color: isDark
+                              ? Colors.green.shade200
+                              : Colors.green.shade300,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
-                        Text(
-                          'Plan / Medications',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: isDark ? Colors.white70 : Colors.black87,
+                        Expanded(
+                          child: Text(
+                            'Plan / Medications',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: isDark ? Colors.white70 : Colors.black87,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _buildMedicationChips(readonly: widget.readonly, isDark: isDark),
+                    _buildMedicationChips(
+                      readonly: widget.readonly,
+                      isDark: isDark,
+                    ),
                   ],
                 ),
               ),
@@ -241,32 +316,54 @@ class _ReportViewState extends State<ReportView> {
 
           // MSE (Full Width)
           if (isEditing || _mseControllers.isNotEmpty)
-             StaggeredGridTile.fit(
+            StaggeredGridTile.fit(
               crossAxisCellCount: 2,
               child: _BentoCard(
                 title: 'Mental Status',
-                content: widget.readonly ? _mseControllers.entries
-                    .map((e) => '${e.key.replaceAll('_', ' ').toUpperCase()}: ${e.value.text}')
-                    .join('\n') : null,
-                customChild: !widget.readonly ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                   children: _mseControllers.entries.map((e) => Padding(
-                     padding: const EdgeInsets.only(bottom: 8.0),
-                     child: TextField(
-                       controller: e.value,
-                       style: theme.textTheme.bodyMedium,
-                       decoration: InputDecoration(
-                         labelText: e.key.replaceAll('_', ' ').toUpperCase(),
-                         labelStyle: TextStyle(color: isDark ? Colors.white60 : Colors.black54),
-                         border: const UnderlineInputBorder(),
-                         isDense: true,
-                         enabledBorder: UnderlineInputBorder(
-                           borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black12),
-                         ),
-                       ),
-                     ),
-                   )).toList(),
-                ) : null,
+                content: widget.readonly
+                    ? _mseControllers.entries
+                          .map(
+                            (e) =>
+                                '${e.key.replaceAll('_', ' ').toUpperCase()}: ${e.value.text}',
+                          )
+                          .join('\n')
+                    : null,
+                customChild: !widget.readonly
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: _mseControllers.entries
+                            .map(
+                              (e) => Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: TextField(
+                                  controller: e.value,
+                                  style: theme.textTheme.bodyMedium,
+                                  decoration: InputDecoration(
+                                    labelText: e.key
+                                        .replaceAll('_', ' ')
+                                        .toUpperCase(),
+                                    labelStyle: TextStyle(
+                                      color: isDark
+                                          ? Colors.white60
+                                          : Colors.black54,
+                                    ),
+                                    border: const UnderlineInputBorder(),
+                                    isDense: true,
+                                    enabledBorder: UnderlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: isDark
+                                            ? Colors.white24
+                                            : Colors.black12,
+                                      ),
+                                    ),
+                                  ),
+                                  maxLines: null,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      )
+                    : null,
                 readOnly: widget.readonly,
                 color: mseColor,
                 icon: Icons.psychology,
@@ -277,20 +374,25 @@ class _ReportViewState extends State<ReportView> {
           // Past History & Family History (Split or Full depending on content)
           if (isEditing || hasText(_pastHistoryController))
             StaggeredGridTile.fit(
-              crossAxisCellCount: (isEditing || hasText(_familyHistoryController)) ? 1 : 2,
+              crossAxisCellCount:
+                  (isEditing || hasText(_familyHistoryController)) ? 1 : 2,
               child: _BentoCard(
                 title: 'Past History',
                 controller: _pastHistoryController,
                 readOnly: widget.readonly,
                 color: pastHistoryColor,
                 icon: Icons.history,
-                iconColor: isDark ? Colors.amber.shade200 : Colors.amber.shade600,
+                iconColor: isDark
+                    ? Colors.amber.shade200
+                    : Colors.amber.shade600,
               ),
             ),
-            
+
           if (isEditing || hasText(_familyHistoryController))
             StaggeredGridTile.fit(
-              crossAxisCellCount: (isEditing || hasText(_pastHistoryController)) ? 1 : 2,
+              crossAxisCellCount: (isEditing || hasText(_pastHistoryController))
+                  ? 1
+                  : 2,
               child: _BentoCard(
                 title: 'Family History',
                 controller: _familyHistoryController,
@@ -300,19 +402,21 @@ class _ReportViewState extends State<ReportView> {
                 iconColor: isDark ? Colors.pink.shade200 : Colors.pink.shade300,
               ),
             ),
-            
-           // Premorbid Personality
-           if (isEditing || hasText(_premorbidPersonalityController))
+
+          // Premorbid Personality
+          if (isEditing || hasText(_premorbidPersonalityController))
             StaggeredGridTile.fit(
-               crossAxisCellCount: 2,
-               child: _BentoCard(
-                 title: 'Premorbid Personality',
-                 controller: _premorbidPersonalityController,
-                 readOnly: widget.readonly,
-                 color: premorbidColor,
-                 icon: Icons.person_outline,
-                 iconColor: isDark ? Colors.orange.shade200 : Colors.orange.shade300,
-               )
+              crossAxisCellCount: 2,
+              child: _BentoCard(
+                title: 'Premorbid Personality',
+                controller: _premorbidPersonalityController,
+                readOnly: widget.readonly,
+                color: premorbidColor,
+                icon: Icons.person_outline,
+                iconColor: isDark
+                    ? Colors.orange.shade200
+                    : Colors.orange.shade300,
+              ),
             ),
         ],
       ),
@@ -326,18 +430,26 @@ class _ReportViewState extends State<ReportView> {
       children: [
         ..._medications.map((med) {
           final summary = StringBuffer(med['name'] ?? '');
-          if (med['frequency']?.isNotEmpty == true) summary.write(' (${med['frequency']})');
-          if (med['duration']?.isNotEmpty == true && med['duration'] != 'Not mentioned') summary.write(' - ${med['duration']}');
+          if (med['frequency']?.isNotEmpty == true)
+            summary.write(' (${med['frequency']})');
+          if (med['duration']?.isNotEmpty == true &&
+              med['duration'] != 'Not mentioned')
+            summary.write(' - ${med['duration']}');
+          if (med['remarks']?.isNotEmpty == true &&
+              med['remarks'] != 'Not mentioned')
+            summary.write(' (${med['remarks']})');
           return InputChip(
             label: Text(
-              summary.toString(), 
+              summary.toString(),
               style: TextStyle(color: isDark ? Colors.white : Colors.black87),
             ),
-            onDeleted: readonly ? null : () {
-              setState(() {
-                _medications.remove(med);
-              });
-            },
+            onDeleted: readonly
+                ? null
+                : () {
+                    setState(() {
+                      _medications.remove(med);
+                    });
+                  },
             onPressed: readonly ? null : () => _editMedication(med),
             backgroundColor: isDark ? Colors.white10 : Colors.white,
             deleteIconColor: isDark ? Colors.white70 : null,
@@ -348,8 +460,15 @@ class _ReportViewState extends State<ReportView> {
         }),
         if (!readonly)
           ActionChip(
-            label: Text('Add', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
-            avatar: Icon(Icons.add, size: 16, color: isDark ? Colors.white70 : Colors.black87),
+            label: Text(
+              'Add',
+              style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+            ),
+            avatar: Icon(
+              Icons.add,
+              size: 16,
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
             onPressed: _addNewMedication,
             backgroundColor: isDark ? Colors.white10 : Colors.white,
             elevation: isDark ? 0 : 1,
@@ -358,7 +477,6 @@ class _ReportViewState extends State<ReportView> {
       ],
     );
   }
-
 
   Future<void> _editMedication(Map<String, String> med) async {
     final nameController = TextEditingController(text: med['name']);
@@ -380,15 +498,21 @@ class _ReportViewState extends State<ReportView> {
               ),
               TextField(
                 controller: freqController,
-                decoration: const InputDecoration(labelText: 'Frequency (e.g. BD, 1-0-1)'),
+                decoration: const InputDecoration(
+                  labelText: 'Frequency (e.g. BD, 1-0-1)',
+                ),
               ),
               TextField(
                 controller: durationController,
-                decoration: const InputDecoration(labelText: 'Duration (e.g. 5 days)'),
+                decoration: const InputDecoration(
+                  labelText: 'Duration (e.g. 5 days)',
+                ),
               ),
               TextField(
                 controller: remarksController,
-                decoration: const InputDecoration(labelText: 'Remarks (e.g. after food)'),
+                decoration: const InputDecoration(
+                  labelText: 'Remarks (e.g. after food)',
+                ),
               ),
             ],
           ),
@@ -435,15 +559,21 @@ class _ReportViewState extends State<ReportView> {
               ),
               TextField(
                 controller: freqController,
-                decoration: const InputDecoration(labelText: 'Frequency (e.g. BD, 1-0-1)'),
+                decoration: const InputDecoration(
+                  labelText: 'Frequency (e.g. BD, 1-0-1)',
+                ),
               ),
               TextField(
                 controller: durationController,
-                decoration: const InputDecoration(labelText: 'Duration (e.g. 5 days)'),
+                decoration: const InputDecoration(
+                  labelText: 'Duration (e.g. 5 days)',
+                ),
               ),
               TextField(
                 controller: remarksController,
-                decoration: const InputDecoration(labelText: 'Remarks (e.g. after food)'),
+                decoration: const InputDecoration(
+                  labelText: 'Remarks (e.g. after food)',
+                ),
               ),
             ],
           ),
@@ -462,7 +592,7 @@ class _ReportViewState extends State<ReportView> {
                     'frequency': freqController.text,
                     'duration': durationController.text,
                     'remarks': remarksController.text,
-                    });
+                  });
                 });
               }
               Navigator.pop(context);
@@ -525,12 +655,15 @@ class _BentoCard extends StatelessWidget {
             children: [
               Icon(icon, color: iconColor, size: isLarge ? 24 : 20),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: isLarge ? 18 : 16,
-                  color: isDark ? Colors.white70 : Colors.grey.shade800,
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isLarge ? 18 : 16,
+                    color: isDark ? Colors.white70 : Colors.grey.shade800,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -539,24 +672,30 @@ class _BentoCard extends StatelessWidget {
           if (customChild != null)
             customChild!
           else if (!readOnly && controller != null)
-             TextField(
-               controller: controller,
-               maxLines: null, // Allow multiline growth
-               style: theme.textTheme.bodyMedium?.copyWith(
-                  fontSize: isLarge ? 16 : 14,
-                  height: 1.5,
-               ),
-               decoration: InputDecoration(
-                 border: InputBorder.none,
-                 isDense: true,
-                 contentPadding: EdgeInsets.zero,
-                 hintText: 'Type to add content...',
-                 hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.grey),
-               ),
-             )
+            TextField(
+              controller: controller,
+              maxLines: null, // Allow multiline growth
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: isLarge ? 16 : 14,
+                height: 1.5,
+              ),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                hintText: 'Type to add content...',
+                hintStyle: TextStyle(
+                  color: isDark ? Colors.white30 : Colors.grey,
+                ),
+              ),
+            )
           else
             Text(
-              (content != null && content!.isNotEmpty) ? content! : (controller?.text.isNotEmpty == true ? controller!.text : 'Not mentioned'),
+              (content != null && content!.isNotEmpty)
+                  ? content!
+                  : (controller?.text.isNotEmpty == true
+                        ? controller!.text
+                        : 'Not mentioned'),
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontSize: isLarge ? 16 : 14,
                 height: 1.5,

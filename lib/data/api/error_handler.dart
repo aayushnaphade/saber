@@ -16,7 +16,7 @@ class ErrorHandler {
     }
 
     final errorString = error.toString().toLowerCase();
-    
+
     // Check for network-related error strings
     if (errorString.contains('socketexception') ||
         errorString.contains('connection timed out') ||
@@ -27,8 +27,15 @@ class ErrorHandler {
         errorString.contains('clientexception')) {
       return 'No internet connection. Please check your connection and try again.';
     }
-    
+
     // Check for Google API / OAuth specific errors
+    if (errorString.contains('429') ||
+        errorString.contains('resource exhausted') ||
+        errorString.contains('quota exceeded') ||
+        errorString.contains('rate limit')) {
+      return 'AI service is currently busy or quota reached. Please wait a minute and try again.';
+    }
+
     if (errorString.contains('googleapis.com') ||
         errorString.contains('oauth2') ||
         errorString.contains('vertex ai')) {

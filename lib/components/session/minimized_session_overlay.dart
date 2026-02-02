@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saber/data/session_manager.dart';
 import 'package:saber/data/routes.dart';
+import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/main.dart';
 
 class MinimizedSessionOverlay extends StatelessWidget {
@@ -34,20 +35,22 @@ class MinimizedSessionOverlay extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           decoration: BoxDecoration(
-            color: isDark 
-              ? const Color(0xFF1A1A1A).withOpacity(0.95) 
-              : const Color(0xFFF8F9FF).withOpacity(0.98),
+            color: isDark
+                ? const Color(0xFF1A1A1A).withOpacity(0.95)
+                : const Color(0xFFF8F9FF).withOpacity(0.98),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: isDark 
-                ? Colors.white.withOpacity(0.1) 
-                : Colors.blue.withOpacity(0.15),
+              color: isDark
+                  ? Colors.white.withOpacity(0.1)
+                  : Colors.blue.withOpacity(0.15),
               width: 1.5,
             ),
             gradient: LinearGradient(
               colors: [
-                (isDark ? Colors.blue.shade900 : Colors.blue.shade50).withOpacity(0.3),
-                (isDark ? Colors.purple.shade900 : Colors.purple.shade50).withOpacity(0.1),
+                (isDark ? Colors.blue.shade900 : Colors.blue.shade50)
+                    .withOpacity(0.3),
+                (isDark ? Colors.purple.shade900 : Colors.purple.shade50)
+                    .withOpacity(0.1),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -83,26 +86,28 @@ class MinimizedSessionOverlay extends StatelessWidget {
               ),
               const SizedBox(width: 16),
               _buildActionButton(
-                context, 
-                'Restore', 
+                context,
+                'Restore',
                 Icons.open_in_full_rounded,
                 colorScheme.primary,
                 () {
                   debugPrint('Saber: Minimized Restore clicked');
                   final path = sessionManager.activeSession!.filePath;
                   final consultationId = sessionManager.consultationId;
-                  
-                  router.push(RoutePaths.editFilePath(
-                    path,
-                    consultationId: consultationId,
-                  ));
+
+                  router.push(
+                    RoutePaths.editFilePath(
+                      path,
+                      consultationId: consultationId,
+                    ),
+                  );
                   sessionManager.restore();
-                }
+                },
               ),
               const SizedBox(width: 12),
               _buildActionButton(
-                context, 
-                'End', 
+                context,
+                'End',
                 Icons.close_rounded,
                 colorScheme.error,
                 () {
@@ -147,9 +152,9 @@ class MinimizedSessionOverlay extends StatelessWidget {
   }
 
   Widget _buildActionButton(
-    BuildContext context, 
-    String label, 
-    IconData icon, 
+    BuildContext context,
+    String label,
+    IconData icon,
     Color color,
     VoidCallback onTap,
   ) {
@@ -192,7 +197,7 @@ class MinimizedSessionOverlay extends StatelessWidget {
 
   void _showTerminateDialog(BuildContext context) {
     final targetContext = App.rootNavigatorKey.currentContext ?? context;
-    
+
     showDialog(
       context: targetContext,
       builder: (dialogContext) => Dialog(
@@ -256,7 +261,9 @@ class MinimizedSessionOverlay extends StatelessWidget {
                       onPressed: () => Navigator.pop(dialogContext),
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                       child: Text(
                         'Keep Writing',
@@ -271,6 +278,12 @@ class MinimizedSessionOverlay extends StatelessWidget {
                   Expanded(
                     child: FilledButton(
                       onPressed: () {
+                        final consultationId = SessionManager().consultationId;
+                        if (consultationId != null) {
+                          SupabaseDashboardService.completeConsultation(
+                            consultationId,
+                          );
+                        }
                         SessionManager().terminate();
                         Navigator.pop(dialogContext);
                       },
@@ -278,7 +291,9 @@ class MinimizedSessionOverlay extends StatelessWidget {
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         elevation: 0,
                       ),
                       child: const Text(
