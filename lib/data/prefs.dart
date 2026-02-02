@@ -217,7 +217,7 @@ class Stows {
   );
   final autosaveDelay = PlainStow(
     'autosaveDelay',
-    10000,
+    2000,
     volatile: !_isOnMainIsolate,
   );
   final shapeRecognitionDelay = PlainStow(

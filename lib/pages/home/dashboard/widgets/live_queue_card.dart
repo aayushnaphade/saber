@@ -116,7 +116,9 @@ class LiveQueueCard extends StatelessWidget {
                 const SizedBox(height: 24),
                 if (currentPatient != null) ...[
                   Text(
-                    'Next Patient',
+                    currentPatient!.status.toLowerCase() == 'in consultation' 
+                        ? 'Active Session' 
+                        : 'Next Patient',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: Colors.white.withOpacity(0.7),
                     ),
@@ -177,7 +179,11 @@ class LiveQueueCard extends StatelessWidget {
                                 : BorderSide.none,
                           ),
                           icon: const Icon(Icons.play_arrow_rounded),
-                          label: const Text('Start Session'),
+                          label: Text(
+                            currentPatient!.status.toLowerCase() == 'in consultation'
+                                ? 'Continue Session'
+                                : 'Start Session',
+                          ),
                         ),
                       ),
                       if (onViewProfile != null) ...[

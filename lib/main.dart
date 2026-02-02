@@ -32,6 +32,12 @@ import 'package:saber/pages/home/widgets/session_viewer.dart';
 import 'package:saber/pages/logs.dart';
 import 'package:saber/pages/user/supabase_login.dart';
 import 'package:saber/data/models/patient.dart';
+import 'package:saber/pages/home/dashboard/dashboard_page.dart';
+import 'package:saber/pages/home/dashboard/consultation_history_page.dart';
+import 'package:saber/pages/home/dashboard/team_management_page.dart';
+import 'package:saber/pages/home/whiteboard.dart';
+import 'package:saber/pages/home/settings.dart';
+import 'package:saber/pages/home/recent_notes.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
 
@@ -173,6 +179,7 @@ class App extends StatefulWidget {
   const App({super.key});
 
   static final log = Logger('App');
+  static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
   static String getInitialLocation() {
     // Check if user is authenticated
@@ -184,7 +191,8 @@ class App extends StatefulWidget {
     return RoutePaths.login;
   }
 
-  static final _router = GoRouter(
+  static final router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: getInitialLocation(),
     redirect: (context, state) {
       final isAuthenticated = SupabaseAuthService.isAuthenticated;
@@ -218,7 +226,7 @@ class App extends StatefulWidget {
       // No redirect needed
       return null;
     },
-    routes: <GoRoute>[
+    routes: <RouteBase>[
       GoRoute(
         path: '/',
         redirect: (context, state) {
@@ -229,12 +237,45 @@ class App extends StatefulWidget {
               : RoutePaths.login;
         },
       ),
-      GoRoute(
-        path: RoutePaths.home,
-        builder: (context, state) => HomePage(
-          subpage: state.pathParameters['subpage'] ?? HomePage.dashboardSubpage,
-          path: state.uri.queryParameters['path'],
-        ),
+      ShellRoute(
+        builder: (context, state, child) {
+          final subpage = state.pathParameters['subpage'] ?? HomePage.dashboardSubpage;
+          return HomePage(subpage: subpage, child: child);
+        },
+        routes: [
+          GoRoute(
+            path: RoutePaths.home,
+            pageBuilder: (context, state) {
+              final subpage = state.pathParameters['subpage'] ?? HomePage.dashboardSubpage;
+              
+              Widget child;
+              switch (subpage) {
+                case HomePage.dashboardSubpage:
+                  child = const DashboardPage();
+                  break;
+                case HomePage.browseSubpage:
+                  child = const PatientBrowsePage();
+                  break;
+                case HomePage.whiteboardSubpage:
+                  child = const Whiteboard();
+                  break;
+                case HomePage.settingsSubpage:
+                  child = const SettingsPage();
+                  break;
+                case HomePage.historySubpage:
+                  child = const ConsultationHistoryPage();
+                  break;
+                case HomePage.teamManagementSubpage:
+                  child = const TeamManagementPage();
+                  break;
+                default:
+                  child = const RecentPage();
+              }
+
+              return NoTransitionPage(child: child);
+            },
+          ),
+        ],
       ),
       GoRoute(
         path: RoutePaths.patientDocuments,
@@ -312,7 +353,7 @@ class App extends StatefulWidget {
       // allow file to finish writing
       await Future.delayed(const Duration(milliseconds: 100));
 
-      _router.push(RoutePaths.editFilePath(path));
+      router.push(RoutePaths.editFilePath(path));
     } else if (extension == 'pdf' && Editor.canRasterPdf) {
       final fileNameWithoutExtension = file.path
           .split(RegExp(r'[\\/]'))
@@ -321,7 +362,7 @@ class App extends StatefulWidget {
       final sbnFilePath = await FileManager.suffixFilePathToMakeItUnique(
         '/$fileNameWithoutExtension',
       );
-      _router.push(RoutePaths.editImportPdf(sbnFilePath, file.path));
+      router.push(RoutePaths.editImportPdf(sbnFilePath, file.path));
     } else {
       log.warning('openFile: Unsupported file type: $extension');
     }
@@ -348,7 +389,7 @@ class _AppState extends State<App> {
       data,
     ) {
       // Refresh the router to trigger redirect logic
-      App._router.refresh();
+      App.router.refresh();
     });
   }
 
@@ -377,7 +418,7 @@ class _AppState extends State<App> {
 
   @override
   Widget build(BuildContext context) {
-    return DynamicMaterialApp(title: 'SynapseAi', router: App._router);
+    return DynamicMaterialApp(title: 'SynapseAi', router: App.router);
   }
 
   @override

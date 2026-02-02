@@ -12,7 +12,10 @@ import 'package:saber/components/theming/yaru_builder.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/i18n/extensions/redirecting_localization_delegate.dart';
 import 'package:saber/i18n/strings.g.dart';
+import 'package:saber/components/session/minimized_session_overlay.dart';
+import 'package:saber/data/session_manager.dart';
 import 'package:window_manager/window_manager.dart';
+
 import 'package:yaru/yaru.dart';
 
 class DynamicMaterialApp extends StatefulWidget {
@@ -235,9 +238,51 @@ class ExplicitlyThemedApp extends StatelessWidget {
       highContrastTheme: highContrastTheme,
       highContrastDarkTheme: highContrastDarkTheme,
       debugShowCheckedModeBanner: false,
-      builder: (Platform.isWindows || Platform.isLinux)
-          ? (context, child) => _BorderedWindow(child: child)
-          : null,
+      builder: (context, child) {
+        Widget app = (Platform.isWindows || Platform.isLinux)
+            ? _BorderedWindow(child: child)
+            : child ?? const SizedBox();
+            
+        return Stack(
+          children: [
+            app,
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 24,
+              child: ListenableBuilder(
+                listenable: SessionManager(),
+                builder: (context, _) {
+                  final sessionManager = SessionManager();
+                  final bool isVisible = sessionManager.hasActiveSession && sessionManager.isMinimized;
+                  
+                  return AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300), // Faster entrance
+                    reverseDuration: const Duration(milliseconds: 200), // Very fast exit
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.3),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: isVisible 
+                      ? MinimizedSessionOverlay(key: const ValueKey('session_bar'), router: router)
+                      : const SizedBox.shrink(key: ValueKey('empty_bar')),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

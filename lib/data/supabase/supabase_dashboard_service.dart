@@ -6,7 +6,27 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SupabaseDashboardService {
   static final log = Logger('SupabaseDashboardService');
 
-  /// Fetches the current live queue (waiting and in-progress consultations)
+  /// Fetches the currently active consultation (in_progress)
+  /// Returns null if no session is active
+  static Future<QueueItem?> getActiveConsultation() async {
+    try {
+      final response = await supabase
+          .from('consultations')
+          .select('*, patients(full_name, gender, age, visit_type)')
+          .eq('status', 'in_progress')
+          .limit(1)
+          .maybeSingle();
+
+      if (response == null) return null;
+
+      return _mapToQueueItem(response, 0); // Position 0 for active
+    } catch (e) {
+      log.severe('Error fetching active consultation: $e');
+      return null;
+    }
+  }
+
+  /// Fetches the current live queue (waiting consultations ONLY)
   static Future<List<QueueItem>> getLiveQueue() async {
     try {
       // Auto-cleanup past pending sessions
@@ -15,7 +35,7 @@ class SupabaseDashboardService {
       final response = await supabase
           .from('consultations')
           .select('*, patients(full_name, gender, age, visit_type)')
-          .or('status.eq.waiting,status.eq.in_progress')
+          .eq('status', 'waiting')
           .order('queue_order', ascending: true)
           .order('scheduled_time', ascending: true);
 
@@ -23,40 +43,57 @@ class SupabaseDashboardService {
       int position = 1;
 
       for (final item in response as List) {
-        final patient = item['patients'];
-        final patientName = patient != null ? patient['full_name'] : 'Unknown';
-        final status = item['status'] as String;
-        
-        final age = patient?['age'] as int? ?? 0;
-        
-        final gender = patient?['gender'] as String? ?? 'Unknown';
-        // Use visit_type from patient or default to 'New Patient'
-        final visitType = patient?['visit_type'] as String? ?? 'New Patient';
-        final registeredTime = DateTime.parse(item['created_at']);
-
-        // Calculate estimated wait time (mock logic for now: 15 mins per person ahead)
-        final waitTime = Duration(minutes: (position - 1) * 15);
-
-        queue.add(
-          QueueItem(
-            id: item['id'],
-            patientName: patientName,
-            patientId: item['patient_id'],
-            position: position++,
-            estimatedWaitTime: waitTime,
-            status: status == 'in_progress' ? 'In Consultation' : 'Waiting',
-            age: age,
-            gender: gender,
-            registeredTime: registeredTime,
-            patientType: visitType,
-          ),
-        );
+        queue.add(_mapToQueueItem(item, position++));
       }
 
       return queue;
     } catch (e) {
       log.severe('Error fetching live queue: $e');
       return [];
+    }
+  }
+
+  static QueueItem _mapToQueueItem(Map<String, dynamic> item, int position) {
+    final patient = item['patients'];
+    final patientName = patient != null ? patient['full_name'] : 'Unknown';
+    final status = item['status'] as String;
+    
+    final age = patient?['age'] as int? ?? 0;
+    
+    final gender = patient?['gender'] as String? ?? 'Unknown';
+    // Use visit_type from patient or default to 'New Patient'
+    final visitType = patient?['visit_type'] as String? ?? 'New Patient';
+    final registeredTime = DateTime.parse(item['created_at']);
+
+    // Calculate estimated wait time (mock logic for now: 15 mins per person ahead)
+    // If active (position 0), wait time is 0
+    final waitTime = position == 0 ? Duration.zero : Duration(minutes: (position - 1) * 15);
+
+    return QueueItem(
+      id: item['id'],
+      patientName: patientName,
+      patientId: item['patient_id'],
+      position: position,
+      estimatedWaitTime: waitTime,
+      status: status == 'in_progress' ? 'In Consultation' : 'Waiting',
+      age: age,
+      gender: gender,
+      registeredTime: registeredTime,
+      patientType: visitType,
+    );
+  }
+
+  /// Updates the queue order of consultations
+  static Future<void> updateQueueOrder(List<Map<String, dynamic>> updates) async {
+    try {
+      await supabase.rpc(
+        'update_queue_order_batch',
+        params: {'updates': updates},
+      );
+      log.info('Queue order updated successfully');
+    } catch (e) {
+      log.severe('Error updating queue order: $e');
+      rethrow;
     }
   }
 

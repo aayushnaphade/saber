@@ -39,6 +39,7 @@ class _DashboardPageState extends State<DashboardPage> {
     totalConsultationMinutes: 0,
   );
   List<QueueItem> _queue = [];
+  QueueItem? _activeConsultation;
   List<Appointment> _appointments = [];
   List<AIInsight> _insights = [];
 
@@ -96,6 +97,7 @@ class _DashboardPageState extends State<DashboardPage> {
         SupabaseDashboardService.getStats(),
         SupabaseDashboardService.getLiveQueue(),
         SupabaseDashboardService.getTodayAppointments(),
+        SupabaseDashboardService.getActiveConsultation(),
       ]);
 
       debugPrint(
@@ -107,6 +109,7 @@ class _DashboardPageState extends State<DashboardPage> {
           _stats = results[0] as DashboardStats;
           _queue = results[1] as List<QueueItem>;
           _appointments = results[2] as List<Appointment>;
+          _activeConsultation = results[3] as QueueItem?;
           // Fetch insights from service (currently mocked inside service)
           SupabaseDashboardService.getInsights().then((value) {
             if (mounted) setState(() => _insights = value);
@@ -213,7 +216,7 @@ class _DashboardPageState extends State<DashboardPage> {
         // Pass consultation ID as a query parameter
         final route = RoutePaths.editFilePath(pathForRoute);
         final routeWithConsultation = '$route${route.contains('?') ? '&' : '?'}consultation_id=${item.id}';
-        context.go(routeWithConsultation);
+        context.push(routeWithConsultation);
       }
     } catch (e) {
       if (mounted) {
@@ -259,6 +262,37 @@ class _DashboardPageState extends State<DashboardPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(ErrorHandler.getFriendlyErrorMessage(e))),
         );
+      }
+    }
+  }
+
+  Future<void> _handleReorder(int oldIndex, int newIndex) async {
+    setState(() {
+      if (oldIndex < newIndex) {
+        newIndex -= 1;
+      }
+      final item = _queue.removeAt(oldIndex);
+      _queue.insert(newIndex, item);
+    });
+
+    try {
+      // Prepare updates for the database
+      final List<Map<String, dynamic>> updates = [];
+      for (int i = 0; i < _queue.length; i++) {
+        updates.add({
+          'id': _queue[i].id,
+          'queue_order': i + 1,
+        });
+      }
+      await SupabaseDashboardService.updateQueueOrder(updates);
+    } catch (e) {
+      debugPrint('Error updating queue order: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update queue order: $e')),
+        );
+        // Refresh to revert to server state
+        _fetchDashboardData();
       }
     }
   }
@@ -314,8 +348,13 @@ class _DashboardPageState extends State<DashboardPage> {
     List<QueueItem> queue,
     List<Appointment> appointments,
   ) {
-    final waitingCount = queue.where((item) => item.status.toLowerCase() == 'waiting').length;
-    final currentPatient = queue.isNotEmpty ? queue.first : null;
+    final waitingCount = queue.length; // Queue only contains waiting patients now
+    
+    // Header Logic:
+    // 1. If there is an active consultation, show it (Status: In Progress)
+    // 2. Else if queue is not empty, show the next patient (Status: Waiting)
+    // 3. Else null (Empty state)
+    final currentPatient = _activeConsultation ?? (queue.isNotEmpty ? queue.first : null);
 
     return Column(
       children: [
@@ -342,6 +381,7 @@ class _DashboardPageState extends State<DashboardPage> {
           queue: queue,
           onStartSession: _handleStartSession,
           onCancel: (item) => _handleCancelAppointment(item.id),
+          onReorder: _handleReorder,
         ),
       ],
     );
@@ -352,8 +392,8 @@ class _DashboardPageState extends State<DashboardPage> {
     List<QueueItem> queue,
     List<Appointment> appointments,
   ) {
-    final waitingCount = queue.where((item) => item.status.toLowerCase() == 'waiting').length;
-    final currentPatient = queue.isNotEmpty ? queue.first : null;
+    final waitingCount = queue.length; // Queue only contains waiting patients now
+    final currentPatient = _activeConsultation ?? (queue.isNotEmpty ? queue.first : null);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -386,6 +426,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 queue: queue,
                 onStartSession: _handleStartSession,
                 onCancel: (item) => _handleCancelAppointment(item.id),
+                onReorder: _handleReorder,
               ),
             ],
           ),
@@ -419,45 +460,15 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: _buildHistoryButton(context),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHistoryButton(BuildContext context) {
-    return Material(
-      color: Colors.purple.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: () => context.go('/home/history'),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          height: 100, // Approximate height to match StatCard
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.history, color: Colors.purple),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'History',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-            ],
+          child: StatCard(
+            label: 'History',
+            value: 'View All',
+            icon: Icons.history,
+            color: Colors.purple,
+            onTap: () => context.go('/home/history'),
           ),
         ),
-      ),
+      ],
     );
   }
 }

@@ -12,6 +12,7 @@ class StatCard extends StatefulWidget {
   final Color? color;
   final String? trend;
   final bool isPositiveTrend;
+  final VoidCallback? onTap;
 
   const StatCard({
     super.key,
@@ -21,6 +22,7 @@ class StatCard extends StatefulWidget {
     this.color,
     this.trend,
     this.isPositiveTrend = true,
+    this.onTap,
   });
 
   @override
@@ -36,6 +38,9 @@ class _StatCardState extends State<StatCard> {
     final baseColor = widget.color ?? theme.colorScheme.primary;
 
     return GestureDetector(
+      onTap: () {
+        if (widget.onTap != null) widget.onTap!();
+      },
       onTapDown: (_) => setState(() => _isPressed = true),
       onTapUp: (_) => setState(() => _isPressed = false),
       onTapCancel: () => setState(() => _isPressed = false),

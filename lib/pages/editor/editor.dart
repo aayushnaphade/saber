@@ -13,6 +13,7 @@ import 'package:flutter_quill/flutter_quill.dart' as flutter_quill;
 import 'package:intl/intl.dart';
 import 'package:keybinder/keybinder.dart';
 import 'package:logging/logging.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart' as lottie_pkg;
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
@@ -57,10 +58,10 @@ import 'package:saber/data/supabase/supabase_intake_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_prescription_service.dart';
 import 'package:saber/data/supabase/supabase_vitals_service.dart';
+import 'package:saber/data/routes.dart';
+import 'package:saber/data/session_manager.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
-import 'package:saber/data/supabase/supabase_report_service.dart';
-import 'package:saber/data/supabase/supabase_prescription_service.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
 import 'package:saber/data/tools/highlighter.dart';
@@ -86,6 +87,7 @@ class Editor extends StatefulWidget {
     this.consultationId,
     this.onVerify,
     this.readOnly = false,
+    this.isWhiteboard = false,
   }) : initialPath = path != null
            ? Future.value(path)
            : FileManager.newFilePath('/'),
@@ -96,7 +98,9 @@ class Editor extends StatefulWidget {
 
   final String? customTitle;
   final String? pdfPath;
+
   final String? consultationId;
+  final bool isWhiteboard;
   final VoidCallback? onVerify;
   final bool readOnly;
 
@@ -299,6 +303,15 @@ class EditorState extends State<Editor> {
 
       debugPrint('Editor: Calling _fetchDoctorProfile');
       _fetchDoctorProfile();
+
+      if (!widget.readOnly) {
+        SessionManager().startSession(
+          coreInfo: coreInfo,
+          patientName: _patientName,
+          patientId: _patientId,
+          consultationId: widget.consultationId,
+        );
+      }
       
     } catch (e, stack) {
       log.severe('Editor: Critical error in _initAsync', e, stack);
@@ -366,6 +379,8 @@ class EditorState extends State<Editor> {
             if (patient != null) _patientName = patient.fullName;
             // Show vitals overlay in minimized form only if there are vitals entries
             _showVitalsOverlay = vitals.isNotEmpty;
+            
+            // Vitals overlay logic handled by initialization
           });
           log.info('Loaded intake and vitals for patient: $patientId. Vitals count: ${vitals.length}');
         }  
@@ -1963,7 +1978,7 @@ class EditorState extends State<Editor> {
         // Right-Side Overlay Buttons (Intake, Vitals, Previous Notes, Med History)
         // --------------------------------------------------------------------
         // Configuration
-        const double baseTop = 16.0;
+        const double baseTop = 80.0;
         const double btnGap = 80.0;
         const double iconSize = 28.0;
         const double btnPadding = 12.0;
@@ -2233,21 +2248,22 @@ class EditorState extends State<Editor> {
     return ValueListenableBuilder(
       valueListenable: savingState,
       builder: (context, savingState, child) {
-        // don't allow user to go back until saving is done
+        // handle session minimization on back navigation
         return PopScope(
-          canPop: savingState == .saved,
+          canPop: savingState != SavingState.saving,
           onPopInvokedWithResult: (didPop, _) {
-            switch (savingState) {
-              case .waitingToSave:
-                assert(!didPop);
-                saveToFile(); // trigger save now
-                snackBarNeedsToSaveBeforeExiting();
-              case .saving:
-                assert(!didPop);
-                snackBarNeedsToSaveBeforeExiting();
-              case .saved:
-                break;
+            if (!didPop) {
+              snackBarNeedsToSaveBeforeExiting();
+              return;
             }
+
+            // The pop happened. Use a post-frame callback to trigger minimization
+            // to avoid state changes during the transition/pop processing.
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!widget.readOnly && SessionManager().hasActiveSession && SessionManager().isMinimized == false) {
+                SessionManager().minimize();
+              }
+            });
           },
           child: child!,
         );
@@ -2292,31 +2308,89 @@ class EditorState extends State<Editor> {
                               validator: _validateFilenameTextField,
                             ),
                           ),
-                leading: SaveIndicator(
-                  savingState: savingState,
-                  triggerSave: saveToFile,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                  onPressed: () {
+                    debugPrint('Editor: Back button pressed');
+                    if (savingState.value == SavingState.saving) {
+                      snackBarNeedsToSaveBeforeExiting();
+                    } else {
+                      // Safety fallback: if there is no stack to pop (can happen with go_router),
+                      // navigate to the dashboard explicitly instead of popping to black.
+                      if (Navigator.of(context).canPop()) {
+                        context.pop();
+                      } else {
+                        // If no session terminated, minimize first before moving
+                        if (!widget.readOnly && SessionManager().hasActiveSession) {
+                          SessionManager().minimize();
+                        }
+                        context.go(HomeRoutes.getRoute(0));
+                      }
+                    }
+                  },
                 ),
                 actions: [
+                  if (!widget.isWhiteboard)
+                    SaveIndicator(
+                      savingState: savingState,
+                      triggerSave: saveToFile,
+                    ),
+                  if (widget.isWhiteboard)
+                    IconButton(
+                        tooltip: 'Clear Whiteboard',
+                        icon: const Icon(Icons.delete_sweep_outlined),
+                        onPressed: () {
+                           showDialog(
+                              context: context,
+                              builder: (context) => AdaptiveAlertDialog(
+                                 title: const Text('Clear Whiteboard?'),
+                                 content: const Text('This will erase everything on the whiteboard.'),
+                                 actions: [
+                                    CupertinoDialogAction(
+                                       onPressed: () => Navigator.pop(context),
+                                       child: Text(t.common.cancel),
+                                    ),
+                                    CupertinoDialogAction(
+                                       onPressed: () {
+                                          Navigator.pop(context);
+                                          clearAllPages();
+                                          setState(() {});
+                                       },
+                                       child: Text(t.common.done),
+                                    ),
+                                 ],
+                              ),
+                           );
+                        },
+                    ),
+                  if (!widget.isWhiteboard) const SizedBox(width: 16),
+                  if (!widget.readOnly && !widget.isWhiteboard)
+                    _buildTerminateButton(context),
+                  if (!widget.isWhiteboard) const SizedBox(width: 20),
+                  if (!widget.isWhiteboard)
                   Container(
-                    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    margin: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Colors.blue.shade400, Colors.blue.shade700],
+                        colors: [Colors.blue.shade500, Colors.blue.shade700],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.blue.withValues(alpha: 0.4),
+                          color: Colors.blue.withValues(alpha: 0.3),
                           blurRadius: 8,
-                          spreadRadius: 1,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    child: IconButton(
-                      icon: const Icon(Icons.auto_awesome, color: Colors.white),
-                      tooltip: 'Finish Session & Generate Report',
+                    child: TextButton.icon(
+                      icon: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+                      label: const Text(
+                        'Finish Session',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
                       onPressed: coreInfo.readOnly ? null : () async {
                         // First, check if a report already exists for this session
                         log.info('Checking for existing report with path: ${coreInfo.filePath}');
@@ -2975,6 +3049,152 @@ class EditorState extends State<Editor> {
     }
     // below the last page
     return pages.length - 1;
+  }
+
+  Widget _buildTerminateButton(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: FilledButton.icon(
+        onPressed: () => _confirmTerminateSession(context),
+        style: FilledButton.styleFrom(
+          backgroundColor: Colors.red.withValues(alpha: 0.1),
+          foregroundColor: Colors.red,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: const StadiumBorder(),
+          side: BorderSide(color: Colors.red.withValues(alpha: 0.2)),
+        ),
+        icon: const Icon(Icons.cancel_outlined, size: 20),
+        label: const Text(
+          'Terminate',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+      ),
+    );
+  }
+
+  void _confirmTerminateSession(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 400),
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 30,
+                offset: const Offset(0, 15),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.red,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Terminate Session?',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Are you sure you want to end this session? Any unsaved changes will be permanently lost.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.5,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(height: 32),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: Text(
+                        'Keep Writing',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        // 1. Mark as completed in DB if we have a consultation ID
+                        final consultationId = widget.consultationId ?? SessionManager().consultationId;
+                        if (consultationId != null) {
+                          SupabaseDashboardService.completeConsultation(consultationId);
+                        }
+
+                        // 2. Terminate local state
+                        SessionManager().terminate();
+
+                        // 2. Close dialog
+                        Navigator.of(dialogContext).pop();
+
+                        // 3. Navigate away
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (context.mounted) {
+                            if (Navigator.of(context).canPop()) {
+                              context.pop();
+                            } else {
+                              context.go(HomeRoutes.getRoute(0));
+                            }
+                          }
+                        });
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Terminate',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override

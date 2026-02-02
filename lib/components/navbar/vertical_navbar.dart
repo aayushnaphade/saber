@@ -69,127 +69,126 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final backgroundColor = switch (theme.platform) {
-      .linux => Colors.transparent,
+      TargetPlatform.linux => Colors.transparent,
       _ => theme.colorScheme.surfaceContainer,
     };
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        gradient: theme.brightness == Brightness.light
-            ? LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  backgroundColor,
-                  Color.alphaBlend(
-                    theme.colorScheme.primary.withAlpha(10),
+    return Material(
+      color: backgroundColor,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: theme.brightness == Brightness.light
+              ? LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
                     backgroundColor,
+                    Color.alphaBlend(
+                      theme.colorScheme.primary.withAlpha(10),
+                      backgroundColor,
+                    ),
+                  ],
+                )
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(theme.brightness == Brightness.light ? 10 : 30),
+              blurRadius: 10,
+              offset: const Offset(2, 0),
+            ),
+          ],
+          border: theme.platform == TargetPlatform.linux
+              ? Border(right: BorderSide(color: theme.dividerColor))
+              : Border(
+                  right: BorderSide(
+                    color: theme.colorScheme.outlineVariant.withAlpha(80),
                   ),
-                ],
-              )
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(theme.brightness == Brightness.light ? 10 : 30),
-            blurRadius: 10,
-            offset: const Offset(2, 0),
-          ),
-        ],
-        border: theme.platform == TargetPlatform.linux
-            ? Border(right: BorderSide(color: theme.dividerColor))
-            : Border(
-                right: BorderSide(
-                  color: theme.colorScheme.outlineVariant.withAlpha(80),
                 ),
-              ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: kToolbarHeight),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                setState(() {
-                  expanded = !expanded;
-                });
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: AnimatedRotation(
-                  duration: const Duration(milliseconds: 300),
-                  turns: expanded ? 0.5 : 0,
-                  child: AdaptiveIcon(
-                    icon: Icons.chevron_right,
-                    cupertinoIcon: CupertinoIcons.chevron_right,
-                    size: 28,
-                    color: theme.colorScheme.primary,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: kToolbarHeight),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  setState(() {
+                    expanded = !expanded;
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: AnimatedRotation(
+                    duration: const Duration(milliseconds: 300),
+                    turns: expanded ? 0.5 : 0,
+                    child: AdaptiveIcon(
+                      icon: Icons.chevron_right,
+                      cupertinoIcon: CupertinoIcons.chevron_right,
+                      size: 28,
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              child: IntrinsicHeight(
-                child: NavigationRail(
-                  destinations: widget.destinations,
-                  selectedIndex: widget.selectedIndex,
-                  backgroundColor: Colors.transparent,
-                  extended: expanded,
-                  minExtendedWidth: 240,
-                  onDestinationSelected: widget.onDestinationSelected,
-                  useIndicator: true,
-                  indicatorColor: theme.colorScheme.primary.withAlpha(40),
-                  unselectedLabelTextStyle: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  selectedLabelTextStyle: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.primary,
-                  ),
+            Expanded(
+              child: NavigationRail(
+                destinations: widget.destinations,
+                selectedIndex: widget.selectedIndex,
+                backgroundColor: Colors.transparent,
+                groupAlignment: 0.0,
+                extended: expanded,
+                minExtendedWidth: 240,
+                onDestinationSelected: widget.onDestinationSelected,
+                useIndicator: true,
+                indicatorColor: theme.colorScheme.primary.withAlpha(40),
+                unselectedLabelTextStyle: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                selectedLabelTextStyle: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
                 ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: expanded
-                ? Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: FilledButton.icon(
-                      onPressed: _handleLogout,
-                      icon: const Icon(Icons.logout_rounded, size: 20),
-                      label: const Text(
-                        'Sign Out',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: theme.colorScheme.error,
-                        foregroundColor: theme.colorScheme.onError,
-                        minimumSize: const Size.fromHeight(48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: expanded
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: FilledButton.icon(
+                        onPressed: _handleLogout,
+                        icon: const Icon(Icons.logout_rounded, size: 20),
+                        label: const Text(
+                          'Sign Out',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: theme.colorScheme.error,
+                          foregroundColor: theme.colorScheme.onError,
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
+                    )
+                  : IconButton(
+                      onPressed: _handleLogout,
+                      icon: Icon(
+                        Icons.logout_rounded,
+                        size: 24,
+                        color: theme.colorScheme.error,
+                      ),
+                      tooltip: 'Sign Out',
                     ),
-                  )
-                : IconButton(
-                    onPressed: _handleLogout,
-                    icon: Icon(
-                      Icons.logout_rounded,
-                      size: 24,
-                      color: theme.colorScheme.error,
-                    ),
-                    tooltip: 'Sign Out',
-                  ),
-          ),
-          const SizedBox(height: 16),
-        ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }

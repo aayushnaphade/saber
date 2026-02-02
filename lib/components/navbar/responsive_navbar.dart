@@ -27,16 +27,28 @@ class _ResponsiveNavbarState extends State<ResponsiveNavbar> {
   static const _tapDebounceMs = 300;
   bool _isNavigating = false;
 
+  List<NavigationRailDestination>? _railDestinations;
+  List<NavigationDestination>? _barDestinations;
+
   @override
   void initState() {
     stows.locale.addListener(onChange);
     stows.layoutSize.addListener(onChange);
     stows.receptionMode.addListener(onChange);
+    // Initial load
+    _updateDestinations();
     super.initState();
   }
 
   void onChange() {
-    setState(() {});
+    setState(() {
+      _updateDestinations();
+    });
+  }
+
+  void _updateDestinations() {
+    _railDestinations = HomeRoutes.navigationRailDestinations;
+    _barDestinations = HomeRoutes.navigationDestinations;
   }
 
   void onDestinationSelected(int index) {
@@ -66,6 +78,11 @@ class _ResponsiveNavbarState extends State<ResponsiveNavbar> {
 
   @override
   Widget build(BuildContext context) {
+    // Ensure destinations are initialized (handles hot reload case)
+    if (_railDestinations == null || _barDestinations == null) {
+      _updateDestinations();
+    }
+
     final mediaQuery = MediaQuery.of(context);
 
     ResponsiveNavbar.isLargeScreen = switch (stows.layoutSize.value) {
@@ -78,15 +95,10 @@ class _ResponsiveNavbarState extends State<ResponsiveNavbar> {
       return Scaffold(
         body: Row(
           children: [
-            IntrinsicWidth(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 220),
-                child: VerticalNavbar(
-                  destinations: HomeRoutes.navigationRailDestinations,
-                  selectedIndex: widget.selectedIndex,
-                  onDestinationSelected: onDestinationSelected,
-                ),
-              ),
+            VerticalNavbar(
+              destinations: _railDestinations!,
+              selectedIndex: widget.selectedIndex,
+              onDestinationSelected: onDestinationSelected,
             ),
             Expanded(child: widget.body),
           ],
@@ -111,7 +123,7 @@ class _ResponsiveNavbarState extends State<ResponsiveNavbar> {
             bottom: 0,
             end: 0,
             child: HorizontalNavbar(
-              destinations: HomeRoutes.navigationDestinations,
+              destinations: _barDestinations!,
               selectedIndex: widget.selectedIndex,
               onDestinationSelected: onDestinationSelected,
             ),

@@ -459,7 +459,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
 
       // Navigate to editor with new document
       if (mounted) {
-        context.go(
+        context.push(
           RoutePaths.editFilePath(
             documentPath,
             consultationId: consultationId,

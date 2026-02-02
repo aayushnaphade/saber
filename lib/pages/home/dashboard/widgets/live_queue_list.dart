@@ -2,32 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:saber/data/models/dashboard_models.dart';
 
 class LiveQueueList extends StatelessWidget {
-  final List<QueueItem> queue;
+final List<QueueItem> queue;
   final Function(QueueItem) onStartSession;
   final Function(QueueItem)? onCancel;
+  final Function(int, int)? onReorder;
 
   const LiveQueueList({
     super.key,
     required this.queue,
     required this.onStartSession,
     this.onCancel,
+    this.onReorder,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    // Filter out the current patient if they are already displayed in the main card?
-    // The user said "replace the section of today's schedule with the live Queue".
-    // Usually the main LiveQueueCard shows the *current* patient (top of queue).
-    // This list should probably show *all* or *waiting* patients.
-    // Based on dashboard_page.dart, `_queue` contains everyone.
-    // `LiveQueueCard` shows `waitingCount` and `currentPatient` (first one).
-    // If we duplicate the first patient here it might be redundant, but a list usually shows everyone.
-    // Let's show the whole queue for now, or maybe skip the first one if it's "in progress"?
-    // The requirement says "replace the section of today's schedule with the live Queue".
-    // I will display the full list for clarity, or maybe just the waiting ones.
-    // Let's stick to displaying the provided list.
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,59 +72,41 @@ class LiveQueueList extends StatelessWidget {
                     color: theme.colorScheme.outlineVariant.withOpacity(0.5),
                   ),
                 ),
-                child: Stack(
-                  children: [
-                    Scrollbar(
-                      thumbVisibility: needsScroll,
-                      thickness: needsScroll ? 6 : 0,
-                      radius: const Radius.circular(3),
-                      child: ListView.separated(
-                        padding: const EdgeInsets.all(0),
-                        physics: needsScroll 
-                            ? const AlwaysScrollableScrollPhysics()
-                            : const NeverScrollableScrollPhysics(),
-                        itemCount: queue.length,
-                        separatorBuilder: (context, index) => Divider(
-                          height: 1,
-                          thickness: 1,
-                          color: theme.colorScheme.outlineVariant.withOpacity(0.2),
-                        ),
-                        itemBuilder: (context, index) {
-                          final item = queue[index];
-                          return _buildQueueItem(context, item, index);
-                        },
-                      ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Theme(
+                    data: theme.copyWith(
+                      canvasColor: Colors.transparent, // Fix for ghosting during drag
                     ),
-                    // Scroll indicator hint at bottom when scrollable
-                    if (needsScroll)
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: IgnorePointer(
-                          child: Container(
-                            height: 40,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  theme.colorScheme.surface.withOpacity(0),
-                                  theme.colorScheme.surface.withOpacity(0.95),
-                                ],
+                    child: ReorderableListView.builder(
+                      padding: const EdgeInsets.all(0),
+                      itemCount: queue.length,
+                      onReorder: onReorder ?? (oldIndex, newIndex) {},
+                      itemBuilder: (context, index) {
+                        final item = queue[index];
+                        return Column(
+                          key: ValueKey(item.id),
+                          children: [
+                            _buildQueueItem(context, item, index),
+                            if (index < queue.length - 1)
+                              Divider(
+                                height: 1,
+                                thickness: 1,
+                                color: theme.colorScheme.outlineVariant.withOpacity(0.2),
                               ),
-                            ),
-                            child: Center(
-                              child: Icon(
-                                Icons.keyboard_arrow_down,
-                                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
+                          ],
+                        );
+                      },
+                      proxyDecorator: (child, index, animation) {
+                        return Material(
+                          elevation: 8,
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          child: child,
+                        );
+                      },
+                    ),
+                  ),
                 ),
               );
             },

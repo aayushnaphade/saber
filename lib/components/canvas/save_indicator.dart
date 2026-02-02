@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:saber/components/theming/adaptive_circular_progress_indicator.dart';
-import 'package:saber/data/routes.dart';
 
-/// Replaces the back button as the
-/// [AppBar.leading] widget in the [AppBar]
-/// to indicate the state of saving in the editor.
+/// Indicates the state of saving in the editor.
+/// Now displays as a status pill with automatic feedback.
 class SaveIndicator extends StatelessWidget {
   const SaveIndicator({
     super.key,
@@ -20,43 +17,99 @@ class SaveIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
       valueListenable: savingState,
-      builder: (context, isSaving, _) {
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: IconButton(
-            key: ValueKey(savingState.value),
-            onPressed: () => _onPressed(context),
-            icon: switch (savingState.value) {
-              .waitingToSave => const Icon(Icons.save),
-              .saving => const AdaptiveCircularProgressIndicator(),
-              .saved => const Icon(Icons.arrow_back),
-            },
+      builder: (context, state, _) {
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
+        
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+          child: InkWell(
+            onTap: state == SavingState.waitingToSave ? triggerSave : null,
+            borderRadius: BorderRadius.circular(20),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: _getBgColor(state, colorScheme),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _getBorderColor(state, colorScheme),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildIcon(state, colorScheme),
+                  const SizedBox(width: 8),
+                  Text(
+                    _getLabel(state),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: _getTextColor(state, colorScheme),
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       },
     );
   }
 
-  void _onPressed(BuildContext context) {
-    switch (savingState.value) {
-      case .waitingToSave:
-        triggerSave();
-      case .saving:
-        break;
-      case .saved:
-        _back(context);
-    }
+  Color _getBgColor(SavingState state, ColorScheme colorScheme) {
+    return switch (state) {
+      SavingState.waitingToSave => colorScheme.surfaceContainerHighest.withOpacity(0.4),
+      SavingState.saving => colorScheme.primary.withOpacity(0.08),
+      SavingState.saved => Colors.green.withOpacity(0.08),
+    };
   }
 
-  void _back(BuildContext context) {
-    final navigator = Navigator.of(context);
-    final isWhiteboard = !navigator.canPop();
-    if (isWhiteboard) {
-      // if on whiteboard, go to "recents" tab of home screen
-      context.go(HomeRoutes.getRoute(0));
-    } else {
-      navigator.pop();
-    }
+  Color _getBorderColor(SavingState state, ColorScheme colorScheme) {
+    return switch (state) {
+      SavingState.waitingToSave => colorScheme.outlineVariant.withOpacity(0.2),
+      SavingState.saving => colorScheme.primary.withOpacity(0.2),
+      SavingState.saved => Colors.green.withOpacity(0.2),
+    };
+  }
+
+  Color _getTextColor(SavingState state, ColorScheme colorScheme) {
+    return switch (state) {
+      SavingState.waitingToSave => colorScheme.onSurfaceVariant.withOpacity(0.7),
+      SavingState.saving => colorScheme.primary,
+      SavingState.saved => Colors.green.shade700,
+    };
+  }
+
+  Widget _buildIcon(SavingState state, ColorScheme colorScheme) {
+    return switch (state) {
+      SavingState.waitingToSave => Icon(
+          Icons.cloud_upload_outlined, 
+          size: 16, 
+          color: colorScheme.onSurfaceVariant.withOpacity(0.6)
+        ),
+      SavingState.saving => const SizedBox(
+          width: 14,
+          height: 14,
+          child: AdaptiveCircularProgressIndicator(strokeWidth: 2),
+        ),
+      SavingState.saved => const Icon(
+          Icons.cloud_done_rounded, 
+          size: 16, 
+          color: Colors.green
+        ),
+    };
+  }
+
+  String _getLabel(SavingState state) {
+    return switch (state) {
+      SavingState.waitingToSave => 'Auto-saving...',
+      SavingState.saving => 'Saving...',
+      SavingState.saved => 'Saved',
+    };
   }
 }
 

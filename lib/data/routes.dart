@@ -58,16 +58,16 @@ abstract class HomeRoutes {
         icon: const AdaptiveIcon(
           icon: Icons.space_dashboard_rounded,
           cupertinoIcon: CupertinoIcons.square_grid_2x2_fill,
-          size: 28,
+          size: 34,
         ),
       ),
       _Route(
         routePath: _homeFunction({'subpage': HomePage.recentSubpage}),
-        label: 'Recent Notes',
+        label: 'Calendar',
         icon: const AdaptiveIcon(
-          icon: Icons.schedule_rounded,
-          cupertinoIcon: CupertinoIcons.clock_fill,
-          size: 28,
+          icon: Icons.calendar_month_rounded,
+          cupertinoIcon: CupertinoIcons.calendar,
+          size: 34,
         ),
       ),
       _Route(
@@ -76,7 +76,7 @@ abstract class HomeRoutes {
         icon: const AdaptiveIcon(
           icon: Icons.people_alt_rounded,
           cupertinoIcon: CupertinoIcons.person_2_fill,
-          size: 28,
+          size: 34,
         ),
       ),
       _Route(
@@ -85,7 +85,7 @@ abstract class HomeRoutes {
         icon: const AdaptiveIcon(
           icon: Icons.brush_rounded,
           cupertinoIcon: CupertinoIcons.paintbrush_fill,
-          size: 28,
+          size: 34,
         ),
       ),
       _Route(
@@ -94,13 +94,12 @@ abstract class HomeRoutes {
         icon: const AdaptiveIcon(
           icon: Icons.tune_rounded,
           cupertinoIcon: CupertinoIcons.settings_solid,
-          size: 28,
+          size: 34,
         ),
       ),
     ];
 
-    // Whiteboard is now hidden permanently
-    return routes.where((r) => r.label != t.home.tabs.whiteboard).toList();
+    return routes;
   }
 
   static String getRoute(int index) {
@@ -126,26 +125,17 @@ class _Route {
       NavigationDestination(label: label, icon: icon);
   NavigationRailDestination toNavigationRailDestination() =>
       NavigationRailDestination(
-        label: Padding(
-          padding: const EdgeInsets.only(left: 8),
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 15,
-              letterSpacing: 0.2,
-            ),
-            overflow: TextOverflow.fade,
-            maxLines: 1,
-            softWrap: false,
+        label: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 15,
+            letterSpacing: 0.2,
           ),
+          overflow: TextOverflow.fade,
+          maxLines: 1,
+          softWrap: false,
         ),
-        icon: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: icon,
-        ),
-        selectedIcon: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: icon,
-        ),
+        icon: icon,
+        selectedIcon: icon,
       );
 }

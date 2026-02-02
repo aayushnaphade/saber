@@ -13,10 +13,10 @@ import 'package:saber/pages/home/whiteboard.dart';
 import 'package:saber/pages/home/dashboard/team_management_page.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, required this.subpage, required this.path});
+  const HomePage({super.key, required this.child, required this.subpage});
 
+  final Widget child;
   final String subpage;
-  final String? path;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -28,10 +28,11 @@ class HomePage extends StatefulWidget {
   static const settingsSubpage = 'settings';
   static const historySubpage = 'history';
   static const teamManagementSubpage = 'team';
-  static const List<String> subpages = [
+  static const subpages = [
     dashboardSubpage,
     recentSubpage,
     browseSubpage,
+    whiteboardSubpage,
     settingsSubpage,
   ];
 }
@@ -48,29 +49,11 @@ class _HomePageState extends State<HomePage> {
     await null; // initState must be completed before using context
     if (!mounted) return;
     UpdateManager.showUpdateDialog(context);
-    SentryConsentDialog.showIfNeeded(context);
+    // SentryConsentDialog.showIfNeeded(context);
   }
 
   void _setState() {
     if (mounted) setState(() {});
-  }
-
-  Widget get body {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 300),
-      child: KeyedSubtree(
-        key: ValueKey(widget.subpage),
-        child: switch (widget.subpage) {
-          HomePage.dashboardSubpage => const DashboardPage(),
-          HomePage.browseSubpage => const PatientBrowsePage(),
-          HomePage.whiteboardSubpage => const Whiteboard(),
-          HomePage.settingsSubpage => const SettingsPage(),
-          HomePage.historySubpage => const ConsultationHistoryPage(),
-          HomePage.teamManagementSubpage => const TeamManagementPage(),
-          _ => const RecentPage(),
-        },
-      ),
-    );
   }
 
   @override
@@ -78,20 +61,19 @@ class _HomePageState extends State<HomePage> {
     // hide navbar in fullscreen whiteboard
     if (widget.subpage == HomePage.whiteboardSubpage &&
         DynamicMaterialApp.isFullscreen) {
-      return body;
+      return widget.child;
     }
 
     final index = HomePage.subpages.indexOf(widget.subpage);
     return ResponsiveNavbar(
       selectedIndex: index == -1 ? null : index,
-      body: body,
+      body: widget.child,
     );
   }
 
   @override
   void dispose() {
     DynamicMaterialApp.removeFullscreenListener(_setState);
-
     super.dispose();
   }
 }

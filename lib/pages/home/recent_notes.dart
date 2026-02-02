@@ -131,7 +131,7 @@ class _RecentPageState extends State<RecentPage> {
                 scrolledUnderElevation: 1,
                 flexibleSpace: FlexibleSpaceBar(
                   title: Text(
-                    t.home.titles.home,
+                    'Calendar',
                     style: TextStyle(color: colorScheme.onSurface),
                   ),
                   centerTitle: false,
@@ -149,13 +149,6 @@ class _RecentPageState extends State<RecentPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Patient History',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
                     PatientHistoryCalendar(),
                     SizedBox(height: 24),
                   ],
