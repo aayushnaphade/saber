@@ -70,9 +70,14 @@ class QuickActions extends StatelessWidget {
       builder: (context, constraints) {
         // Determine number of columns based on available width
         // Assuming min item width of around 140px
-        final int crossAxisCount = (constraints.maxWidth / 140).floor().clamp(2, 4);
+        final int crossAxisCount = (constraints.maxWidth / 140).floor().clamp(
+          2,
+          4,
+        );
         const double spacing = AppSpacing.md;
-        final double itemWidth = (constraints.maxWidth - (crossAxisCount - 1) * spacing) / crossAxisCount;
+        final double itemWidth =
+            (constraints.maxWidth - (crossAxisCount - 1) * spacing) /
+            crossAxisCount;
 
         return Wrap(
           spacing: spacing,
@@ -134,7 +139,10 @@ class _QuickActionButtonState extends State<_QuickActionButton> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 1.0, end: _isPressed ? AppAnimations.buttonPressScale : 1.0),
+      tween: Tween(
+        begin: 1.0,
+        end: _isPressed ? AppAnimations.buttonPressScale : 1.0,
+      ),
       duration: AppAnimations.buttonPress,
       curve: AppAnimations.buttonPressCurve,
       builder: (context, scale, child) => Transform.scale(

@@ -2,6 +2,7 @@ common:
   done: Done
   continueBtn: Continue
   cancel: Cancel
+  backAgainToExit: Press back again to exit the app
 home: 
   tabs: 
     home: History
@@ -110,6 +111,7 @@ settings:
     simplifiedHomeLayout: Simplified home layout
     customDataDir: Custom Saber folder
     sentry: Error reporting
+    stylusTroubleshooting: Stylus troubleshooting
   prefDescriptions: 
     hyperlegibleFont: Increases legibility for users with low vision
     allowInsecureConnections: (Not recommended) Allow Saber to connect to servers with self-signed/untrusted certificates
@@ -134,6 +136,13 @@ settings:
       inactive: Inactive
       activeUntilRestart: Active until you restart the app
       inactiveUntilRestart: Inactive until you restart the app
+    stylusTroubleshooting: Tips for fixing stylus lag or unresponsiveness
+  troubleshooting: 
+    stylus: 
+      title: Stylus Troubleshooting
+      magneticCase: Magnetic cases or covers can interfere with the stylus digitizer, causing unresponsiveness or "blind spots." Try removing your case if you experience issues.
+      screenProtectors: Thick or metallic screen protectors may reduce touch sensitivity or accuracy.
+      nib: A worn-out stylus nib can cause inconsistent input or skipping.
   themeModes: 
     system: System
     light: Light

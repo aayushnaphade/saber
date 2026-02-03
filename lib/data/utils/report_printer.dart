@@ -3,21 +3,33 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:intl/intl.dart';
+import 'package:palette_generator/palette_generator.dart';
+import 'package:flutter/material.dart' as m;
 
 class ReportPrinter {
-  static Future<void> printReport(Map<String, dynamic> reportData) async {
+  static Future<void> printReport(
+    Map<String, dynamic> reportData, {
+    DateTime? generatedAt,
+    Map<String, String?>? brandingData,
+  }) async {
     final pdf = pw.Document();
 
-    final clinicName = stows.clinicName.value;
-    final clinicAddress = stows.clinicAddress.value;
-    final clinicPhone = stows.clinicPhone.value;
-    final clinicWebsite = stows.clinicWebsite.value;
-    final clinicLogoUrl = stows.clinicLogoUrl.value;
+    final clinicName = brandingData?['clinicName'] ?? stows.clinicName.value;
+    final clinicAddress =
+        brandingData?['clinicAddress'] ?? stows.clinicAddress.value;
+    final clinicPhone = brandingData?['clinicPhone'] ?? stows.clinicPhone.value;
+    final clinicWebsite =
+        brandingData?['clinicWebsite'] ?? stows.clinicWebsite.value;
+    final clinicLogoUrl =
+        brandingData?['clinicLogoUrl'] ?? stows.clinicLogoUrl.value;
 
-    final doctorName = stows.userDisplayName.value;
-    final qualification = stows.userQualification.value;
-    final regNo = stows.userRegistrationNumber.value;
-    final signatureUrl = stows.userSignatureUrl.value;
+    final doctorName =
+        brandingData?['doctorName'] ?? stows.userDisplayName.value;
+    final qualification =
+        brandingData?['qualification'] ?? stows.userQualification.value;
+    final regNo = brandingData?['regNo'] ?? stows.userRegistrationNumber.value;
+    final signatureUrl =
+        brandingData?['signatureUrl'] ?? stows.userSignatureUrl.value;
 
     // Load images if available
     pw.ImageProvider? logoImage;
@@ -38,13 +50,81 @@ class ReportPrinter {
       }
     }
 
+    // Load Fonts for Unicode support (Essential for Hindi/Arabic/Hebrew)
+    final font = await PdfGoogleFonts.notoSansRegular();
+    final boldFont = await PdfGoogleFonts.notoSansBold();
+    final devanagariFont = await PdfGoogleFonts.notoSansDevanagariRegular();
+
+    final theme = pw.ThemeData.withFont(
+      base: font,
+      bold: boldFont,
+      fontFallback: [devanagariFont],
+    );
+
+    // Dynamic Branding Colors
+    PdfColor primaryColor = PdfColors.blue900;
+    PdfColor secondaryColor = PdfColors.blueGrey50;
+
+    if (clinicLogoUrl != null && clinicLogoUrl.isNotEmpty) {
+      try {
+        final palette = await PaletteGenerator.fromImageProvider(
+          m.NetworkImage(clinicLogoUrl),
+        );
+        if (palette.vibrantColor != null) {
+          primaryColor = PdfColor.fromInt(
+            palette.vibrantColor!.color.toARGB32(),
+          );
+        } else if (palette.dominantColor != null) {
+          primaryColor = PdfColor.fromInt(
+            palette.dominantColor!.color.toARGB32(),
+          );
+        }
+
+        if (palette.lightVibrantColor != null) {
+          secondaryColor = PdfColor.fromInt(
+            palette.lightVibrantColor!.color.toARGB32(),
+          );
+        } else if (palette.lightMutedColor != null) {
+          secondaryColor = PdfColor.fromInt(
+            palette.lightMutedColor!.color.toARGB32(),
+          );
+        } else {
+          secondaryColor = PdfColor(
+            primaryColor.red,
+            primaryColor.green,
+            primaryColor.blue,
+            0.1,
+          );
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    final pageTheme = pw.PageTheme(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(40),
+      theme: theme,
+      buildBackground: (pw.Context context) {
+        if (logoImage == null) return pw.SizedBox();
+        return pw.FullPage(
+          ignoreMargins: true,
+          child: pw.Center(
+            child: pw.Opacity(
+              opacity: 0.05, // Subtle watermark
+              child: pw.Image(logoImage, width: 500, height: 500),
+            ),
+          ),
+        );
+      },
+    );
+
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(40),
+        pageTheme: pageTheme,
         build: (pw.Context context) {
           return [
-            // HEADER
+            // CLINIC HEADER (Only on first page for medical professionalism)
             pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
@@ -64,7 +144,7 @@ class ReportPrinter {
                         style: pw.TextStyle(
                           fontSize: 22,
                           fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.blue900,
+                          color: primaryColor,
                         ),
                       ),
                       pw.SizedBox(height: 4),
@@ -112,7 +192,7 @@ class ReportPrinter {
             ),
             pw.Divider(thickness: 1, color: PdfColors.grey300, height: 30),
 
-            // TITLE
+            // REPORT TITLE
             pw.Center(
               child: pw.Text(
                 'CLINICAL ASSESSMENT REPORT',
@@ -126,30 +206,51 @@ class ReportPrinter {
             ),
             pw.SizedBox(height: 20),
 
-            // REPORT CONTENT
-            _buildSection('DIAGNOSIS', reportData['provided_diagnosis']),
-            _buildSection(
+            // DYNAMIC SECTIONS (using spread operator to allow splitting across pages)
+            ..._buildSection(
+              'DIAGNOSIS',
+              reportData['provided_diagnosis'],
+              primaryColor,
+            ),
+            ..._buildSection(
               'CHIEF COMPLAINTS / SYMPTOMS',
               reportData['current_symptoms'],
+              primaryColor,
             ),
 
             if (reportData['mental_status_examination'] != null)
-              _buildMseSection(reportData['mental_status_examination']),
+              ..._buildMseSection(
+                reportData['mental_status_examination'],
+                primaryColor,
+              ),
 
-            _buildSection('PAST HISTORY', reportData['past_history']),
-            _buildSection('FAMILY HISTORY', reportData['family_history']),
-            _buildSection(
+            ..._buildSection(
+              'PAST HISTORY',
+              reportData['past_history'],
+              primaryColor,
+            ),
+            ..._buildSection(
+              'FAMILY HISTORY',
+              reportData['family_history'],
+              primaryColor,
+            ),
+            ..._buildSection(
               'PREMORBID PERSONALITY',
               reportData['premorbid_personality'],
+              primaryColor,
             ),
 
             if (reportData['medications'] != null &&
                 (reportData['medications'] as List).isNotEmpty)
-              _buildMedicationSection(reportData['medications']),
+              ..._buildMedicationSection(
+                reportData['medications'],
+                primaryColor,
+                secondaryColor,
+              ),
 
             pw.Spacer(),
 
-            // FOOTER / SIGNATURE
+            // SIGNATURE FOOTER
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               crossAxisAlignment: pw.CrossAxisAlignment.end,
@@ -158,7 +259,7 @@ class ReportPrinter {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text(
-                      'Date: ${DateFormat('dd MMM yyyy').format(DateTime.now())}',
+                      'Date: ${DateFormat('dd MMM yyyy, h:mm a').format(generatedAt ?? DateTime.now())}',
                       style: const pw.TextStyle(fontSize: 10),
                     ),
                   ],
@@ -201,35 +302,74 @@ class ReportPrinter {
     );
   }
 
-  static pw.Widget _buildSection(String title, dynamic content) {
-    final text = (content?.toString() ?? '').trim();
-    if (text.isEmpty || text == 'Not mentioned') return pw.SizedBox();
+  static Future<void> printDemoReport([
+    Map<String, String?>? brandingData,
+  ]) async {
+    final Map<String, dynamic> dummyData = {
+      'provided_diagnosis':
+          'Generalized Anxiety Disorder (GAD) with mild depressive symptoms. The patient exhibits persistent worry and physical tension.',
+      'current_symptoms':
+          'Difficulty sleeping, restlessness, palpitations when stressed, and occasional muscle tension. Symptoms have been present for over 6 months.',
+      'mental_status_examination': {
+        'appearance': 'Neat and well-groomed',
+        'behavior': 'Cooperative, slightly restless',
+        'mood_and_affect': 'Anxious mood, restricted affect',
+        'thought_process': 'Linear and logical',
+        'perception': 'No hallucinations reported',
+        'insight': 'Good insight into the condition',
+      },
+      'past_history':
+          'No significant psychiatric history. Medical history includes managed hypertension since 2018.',
+      'family_history':
+          'Paternal uncle had history of depression. Parents are healthy.',
+      'premorbid_personality':
+          'Introverted, conscientious, tends to be a perfectionist in work environments.',
+      'medications': [
+        {
+          'name': 'Escitalopram 10mg',
+          'frequency': '1-0-0',
+          'duration': '1 month',
+          'remarks': 'Take after breakfast',
+        },
+        {
+          'name': 'Etizolam 0.25mg',
+          'frequency': '0-0-1',
+          'duration': '10 days',
+          'remarks': 'SOS for sleep',
+        },
+      ],
+    };
 
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 16),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            title,
-            style: pw.TextStyle(
-              fontSize: 11,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.blue800,
-            ),
-          ),
-          pw.SizedBox(height: 4),
-          pw.Text(
-            text,
-            style: const pw.TextStyle(fontSize: 10, lineSpacing: 2),
-          ),
-        ],
-      ),
-    );
+    return printReport(dummyData, brandingData: brandingData);
   }
 
-  static pw.Widget _buildMseSection(dynamic mse) {
-    if (mse is! Map) return _buildSection('MENTAL STATUS EXAMINATION', mse);
+  static List<pw.Widget> _buildSection(
+    String title,
+    dynamic content,
+    PdfColor primaryColor,
+  ) {
+    final text = (content?.toString() ?? '').trim();
+    if (text.isEmpty || text == 'Not mentioned') return [];
+
+    return [
+      pw.Text(
+        title,
+        style: pw.TextStyle(
+          fontSize: 11,
+          fontWeight: pw.FontWeight.bold,
+          color: primaryColor,
+        ),
+      ),
+      pw.SizedBox(height: 4),
+      pw.Text(text, style: const pw.TextStyle(fontSize: 10, lineSpacing: 2)),
+      pw.SizedBox(height: 16), // Bottom padding for section
+    ];
+  }
+
+  static List<pw.Widget> _buildMseSection(dynamic mse, PdfColor primaryColor) {
+    if (mse is! Map) {
+      return _buildSection('MENTAL STATUS EXAMINATION', mse, primaryColor);
+    }
 
     final List<pw.Widget> children = [];
     mse.forEach((key, value) {
@@ -262,63 +402,60 @@ class ReportPrinter {
       }
     });
 
-    if (children.isEmpty) return pw.SizedBox();
+    if (children.isEmpty) return [];
 
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 16),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'MENTAL STATUS EXAMINATION',
-            style: pw.TextStyle(
-              fontSize: 11,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.blue800,
-            ),
-          ),
-          pw.SizedBox(height: 6),
-          ...children,
-        ],
+    return [
+      pw.Text(
+        'MENTAL STATUS EXAMINATION',
+        style: pw.TextStyle(
+          fontSize: 11,
+          fontWeight: pw.FontWeight.bold,
+          color: primaryColor,
+        ),
       ),
-    );
+      pw.SizedBox(height: 6),
+      ...children,
+      pw.SizedBox(height: 16),
+    ];
   }
 
-  static pw.Widget _buildMedicationSection(List medications) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 16),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'TREATMENT PLAN / MEDICATIONS',
-            style: pw.TextStyle(
-              fontSize: 11,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.blue800,
-            ),
-          ),
-          pw.SizedBox(height: 6),
-          pw.TableHelper.fromTextArray(
-            headerStyle: pw.TextStyle(
-              fontWeight: pw.FontWeight.bold,
-              fontSize: 9,
-            ),
-            cellStyle: const pw.TextStyle(fontSize: 9),
-            headers: ['Medication', 'Frequency', 'Duration', 'Remarks'],
-            data: medications
-                .map(
-                  (m) => [
-                    m['name'] ?? '',
-                    m['frequency'] ?? '',
-                    m['duration'] ?? '',
-                    m['remarks'] ?? '',
-                  ],
-                )
-                .toList(),
-          ),
-        ],
+  static List<pw.Widget> _buildMedicationSection(
+    List medications,
+    PdfColor primaryColor,
+    PdfColor secondaryColor,
+  ) {
+    return [
+      pw.Text(
+        'TREATMENT PLAN / MEDICATIONS',
+        style: pw.TextStyle(
+          fontSize: 11,
+          fontWeight: pw.FontWeight.bold,
+          color: primaryColor,
+        ),
       ),
-    );
+      pw.SizedBox(height: 6),
+      pw.TableHelper.fromTextArray(
+        headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
+        headerDecoration: pw.BoxDecoration(color: secondaryColor),
+        rowDecoration: pw.BoxDecoration(
+          border: pw.Border(
+            bottom: pw.BorderSide(color: primaryColor, width: 1.0),
+          ),
+        ),
+        cellStyle: const pw.TextStyle(fontSize: 9),
+        headers: ['Medication', 'Frequency', 'Duration', 'Remarks'],
+        data: medications
+            .map(
+              (m) => [
+                m['name'] ?? '',
+                m['frequency'] ?? '',
+                m['duration'] ?? '',
+                m['remarks'] ?? '',
+              ],
+            )
+            .toList(),
+      ),
+      pw.SizedBox(height: 16),
+    ];
   }
 }

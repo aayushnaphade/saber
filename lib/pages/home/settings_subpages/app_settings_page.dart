@@ -327,6 +327,56 @@ class _AppSettingsPageState extends State<AppSettingsPage> {
               );
             },
           ),
+          SettingsButton(
+            title: t.settings.prefLabels.stylusTroubleshooting,
+            subtitle: t.settings.prefDescriptions.stylusTroubleshooting,
+            icon: Icons.help_outline_rounded,
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text(t.settings.troubleshooting.stylus.title),
+                  content: SingleChildScrollView(
+                    child: ListBody(
+                      children: [
+                        _buildTroubleshootingItem(
+                          context,
+                          title: 'Magnetic Cases',
+                          description:
+                              t.settings.troubleshooting.stylus.magneticCase,
+                          icon: Icons.vibration_rounded,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTroubleshootingItem(
+                          context,
+                          title: 'Screen Protectors',
+                          description: t
+                              .settings
+                              .troubleshooting
+                              .stylus
+                              .screenProtectors,
+                          icon: Icons.layers_outlined,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTroubleshootingItem(
+                          context,
+                          title: 'Stylus Nib',
+                          description: t.settings.troubleshooting.stylus.nib,
+                          icon: Icons.edit_rounded,
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(t.common.done),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
 
           SettingsSubtitle(subtitle: t.settings.prefCategories.editor),
           SettingsSelection(
@@ -418,6 +468,7 @@ class _AppSettingsPageState extends State<AppSettingsPage> {
             icon: Icons.save,
             pref: stows.autosaveDelay,
             options: [
+              const ToggleButtonsOption(2000, Text('2s')),
               const ToggleButtonsOption(5000, Text('5s')),
               const ToggleButtonsOption(10000, Text('10s')),
               ToggleButtonsOption(-1, Text(t.settings.autosaveDisabled)),
@@ -517,5 +568,36 @@ class _AppSettingsPageState extends State<AppSettingsPage> {
     stows.locale.removeListener(onChanged);
     UpdateManager.status.removeListener(onChanged);
     super.dispose();
+  }
+
+  Widget _buildTroubleshootingItem(
+    BuildContext context, {
+    required String title,
+    required String description,
+    required IconData icon,
+  }) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: theme.colorScheme.primary, size: 24),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(description, style: theme.textTheme.bodyMedium),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

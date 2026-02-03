@@ -278,7 +278,10 @@ class CanvasBackgroundPainter extends CustomPainter {
         for (int i = 0; i < 5; i++) {
           yield PatternElement(
             Offset(margin, mseContentTop + lineHeight * i.toDouble()),
-            Offset(centerX - sectionPadding, mseContentTop + lineHeight * i.toDouble()),
+            Offset(
+              centerX - sectionPadding,
+              mseContentTop + lineHeight * i.toDouble(),
+            ),
             isLine: true,
           );
         }
@@ -286,8 +289,14 @@ class CanvasBackgroundPainter extends CustomPainter {
         // Right column lines (Affect, Thought Process, Thought Content, Perceptions)
         for (int i = 0; i < 5; i++) {
           yield PatternElement(
-            Offset(centerX + sectionPadding, mseContentTop + lineHeight * i.toDouble()),
-            Offset(size.width - margin, mseContentTop + lineHeight * i.toDouble()),
+            Offset(
+              centerX + sectionPadding,
+              mseContentTop + lineHeight * i.toDouble(),
+            ),
+            Offset(
+              size.width - margin,
+              mseContentTop + lineHeight * i.toDouble(),
+            ),
             isLine: true,
           );
         }

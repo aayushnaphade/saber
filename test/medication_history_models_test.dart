@@ -66,69 +66,114 @@ void main() {
 
     test('should return correct type labels', () {
       expect(
-        MedicationEvent(date: DateTime.now(), type: MedicationEventType.started).typeLabel,
+        MedicationEvent(
+          date: DateTime.now(),
+          type: MedicationEventType.started,
+        ).typeLabel,
         'Started',
       );
       expect(
-        MedicationEvent(date: DateTime.now(), type: MedicationEventType.increased).typeLabel,
+        MedicationEvent(
+          date: DateTime.now(),
+          type: MedicationEventType.increased,
+        ).typeLabel,
         'Increased',
       );
       expect(
-        MedicationEvent(date: DateTime.now(), type: MedicationEventType.decreased).typeLabel,
+        MedicationEvent(
+          date: DateTime.now(),
+          type: MedicationEventType.decreased,
+        ).typeLabel,
         'Decreased',
       );
       expect(
-        MedicationEvent(date: DateTime.now(), type: MedicationEventType.stopped).typeLabel,
+        MedicationEvent(
+          date: DateTime.now(),
+          type: MedicationEventType.stopped,
+        ).typeLabel,
         'Stopped',
       );
       expect(
-        MedicationEvent(date: DateTime.now(), type: MedicationEventType.continued).typeLabel,
+        MedicationEvent(
+          date: DateTime.now(),
+          type: MedicationEventType.continued,
+        ).typeLabel,
         'Continued',
       );
     });
 
     test('should return correct icons for event types', () {
       expect(
-        MedicationEvent(date: DateTime.now(), type: MedicationEventType.started).icon.codePoint,
+        MedicationEvent(
+          date: DateTime.now(),
+          type: MedicationEventType.started,
+        ).icon.codePoint,
         Icons.add_circle_outline.codePoint,
       );
       expect(
-        MedicationEvent(date: DateTime.now(), type: MedicationEventType.increased).icon.codePoint,
+        MedicationEvent(
+          date: DateTime.now(),
+          type: MedicationEventType.increased,
+        ).icon.codePoint,
         Icons.trending_up.codePoint,
       );
       expect(
-        MedicationEvent(date: DateTime.now(), type: MedicationEventType.decreased).icon.codePoint,
+        MedicationEvent(
+          date: DateTime.now(),
+          type: MedicationEventType.decreased,
+        ).icon.codePoint,
         Icons.trending_down.codePoint,
       );
       expect(
-        MedicationEvent(date: DateTime.now(), type: MedicationEventType.stopped).icon.codePoint,
+        MedicationEvent(
+          date: DateTime.now(),
+          type: MedicationEventType.stopped,
+        ).icon.codePoint,
         Icons.remove_circle_outline.codePoint,
       );
       expect(
-        MedicationEvent(date: DateTime.now(), type: MedicationEventType.continued).icon.codePoint,
+        MedicationEvent(
+          date: DateTime.now(),
+          type: MedicationEventType.continued,
+        ).icon.codePoint,
         Icons.check_circle_outline.codePoint,
       );
     });
 
     test('should return correct colors for event types', () {
       expect(
-        MedicationEvent(date: DateTime.now(), type: MedicationEventType.started).color,
+        MedicationEvent(
+          date: DateTime.now(),
+          type: MedicationEventType.started,
+        ).color,
         Colors.green,
       );
       expect(
-        MedicationEvent(date: DateTime.now(), type: MedicationEventType.increased).color,
+        MedicationEvent(
+          date: DateTime.now(),
+          type: MedicationEventType.increased,
+        ).color,
         Colors.orange,
       );
       expect(
-        MedicationEvent(date: DateTime.now(), type: MedicationEventType.decreased).color,
+        MedicationEvent(
+          date: DateTime.now(),
+          type: MedicationEventType.decreased,
+        ).color,
         Colors.blue,
       );
       expect(
-        MedicationEvent(date: DateTime.now(), type: MedicationEventType.stopped).color,
+        MedicationEvent(
+          date: DateTime.now(),
+          type: MedicationEventType.stopped,
+        ).color,
         Colors.red,
       );
       expect(
-        MedicationEvent(date: DateTime.now(), type: MedicationEventType.continued).color,
+        MedicationEvent(
+          date: DateTime.now(),
+          type: MedicationEventType.continued,
+        ).color,
         Colors.grey,
       );
     });

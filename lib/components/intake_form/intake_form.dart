@@ -1,5 +1,5 @@
 /// Psychiatric Intake Form Components
-/// 
+///
 /// This module provides components for collecting and displaying
 /// psychiatric evaluation intake data based on Dr. Monisha Dass's
 /// clinical intake form format.

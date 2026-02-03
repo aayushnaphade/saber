@@ -3,7 +3,7 @@ import 'package:saber/components/theming/saber_theme.dart';
 import 'package:yaru/yaru.dart';
 
 var _lastPrimary = Colors.transparent;
-var _closestYaruVariant = YaruVariant.orange;
+var _closestYaruVariant = YaruVariant.blue;
 
 class YaruBuilder extends StatefulWidget {
   const YaruBuilder({

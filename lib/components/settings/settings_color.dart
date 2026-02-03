@@ -35,7 +35,7 @@ class SettingsColor extends StatefulWidget {
 }
 
 class _SettingsSwitchState extends State<SettingsColor> {
-  static var defaultColor = const Color(0xffffd32e);
+  static var defaultColor = const Color(0xFF50B9E8);
 
   @override
   void initState() {

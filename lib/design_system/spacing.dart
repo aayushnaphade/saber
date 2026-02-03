@@ -32,7 +32,7 @@ class AppSpacing {
   static const double xxl = 48.0;
 
   // Specialized spacing for specific use cases
-  
+
   /// Standard card internal padding
   static const double cardPadding = md;
 

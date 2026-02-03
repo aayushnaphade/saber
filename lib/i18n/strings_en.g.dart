@@ -63,6 +63,9 @@ class TranslationsCommonEn {
 
 	/// en: 'Cancel'
 	String get cancel => 'Cancel';
+
+	/// en: 'Press back again to exit the app'
+	String get backAgainToExit => 'Press back again to exit the app';
 }
 
 // Path: home
@@ -126,6 +129,7 @@ class TranslationsSettingsEn {
 	late final TranslationsSettingsPrefCategoriesEn prefCategories = TranslationsSettingsPrefCategoriesEn.internal(_root);
 	late final TranslationsSettingsPrefLabelsEn prefLabels = TranslationsSettingsPrefLabelsEn.internal(_root);
 	late final TranslationsSettingsPrefDescriptionsEn prefDescriptions = TranslationsSettingsPrefDescriptionsEn.internal(_root);
+	late final TranslationsSettingsTroubleshootingEn troubleshooting = TranslationsSettingsTroubleshootingEn.internal(_root);
 	late final TranslationsSettingsThemeModesEn themeModes = TranslationsSettingsThemeModesEn.internal(_root);
 	late final TranslationsSettingsLayoutSizesEn layoutSizes = TranslationsSettingsLayoutSizesEn.internal(_root);
 	late final TranslationsSettingsAccentColorPickerEn accentColorPicker = TranslationsSettingsAccentColorPickerEn.internal(_root);
@@ -655,6 +659,9 @@ class TranslationsSettingsPrefLabelsEn {
 
 	/// en: 'Error reporting'
 	String get sentry => 'Error reporting';
+
+	/// en: 'Stylus troubleshooting'
+	String get stylusTroubleshooting => 'Stylus troubleshooting';
 }
 
 // Path: settings.prefDescriptions
@@ -710,6 +717,19 @@ class TranslationsSettingsPrefDescriptionsEn {
 	String get shouldAlwaysAlertForUpdates => 'Tell me about updates as soon as they\'re available';
 
 	late final TranslationsSettingsPrefDescriptionsSentryEn sentry = TranslationsSettingsPrefDescriptionsSentryEn.internal(_root);
+
+	/// en: 'Tips for fixing stylus lag or unresponsiveness'
+	String get stylusTroubleshooting => 'Tips for fixing stylus lag or unresponsiveness';
+}
+
+// Path: settings.troubleshooting
+class TranslationsSettingsTroubleshootingEn {
+	TranslationsSettingsTroubleshootingEn.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	late final TranslationsSettingsTroubleshootingStylusEn stylus = TranslationsSettingsTroubleshootingStylusEn.internal(_root);
 }
 
 // Path: settings.themeModes
@@ -1383,6 +1403,27 @@ class TranslationsSettingsPrefDescriptionsSentryEn {
 
 	/// en: 'Inactive until you restart the app'
 	String get inactiveUntilRestart => 'Inactive until you restart the app';
+}
+
+// Path: settings.troubleshooting.stylus
+class TranslationsSettingsTroubleshootingStylusEn {
+	TranslationsSettingsTroubleshootingStylusEn.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Stylus Troubleshooting'
+	String get title => 'Stylus Troubleshooting';
+
+	/// en: 'Magnetic cases or covers can interfere with the stylus digitizer, causing unresponsiveness or "blind spots." Try removing your case if you experience issues.'
+	String get magneticCase => 'Magnetic cases or covers can interfere with the stylus digitizer, causing unresponsiveness or "blind spots." Try removing your case if you experience issues.';
+
+	/// en: 'Thick or metallic screen protectors may reduce touch sensitivity or accuracy.'
+	String get screenProtectors => 'Thick or metallic screen protectors may reduce touch sensitivity or accuracy.';
+
+	/// en: 'A worn-out stylus nib can cause inconsistent input or skipping.'
+	String get nib => 'A worn-out stylus nib can cause inconsistent input or skipping.';
 }
 
 // Path: login.ncLoginStep.loginFlow

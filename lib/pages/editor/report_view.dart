@@ -11,12 +11,14 @@ class ReportView extends StatefulWidget {
     required this.onVerify,
     this.onRegenerate,
     this.readonly = false,
+    this.showAppBar = true,
   });
 
   final Map<String, dynamic> reportData;
   final VoidCallback onVerify;
   final VoidCallback? onRegenerate;
   final bool readonly;
+  final bool showAppBar;
 
   @override
   State<ReportView> createState() => _ReportViewState();
@@ -97,6 +99,9 @@ class _ReportViewState extends State<ReportView> {
   @override
   Widget build(BuildContext context) {
     if (widget.readonly) {
+      if (!widget.showAppBar) {
+        return _buildBentoLayout(context);
+      }
       return Scaffold(
         appBar: AppBar(
           title: const Text('Clinical Assessment Report'),

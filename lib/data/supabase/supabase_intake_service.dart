@@ -24,7 +24,9 @@ class SupabaseIntakeService {
         return null;
       }
 
-      final intake = PsychiatricIntake.fromJson(response as Map<String, dynamic>);
+      final intake = PsychiatricIntake.fromJson(
+        response as Map<String, dynamic>,
+      );
       log.info('Fetched intake for patient: $patientId');
       return intake;
     } catch (e) {
@@ -52,19 +54,23 @@ class SupabaseIntakeService {
   }
 
   /// Create or update psychiatric intake
-  static Future<PsychiatricIntake> upsertIntake(PsychiatricIntake intake) async {
+  static Future<PsychiatricIntake> upsertIntake(
+    PsychiatricIntake intake,
+  ) async {
     try {
       log.info('Upserting intake for patient: ${intake.patientId}');
 
       final data = intake.toJson();
-      
+
       final response = await supabase
           .from('psychiatric_intakes')
           .upsert(data, onConflict: 'patient_id')
           .select()
           .single();
 
-      final savedIntake = PsychiatricIntake.fromJson(response as Map<String, dynamic>);
+      final savedIntake = PsychiatricIntake.fromJson(
+        response as Map<String, dynamic>,
+      );
       log.info('Saved intake for patient: ${intake.patientId}');
       return savedIntake;
     } catch (e) {
@@ -74,19 +80,23 @@ class SupabaseIntakeService {
   }
 
   /// Create a new psychiatric intake
-  static Future<PsychiatricIntake> createIntake(PsychiatricIntake intake) async {
+  static Future<PsychiatricIntake> createIntake(
+    PsychiatricIntake intake,
+  ) async {
     try {
       log.info('Creating intake for patient: ${intake.patientId}');
 
       final data = intake.toJson();
-      
+
       final response = await supabase
           .from('psychiatric_intakes')
           .insert(data)
           .select()
           .single();
 
-      final savedIntake = PsychiatricIntake.fromJson(response as Map<String, dynamic>);
+      final savedIntake = PsychiatricIntake.fromJson(
+        response as Map<String, dynamic>,
+      );
       log.info('Created intake for patient: ${intake.patientId}');
       return savedIntake;
     } catch (e) {
@@ -96,12 +106,14 @@ class SupabaseIntakeService {
   }
 
   /// Update existing psychiatric intake
-  static Future<PsychiatricIntake> updateIntake(PsychiatricIntake intake) async {
+  static Future<PsychiatricIntake> updateIntake(
+    PsychiatricIntake intake,
+  ) async {
     try {
       log.info('Updating intake for patient: ${intake.patientId}');
 
       final data = intake.toJson();
-      
+
       final response = await supabase
           .from('psychiatric_intakes')
           .update(data)
@@ -109,7 +121,9 @@ class SupabaseIntakeService {
           .select()
           .single();
 
-      final savedIntake = PsychiatricIntake.fromJson(response as Map<String, dynamic>);
+      final savedIntake = PsychiatricIntake.fromJson(
+        response as Map<String, dynamic>,
+      );
       log.info('Updated intake for patient: ${intake.patientId}');
       return savedIntake;
     } catch (e) {
@@ -123,10 +137,7 @@ class SupabaseIntakeService {
     try {
       log.info('Deleting intake: $intakeId');
 
-      await supabase
-          .from('psychiatric_intakes')
-          .delete()
-          .eq('id', intakeId);
+      await supabase.from('psychiatric_intakes').delete().eq('id', intakeId);
 
       log.info('Deleted intake: $intakeId');
     } catch (e) {
@@ -146,7 +157,9 @@ class SupabaseIntakeService {
           .order('created_at', ascending: false);
 
       final intakes = (response as List)
-          .map((json) => PsychiatricIntake.fromJson(json as Map<String, dynamic>))
+          .map(
+            (json) => PsychiatricIntake.fromJson(json as Map<String, dynamic>),
+          )
           .toList();
 
       log.info('Fetched ${intakes.length} intakes');
@@ -203,12 +216,12 @@ class SupabaseIntakeService {
 
       log.info('Uploaded back photo: $backPath');
 
-      return {
-        'front': frontPath,
-        'back': backPath,
-      };
+      return {'front': frontPath, 'back': backPath};
     } catch (e) {
-      log.severe('Failed to upload intake form photos for patient: $patientId', e);
+      log.severe(
+        'Failed to upload intake form photos for patient: $patientId',
+        e,
+      );
       rethrow;
     }
   }
@@ -234,9 +247,7 @@ class SupabaseIntakeService {
     try {
       log.info('Deleting ${filePaths.length} intake form photos');
 
-      await supabase.storage
-          .from('intake-form-photos')
-          .remove(filePaths);
+      await supabase.storage.from('intake-form-photos').remove(filePaths);
 
       log.info('Deleted intake form photos');
     } catch (e) {
@@ -252,14 +263,14 @@ class SupabaseIntakeService {
       log.info('Cleaning up old intake form photos (>30 days)');
 
       final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
-      
+
       // List all files in the bucket
       final files = await supabase.storage
           .from('intake-form-photos')
           .list(path: 'intake-forms');
 
       final filesToDelete = <String>[];
-      
+
       for (final file in files) {
         // Parse timestamp from filename
         if (file.name.contains('_')) {
@@ -269,12 +280,14 @@ class SupabaseIntakeService {
             try {
               final timestamp = int.parse(timestampStr);
               final fileDate = DateTime.fromMillisecondsSinceEpoch(timestamp);
-              
+
               if (fileDate.isBefore(thirtyDaysAgo)) {
                 filesToDelete.add('intake-forms/${file.name}');
               }
             } catch (e) {
-              log.warning('Could not parse timestamp from filename: ${file.name}');
+              log.warning(
+                'Could not parse timestamp from filename: ${file.name}',
+              );
             }
           }
         }
@@ -292,4 +305,3 @@ class SupabaseIntakeService {
     }
   }
 }
-

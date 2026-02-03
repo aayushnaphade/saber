@@ -14,7 +14,8 @@ class PreviousNotesOverlayCard extends StatefulWidget {
   });
 
   @override
-  State<PreviousNotesOverlayCard> createState() => _PreviousNotesOverlayCardState();
+  State<PreviousNotesOverlayCard> createState() =>
+      _PreviousNotesOverlayCardState();
 }
 
 class _PreviousNotesOverlayCardState extends State<PreviousNotesOverlayCard> {
@@ -77,7 +78,11 @@ class _PreviousNotesOverlayCardState extends State<PreviousNotesOverlayCard> {
                       color: Colors.purple.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.history_edu, size: 18, color: Colors.purple),
+                    child: const Icon(
+                      Icons.history_edu,
+                      size: 18,
+                      color: Colors.purple,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -94,7 +99,8 @@ class _PreviousNotesOverlayCardState extends State<PreviousNotesOverlayCard> {
                         Text(
                           dateFormat.format(currentNote.createdAt),
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withOpacity(0.8),
                           ),
                         ),
                       ],
@@ -133,7 +139,7 @@ class _PreviousNotesOverlayCardState extends State<PreviousNotesOverlayCard> {
                             child: CircularProgressIndicator(
                               value: loadingProgress.expectedTotalBytes != null
                                   ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
+                                        loadingProgress.expectedTotalBytes!
                                   : null,
                               strokeWidth: 2,
                               color: Colors.purple,
@@ -143,11 +149,16 @@ class _PreviousNotesOverlayCardState extends State<PreviousNotesOverlayCard> {
                         errorBuilder: (context, error, stackTrace) => Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.broken_image_outlined,
-                                size: 48, color: Colors.grey),
+                            const Icon(
+                              Icons.broken_image_outlined,
+                              size: 48,
+                              color: Colors.grey,
+                            ),
                             const SizedBox(height: 8),
-                            Text('Failed to load note',
-                                style: theme.textTheme.bodySmall),
+                            Text(
+                              'Failed to load note',
+                              style: theme.textTheme.bodySmall,
+                            ),
                           ],
                         ),
                       ),

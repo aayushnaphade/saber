@@ -12,11 +12,13 @@ class ReportGenerator {
   // Service Account Credentials
   // IMPORTANT: In a production app, never hardcode credentials like this.
   // Use a backend proxy or secure storage.
-  static final _serviceAccountJson = jsonDecode(dotenv.env['GOOGLE_SERVICE_ACCOUNT_JSON']!);
+  static final _serviceAccountJson = jsonDecode(
+    dotenv.env['GOOGLE_SERVICE_ACCOUNT_JSON']!,
+  );
 
   static const _projectId = 'synapseai-production';
   static const _location = 'asia-south1';
-  
+
   /// Get the model ID based on user preference
   static String get _modelId {
     switch (stows.reportGenerationModel.value) {
@@ -26,7 +28,6 @@ class ReportGenerator {
         return 'gemini-3-pro-preview';
     }
   }
-
 
   static const _defaultSystemPrompt = '''
 **Role:**
@@ -93,56 +94,70 @@ You must output a single valid JSON object containing exactly these six keys. Do
 }
 ''';
 
-  static Future<Map<String, dynamic>> generateReport(List<Uint8List> imageBytesList) async {
+  static Future<Map<String, dynamic>> generateReport(
+    List<Uint8List> imageBytesList,
+  ) async {
     try {
       if (imageBytesList.isEmpty) {
         throw Exception('ReportGenerator: Captured image bytes are empty');
       }
 
-      log.info('ReportGenerator: Generating report with model $_modelId in $_location');
+      log.info(
+        'ReportGenerator: Generating report with model $_modelId in $_location',
+      );
       log.info('ReportGenerator: Processing ${imageBytesList.length} pages');
       log.info('Authenticating with Google Cloud...');
-      
+
       // Fix for private key formatting issues when reading from .env
       final serviceAccount = Map<String, dynamic>.from(_serviceAccountJson);
       if (serviceAccount.containsKey('private_key')) {
-        serviceAccount['private_key'] = (serviceAccount['private_key'] as String)
-            .replaceAll(r'\n', '\n');
+        serviceAccount['private_key'] =
+            (serviceAccount['private_key'] as String).replaceAll(r'\n', '\n');
       }
 
-      final accountCredentials = ServiceAccountCredentials.fromJson(serviceAccount);
+      final accountCredentials = ServiceAccountCredentials.fromJson(
+        serviceAccount,
+      );
       final scopes = [AiplatformApi.cloudPlatformScope];
-      
+
       final client = await clientViaServiceAccount(accountCredentials, scopes);
       final api = AiplatformApi(client);
 
-      final parent = 'projects/$_projectId/locations/$_location/publishers/google/models/$_modelId';
-      
+      final parent =
+          'projects/$_projectId/locations/$_location/publishers/google/models/$_modelId';
+
       log.info('Sending request to Vertex AI ($parent)...');
 
       final systemPrompt = _defaultSystemPrompt;
 
       // Create parts for all pages
       final parts = <GoogleCloudAiplatformV1Part>[
-        GoogleCloudAiplatformV1Part(text: 'Analyze these clinical notes (spanning ${imageBytesList.length} pages) and generate the report.'),
+        GoogleCloudAiplatformV1Part(
+          text:
+              'Analyze these clinical notes (spanning ${imageBytesList.length} pages) and generate the report.',
+        ),
       ];
 
       for (var i = 0; i < imageBytesList.length; i++) {
         final imageSize = imageBytesList[i].length;
-        log.info('Adding page ${i + 1} to request, image size: $imageSize bytes');
-        
+        log.info(
+          'Adding page ${i + 1} to request, image size: $imageSize bytes',
+        );
+
         if (imageSize == 0) {
           log.warning('Page ${i + 1} has empty image bytes!');
           continue; // Skip empty images
         }
-        
+
         parts.add(GoogleCloudAiplatformV1Part(text: 'Page ${i + 1}:'));
-        parts.add(GoogleCloudAiplatformV1Part(
-          inlineData: GoogleCloudAiplatformV1Blob(
-            mimeType: 'image/png',
-            data: base64Encode(imageBytesList[i]),
+        parts.add(
+          GoogleCloudAiplatformV1Part(
+            inlineData: GoogleCloudAiplatformV1Blob(
+              mimeType: 'image/png',
+              data: base64Encode(imageBytesList[i]),
+            ),
           ),
-        ));
+        );
       }
 
       // Ensure we have at least one valid image
@@ -154,16 +169,9 @@ You must output a single valid JSON object containing exactly these six keys. Do
 
       final request = GoogleCloudAiplatformV1GenerateContentRequest(
         systemInstruction: GoogleCloudAiplatformV1Content(
-          parts: [
-            GoogleCloudAiplatformV1Part(text: systemPrompt),
-          ],
+          parts: [GoogleCloudAiplatformV1Part(text: systemPrompt)],
         ),
-        contents: [
-          GoogleCloudAiplatformV1Content(
-            role: 'user',
-            parts: parts,
-          ),
-        ],
+        contents: [GoogleCloudAiplatformV1Content(role: 'user', parts: parts)],
         generationConfig: GoogleCloudAiplatformV1GenerationConfig(
           temperature: 0.4,
           maxOutputTokens: 8192,
@@ -190,10 +198,8 @@ You must output a single valid JSON object containing exactly these six keys. Do
         ],
       );
 
-      final response = await api.projects.locations.publishers.models.generateContent(
-        request,
-        parent,
-      );
+      final response = await api.projects.locations.publishers.models
+          .generateContent(request, parent);
 
       log.info('Full Vertex AI Response: ${jsonEncode(response.toJson())}');
 
@@ -201,34 +207,50 @@ You must output a single valid JSON object containing exactly these six keys. Do
 
       // Check for prompt feedback (safety blocks, etc.)
       if (response.promptFeedback != null) {
-        log.info('Prompt feedback: ${jsonEncode(response.promptFeedback!.toJson())}');
+        log.info(
+          'Prompt feedback: ${jsonEncode(response.promptFeedback!.toJson())}',
+        );
         if (response.promptFeedback!.blockReason != null) {
-          throw Exception('Request blocked by Vertex AI: ${response.promptFeedback!.blockReason}');
+          throw Exception(
+            'Request blocked by Vertex AI: ${response.promptFeedback!.blockReason}',
+          );
         }
       }
 
       if (response.candidates != null && response.candidates!.isNotEmpty) {
         final candidate = response.candidates!.first;
-        
+
         log.info('Candidate finish reason: ${candidate.finishReason}');
         if (candidate.safetyRatings != null) {
-          log.info('Safety ratings: ${candidate.safetyRatings!.map((r) => '${r.category}: ${r.probability}').join(', ')}');
+          log.info(
+            'Safety ratings: ${candidate.safetyRatings!.map((r) => '${r.category}: ${r.probability}').join(', ')}',
+          );
         }
-        
+
         if (candidate.finishReason != 'STOP') {
-          log.warning('ReportGenerator: Candidate finish reason: ${candidate.finishReason}');
+          log.warning(
+            'ReportGenerator: Candidate finish reason: ${candidate.finishReason}',
+          );
           // If finish reason indicates an issue, throw with more context
-          if (candidate.finishReason == 'SAFETY' || candidate.finishReason == 'OTHER') {
-            throw Exception('Vertex AI stopped generation. Reason: ${candidate.finishReason}');
+          if (candidate.finishReason == 'SAFETY' ||
+              candidate.finishReason == 'OTHER') {
+            throw Exception(
+              'Vertex AI stopped generation. Reason: ${candidate.finishReason}',
+            );
           }
         }
 
-        if (candidate.content != null && candidate.content!.parts != null && candidate.content!.parts!.isNotEmpty) {
+        if (candidate.content != null &&
+            candidate.content!.parts != null &&
+            candidate.content!.parts!.isNotEmpty) {
           String responseText = candidate.content!.parts!.first.text ?? '';
-          
+
           // Clean up markdown code blocks
-          responseText = responseText.replaceFirst(RegExp(r'^```json\s*'), '').replaceFirst(RegExp(r'\s*```$'), '').trim();
-          
+          responseText = responseText
+              .replaceFirst(RegExp(r'^```json\s*'), '')
+              .replaceFirst(RegExp(r'\s*```$'), '')
+              .trim();
+
           log.info('Received response from Vertex AI');
           try {
             return jsonDecode(responseText) as Map<String, dynamic>;
@@ -237,16 +259,20 @@ You must output a single valid JSON object containing exactly these six keys. Do
             throw Exception('Failed to parse AI response');
           }
         } else {
-          throw Exception('Vertex AI returned no content. Finish reason: ${candidate.finishReason}');
+          throw Exception(
+            'Vertex AI returned no content. Finish reason: ${candidate.finishReason}',
+          );
         }
       }
-      
-      throw Exception('No candidates returned from Vertex AI');
 
+      throw Exception('No candidates returned from Vertex AI');
     } catch (e) {
       log.severe('Error generating report', e);
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection timed out')) {
-        throw Exception('Network error: Unable to reach Google services. Please check your internet connection or hospital firewall settings.');
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection timed out')) {
+        throw Exception(
+          'Network error: Unable to reach Google services. Please check your internet connection or hospital firewall settings.',
+        );
       }
       rethrow;
     }

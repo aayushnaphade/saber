@@ -48,7 +48,6 @@ class _CanvasHudState extends State<CanvasHud> {
         duration: const Duration(milliseconds: 200),
         child: Stack(
           children: [
-
             Positioned(
               top: 5,
               right: 5,

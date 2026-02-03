@@ -13,5 +13,6 @@ class PreviousSessionNote {
   });
 
   @override
-  String toString() => 'PreviousSessionNote(session: $sessionNumber, date: $createdAt)';
+  String toString() =>
+      'PreviousSessionNote(session: $sessionNumber, date: $createdAt)';
 }

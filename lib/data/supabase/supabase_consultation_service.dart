@@ -59,8 +59,8 @@ class SupabaseConsultationService {
             profiles!inner(full_name)
           ''')
           .eq('doctor_id', doctorId)
-          .gte('scheduled_time', startOfDay.toIso8601String())
-          .lt('scheduled_time', endOfDay.toIso8601String())
+          .gte('scheduled_time', startOfDay.toUtc().toIso8601String())
+          .lt('scheduled_time', endOfDay.toUtc().toIso8601String())
           .order('scheduled_time', ascending: true);
 
       return (response as List)
@@ -98,7 +98,7 @@ class SupabaseConsultationService {
             profiles!inner(full_name)
           ''')
           .eq('doctor_id', doctorId)
-          .gte('scheduled_time', startOfTomorrow.toIso8601String())
+          .gte('scheduled_time', startOfTomorrow.toUtc().toIso8601String())
           .inFilter('status', ['waiting', 'in_progress'])
           .order('scheduled_time', ascending: true)
           .limit(20);
@@ -288,12 +288,63 @@ class SupabaseConsultationService {
         }
       }
 
-      // Sort by session number descending (newest first)
       notes.sort((a, b) => b.sessionNumber.compareTo(a.sessionNumber));
       return notes;
     } catch (e) {
       log.severe('Error fetching previous session notes: $e');
       return [];
+    }
+  }
+
+  /// Fetch a single session note for a specific patient and session number
+  static Future<PreviousSessionNote?> getSessionNote(
+    String patientId,
+    int sessionNumber,
+  ) async {
+    try {
+      final doctorId = supabase.auth.currentUser?.id;
+      if (doctorId == null) return null;
+
+      final cloudPrefix = '$doctorId/$patientId/session_notes';
+      final sessionPath = '$cloudPrefix/session_$sessionNumber';
+
+      log.info('Fetching specific note from: $sessionPath');
+
+      final files = await supabase.storage
+          .from('medical_notes')
+          .list(path: sessionPath);
+
+      if (files.isEmpty) {
+        log.info('No files found in $sessionPath');
+        return null;
+      }
+
+      // Find the preview file (.sbn2.p or .sbn.p)
+      final previewFile = files.cast<FileObject?>().firstWhere(
+        (f) => f != null && (f.name.endsWith('.p')),
+        orElse: () => null,
+      );
+
+      if (previewFile != null) {
+        // Use createSignedUrl instead of getPublicUrl for private buckets
+        final signedUrl = await supabase.storage
+            .from('medical_notes')
+            .createSignedUrl('$sessionPath/${previewFile.name}', 60 * 60);
+
+        return PreviousSessionNote(
+          imageUrl: signedUrl,
+          sessionNumber: sessionNumber,
+          createdAt: previewFile.updatedAt != null
+              ? DateTime.parse(previewFile.updatedAt!).toLocal()
+              : DateTime.now(),
+          fileName: previewFile.name,
+        );
+      }
+
+      return null;
+    } catch (e) {
+      log.severe('Error fetching session note for session $sessionNumber: $e');
+      return null;
     }
   }
 }

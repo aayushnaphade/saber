@@ -24,7 +24,7 @@ class _VitalsDialogState extends State<VitalsDialog> {
   final _diastolicController = TextEditingController();
   final _pulseController = TextEditingController();
   final _weightController = TextEditingController();
-  
+
   var _isLoading = false;
 
   @override
@@ -43,15 +43,14 @@ class _VitalsDialogState extends State<VitalsDialog> {
 
     try {
       // Save Vitals
-      // Even if empty, we might want to record that a session started? 
-      // But typically we only save if there's data. 
+      // Even if empty, we might want to record that a session started?
+      // But typically we only save if there's data.
       // The user requirement says "track the changes over time", so we should save what is entered.
-      
+
       if (_systolicController.text.isNotEmpty ||
           _diastolicController.text.isNotEmpty ||
           _pulseController.text.isNotEmpty ||
           _weightController.text.isNotEmpty) {
-        
         await SupabaseVitalsService.saveVitals(
           patientId: widget.patientId,
           systolic: int.tryParse(_systolicController.text.trim()),
@@ -87,13 +86,13 @@ class _VitalsDialogState extends State<VitalsDialog> {
         children: [
           Text('Vitals for ${widget.patientName}'),
           const SizedBox(height: 4),
-           Text(
+          Text(
             'Consultation Fee: ₹$fee',
-             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-               color: Colors.green,
-               fontWeight: FontWeight.bold,
-             ),
-           ),
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: Colors.green,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
       content: SingleChildScrollView(
@@ -104,7 +103,7 @@ class _VitalsDialogState extends State<VitalsDialog> {
             children: [
               Row(
                 children: [
-                   Expanded(
+                  Expanded(
                     child: TextFormField(
                       controller: _systolicController,
                       decoration: const InputDecoration(
@@ -116,7 +115,10 @@ class _VitalsDialogState extends State<VitalsDialog> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Text('/', style: TextStyle(fontSize: 20, color: Colors.grey)),
+                  const Text(
+                    '/',
+                    style: TextStyle(fontSize: 20, color: Colors.grey),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextFormField(
@@ -156,7 +158,9 @@ class _VitalsDialogState extends State<VitalsDialog> {
                         suffixText: 'kg',
                         border: OutlineInputBorder(),
                       ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                     ),
                   ),
                 ],
@@ -167,7 +171,9 @@ class _VitalsDialogState extends State<VitalsDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: _isLoading ? null : () => Navigator.of(context).pop(), // Allow skip? Or Cancel? 
+          onPressed: _isLoading
+              ? null
+              : () => Navigator.of(context).pop(), // Allow skip? Or Cancel?
           // If this is part of the flow, Cancel might cancel the whole queuing process.
           // Let's assume Cancel cancels the action.
           child: const Text('Cancel'),

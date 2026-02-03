@@ -19,8 +19,10 @@ class SupabasePrescriptionService {
 
       // If consultationId is missing, try to find an active or recent one
       if (resolvedConsultationId == null) {
-        _log.info('Consultation ID missing, searching for active consultation...');
-        
+        _log.info(
+          'Consultation ID missing, searching for active consultation...',
+        );
+
         // 1. Search for an in_progress or waiting consultation first
         var consultation = await supabase
             .from('consultations')
@@ -35,8 +37,12 @@ class SupabasePrescriptionService {
         // 2. Fallback to any consultation from today if no active one exists
         if (consultation == null) {
           final today = DateTime.now();
-          final startOfDay = DateTime(today.year, today.month, today.day).toUtc().toIso8601String();
-          
+          final startOfDay = DateTime(
+            today.year,
+            today.month,
+            today.day,
+          ).toUtc().toIso8601String();
+
           consultation = await supabase
               .from('consultations')
               .select('id')
@@ -47,7 +53,7 @@ class SupabasePrescriptionService {
               .limit(1)
               .maybeSingle();
         }
-            
+
         if (consultation != null) {
           resolvedConsultationId = consultation['id'] as String;
           _log.info('Resolved consultation ID: $resolvedConsultationId');
@@ -55,15 +61,21 @@ class SupabasePrescriptionService {
           // 3. Last resort: Create a walk-in consultation automatically
           // This ensures the prescription is NEVER lost even if the doctor
           // started a session in a way that bypassed checking in.
-          _log.warning('No active or recent consultation found. Auto-creating walk-in consultation...');
+          _log.warning(
+            'No active or recent consultation found. Auto-creating walk-in consultation...',
+          );
           try {
-            final response = await supabase.from('consultations').insert({
-              'patient_id': patientId,
-              'doctor_id': user.id,
-              'status': 'in_progress',
-              'scheduled_time': DateTime.now().toIso8601String(),
-              'appointment_type': 'walk-in',
-            }).select().single();
+            final response = await supabase
+                .from('consultations')
+                .insert({
+                  'patient_id': patientId,
+                  'doctor_id': user.id,
+                  'status': 'in_progress',
+                  'scheduled_time': DateTime.now().toUtc().toIso8601String(),
+                  'appointment_type': 'walk-in',
+                })
+                .select()
+                .single();
             resolvedConsultationId = response['id'];
             _log.info('Auto-created consultation ID: $resolvedConsultationId');
           } catch (e) {
@@ -71,7 +83,7 @@ class SupabasePrescriptionService {
             // If even this fails, we have to throw, but this is unlikely
             throw Exception(
               'Failed to create prescription: No consultation record could be found or created. '
-              'Please ensure the patient is correctly registered.'
+              'Please ensure the patient is correctly registered.',
             );
           }
         }
@@ -81,18 +93,15 @@ class SupabasePrescriptionService {
         'patient_id': patientId,
         'doctor_id': user.id,
         'consultation_id': resolvedConsultationId,
-        'content': {
-          'medications': medications,
-          'patient_name': patientName,
-        },
+        'content': {'medications': medications, 'patient_name': patientName},
         'status': 'pending',
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toUtc().toIso8601String(),
       };
 
       _log.info('Creating prescription for patient: $patientId');
-      
+
       await supabase.from('prescriptions').insert(prescriptionData);
-      
+
       _log.info('Prescription created successfully');
     } catch (e) {
       _log.severe('Failed to create prescription', e);

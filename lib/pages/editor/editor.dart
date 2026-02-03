@@ -2253,17 +2253,19 @@ class EditorState extends State<Editor> {
                   },
                 ),
                 actions: [
-                  if (!widget.isWhiteboard)
+                  if (!coreInfo.readOnly && !widget.isWhiteboard)
                     SaveIndicator(
                       savingState: savingState,
                       triggerSave: saveToFile,
                     ),
                   if (widget.isWhiteboard) _buildClearWhiteboardButton(context),
-                  if (!widget.isWhiteboard) const SizedBox(width: 16),
-                  if (!widget.readOnly && !widget.isWhiteboard)
+                  if (!coreInfo.readOnly && !widget.isWhiteboard)
+                    const SizedBox(width: 16),
+                  if (!coreInfo.readOnly && !widget.isWhiteboard)
                     _buildTerminateButton(context),
-                  if (!widget.isWhiteboard) const SizedBox(width: 20),
-                  if (!widget.isWhiteboard)
+                  if (!coreInfo.readOnly && !widget.isWhiteboard)
+                    const SizedBox(width: 20),
+                  if (!coreInfo.readOnly && !widget.isWhiteboard)
                     Container(
                       margin: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(

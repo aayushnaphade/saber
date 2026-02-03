@@ -13,9 +13,7 @@ class AiSettingsPage extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('AI Settings'),
-      ),
+      appBar: AppBar(title: const Text('AI Settings')),
       body: ListView(
         children: [
           const SettingsSubtitle(subtitle: 'Report Generation'),
@@ -35,7 +33,10 @@ class AiSettingsPage extends StatelessWidget {
                       children: [
                         Icon(Icons.bolt, size: 16),
                         SizedBox(width: 4),
-                        Text('Fast Mode', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(
+                          'Fast Mode',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ],
                     ),
                     SizedBox(height: 2),
@@ -60,7 +61,10 @@ class AiSettingsPage extends StatelessWidget {
                       children: [
                         Icon(Icons.science, size: 16),
                         SizedBox(width: 4),
-                        Text('Deep & Focused Mode', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(
+                          'Deep & Focused Mode',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ],
                     ),
                     SizedBox(height: 2),
@@ -82,7 +86,8 @@ class AiSettingsPage extends StatelessWidget {
           SettingsSwitch(
             pref: stows.exactExtraction,
             title: 'Exact Extraction',
-            subtitle: 'Extract information exactly as it appears in the source.',
+            subtitle:
+                'Extract information exactly as it appears in the source.',
             icon: Icons.content_cut,
           ),
           const SizedBox(height: 16),

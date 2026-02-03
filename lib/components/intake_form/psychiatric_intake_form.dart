@@ -13,7 +13,7 @@ import 'dart:typed_data';
 
 /// Psychiatric Intake Form Widget
 /// Matches Dr. Monisha Dass's clinical intake form layout
-/// 
+///
 /// This form is displayed for new patients with no previous sessions
 /// to gather comprehensive psychiatric evaluation data
 class PsychiatricIntakeForm extends StatefulWidget {
@@ -48,9 +48,11 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
   // Header Fields
   DateTime? _dateOfExamination = DateTime.now();
   final TextEditingController _residenceController = TextEditingController();
-  final TextEditingController _durationOfIllnessController = TextEditingController();
+  final TextEditingController _durationOfIllnessController =
+      TextEditingController();
   final TextEditingController _referredByController = TextEditingController();
-  final TextEditingController _precipitatingFactorController = TextEditingController();
+  final TextEditingController _precipitatingFactorController =
+      TextEditingController();
 
   // Anxiety & Related Symptoms
   bool _anxietyWorry = false;
@@ -150,11 +152,11 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    
+
     // Start in edit mode if creating new intake or not in readOnly mode
     // Start in view mode if readOnly and viewing existing intake
     _isEditing = !widget.readOnly || widget.existingIntake == null;
-    
+
     // Pre-fill residence from patient data if available
     if (widget.patient.address != null && widget.patient.address!.isNotEmpty) {
       _residenceController.text = widget.patient.address!;
@@ -197,7 +199,8 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
     _prematureEjaculation = intake.prematureEjaculation;
     _retardedEjaculation = intake.retardedEjaculation;
     _worryMasturbationNE = intake.worryMasturbationNE;
-    _sexualDysfunctionOtherController.text = intake.sexualDysfunctionOther ?? '';
+    _sexualDysfunctionOtherController.text =
+        intake.sexualDysfunctionOther ?? '';
 
     _ideasDelPersecution = intake.ideasDelPersecution;
     _ideasDelReference = intake.ideasDelReference;
@@ -279,17 +282,25 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
   PsychiatricIntake _buildIntake() {
     final id = widget.existingIntake?.id ?? const Uuid().v4();
     final currentUserId = supabase.auth.currentUser?.id;
-    
+
     return PsychiatricIntake(
       id: id,
       patientId: widget.patient.id,
       createdAt: widget.existingIntake?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
       dateOfExamination: _dateOfExamination,
-      residence: _residenceController.text.isEmpty ? null : _residenceController.text,
-      durationOfIllness: _durationOfIllnessController.text.isEmpty ? null : _durationOfIllnessController.text,
-      referredBy: _referredByController.text.isEmpty ? null : _referredByController.text,
-      precipitatingFactor: _precipitatingFactorController.text.isEmpty ? null : _precipitatingFactorController.text,
+      residence: _residenceController.text.isEmpty
+          ? null
+          : _residenceController.text,
+      durationOfIllness: _durationOfIllnessController.text.isEmpty
+          ? null
+          : _durationOfIllnessController.text,
+      referredBy: _referredByController.text.isEmpty
+          ? null
+          : _referredByController.text,
+      precipitatingFactor: _precipitatingFactorController.text.isEmpty
+          ? null
+          : _precipitatingFactorController.text,
       anxietyWorry: _anxietyWorry,
       panic: _panic,
       restless: _restless,
@@ -303,7 +314,9 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
       somaticHeadache: _somaticHeadache,
       somaticBodyache: _somaticBodyache,
       somaticAbdominal: _somaticAbdominal,
-      somaticOther: _somaticOtherController.text.isEmpty ? null : _somaticOtherController.text,
+      somaticOther: _somaticOtherController.text.isEmpty
+          ? null
+          : _somaticOtherController.text,
       substanceUse: _substanceUse,
       alcoholDrugsTobacco: _alcoholDrugsTobacco,
       decreasedLibido: _decreasedLibido,
@@ -312,7 +325,9 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
       prematureEjaculation: _prematureEjaculation,
       retardedEjaculation: _retardedEjaculation,
       worryMasturbationNE: _worryMasturbationNE,
-      sexualDysfunctionOther: _sexualDysfunctionOtherController.text.isEmpty ? null : _sexualDysfunctionOtherController.text,
+      sexualDysfunctionOther: _sexualDysfunctionOtherController.text.isEmpty
+          ? null
+          : _sexualDysfunctionOtherController.text,
       ideasDelPersecution: _ideasDelPersecution,
       ideasDelReference: _ideasDelReference,
       otherDelusions: _otherDelusions,
@@ -360,15 +375,27 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
       incontinenceUrine: _incontinenceUrine,
       incontinenceStools: _incontinenceStools,
       emotionalLability: _emotionalLability,
-      medicalIllnesses: _medicalIllnessesController.text.isEmpty ? null : _medicalIllnessesController.text,
-      stresses: _stressesController.text.isEmpty ? null : _stressesController.text,
-      ongoingTreatment: _ongoingTreatmentController.text.isEmpty ? null : _ongoingTreatmentController.text,
-      otherSymptoms: _otherSymptomsController.text.isEmpty ? null : _otherSymptomsController.text,
-      clinicalNotes: _clinicalNotesController.text.isEmpty ? null : _clinicalNotesController.text,
-      provisionalDiagnosis: _provisionalDiagnosisController.text.isEmpty ? null : _provisionalDiagnosisController.text,
+      medicalIllnesses: _medicalIllnessesController.text.isEmpty
+          ? null
+          : _medicalIllnessesController.text,
+      stresses: _stressesController.text.isEmpty
+          ? null
+          : _stressesController.text,
+      ongoingTreatment: _ongoingTreatmentController.text.isEmpty
+          ? null
+          : _ongoingTreatmentController.text,
+      otherSymptoms: _otherSymptomsController.text.isEmpty
+          ? null
+          : _otherSymptomsController.text,
+      clinicalNotes: _clinicalNotesController.text.isEmpty
+          ? null
+          : _clinicalNotesController.text,
+      provisionalDiagnosis: _provisionalDiagnosisController.text.isEmpty
+          ? null
+          : _provisionalDiagnosisController.text,
       // Import metadata
       importedFromPhoto: _wasImportedFromPhoto,
-      importedAt: _wasImportedFromPhoto ? DateTime.now() : null,
+      importedAt: _wasImportedFromPhoto ? DateTime.now().toUtc() : null,
       importedBy: _wasImportedFromPhoto ? currentUserId : null,
     );
   }
@@ -376,7 +403,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
   Future<void> _handleSave() async {
     if (_isSaving) return;
     setState(() => _isSaving = true);
-    
+
     try {
       final intake = _buildIntake();
       widget.onSave(intake);
@@ -447,7 +474,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
       // Pre-fill form with extracted data
       if (mounted) {
         _prefillFromExtractedData(extractedData);
-        
+
         setState(() {
           _isImporting = false;
           _wasImportedFromPhoto = true;
@@ -461,7 +488,9 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 12),
                 Expanded(
-                  child: Text('Form pre-filled from photos. Please review and correct any errors.'),
+                  child: Text(
+                    'Form pre-filled from photos. Please review and correct any errors.',
+                  ),
                 ),
               ],
             ),
@@ -551,7 +580,8 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
       _retardedEjaculation = data['retarded_ejaculation'] ?? false;
       _worryMasturbationNE = data['worry_masturbation_ne'] ?? false;
       if (data['sexual_dysfunction_other'] != null) {
-        _sexualDysfunctionOtherController.text = data['sexual_dysfunction_other'];
+        _sexualDysfunctionOtherController.text =
+            data['sexual_dysfunction_other'];
       }
 
       // Psychotic symptoms
@@ -589,7 +619,8 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
       _pmrPma = data['pmr_pma'] ?? false;
       _fatigue = data['fatigue'] ?? false;
       _worthlessnessGuilt = data['worthlessness_guilt'] ?? false;
-      _decreasedThinkingConcentration = data['decreased_thinking_concentration'] ?? false;
+      _decreasedThinkingConcentration =
+          data['decreased_thinking_concentration'] ?? false;
       _indecisive = data['indecisive'] ?? false;
       _suicidalThoughts = data['suicidal_thoughts'] ?? false;
       _suicidalPlans = data['suicidal_plans'] ?? false;
@@ -664,11 +695,11 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
               ),
             ),
             const SizedBox(width: 8),
-            
+
             // Save button (only in edit mode)
             FilledButton.icon(
               onPressed: _isSaving ? null : _handleSave,
-              icon: _isSaving 
+              icon: _isSaving
                   ? const SizedBox(
                       width: 16,
                       height: 16,
@@ -713,7 +744,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
               _buildThreeColumnGrid(context)
             else
               _buildSingleColumnLayout(context),
-            
+
             const SizedBox(height: 24),
 
             // Additional Information Section
@@ -731,7 +762,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
 
   Widget _buildHeaderCard(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Card(
       elevation: 0,
       color: MedicalColors.infoBg,
@@ -743,16 +774,19 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(Icons.medical_services_outlined, 
-                 color: MedicalColors.info, size: 32),
+            Icon(
+              Icons.medical_services_outlined,
+              color: MedicalColors.info,
+              size: 32,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.doctorName != null && widget.doctorName!.isNotEmpty 
-                        ? 'Dr. ${widget.doctorName}' 
+                    widget.doctorName != null && widget.doctorName!.isNotEmpty
+                        ? 'Dr. ${widget.doctorName}'
                         : 'Doctor',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -774,7 +808,9 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                DateFormat('dd/MM/yyyy').format(_dateOfExamination ?? DateTime.now()),
+                DateFormat(
+                  'dd/MM/yyyy',
+                ).format(_dateOfExamination ?? DateTime.now()),
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -817,14 +853,15 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
                 Expanded(
                   child: _buildReadOnlyField(
                     label: 'Age/Sex',
-                    value: '${widget.patient.age ?? "-"}/${widget.patient.gender ?? "-"}',
+                    value:
+                        '${widget.patient.age ?? "-"}/${widget.patient.gender ?? "-"}',
                     icon: Icons.cake_outlined,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            
+
             // Second Row - General Info
             Wrap(
               spacing: 12,
@@ -901,7 +938,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
 
   Widget _buildLeftColumn(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -911,29 +948,81 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
           title: 'Anxiety Related',
           color: Colors.orange,
           children: [
-            _buildCheckboxTile('Anxiety/Worry', _anxietyWorry, (v) => setState(() => _anxietyWorry = v ?? false)),
-            _buildCheckboxTile('Panic', _panic, (v) => setState(() => _panic = v ?? false)),
-            _buildCheckboxTile('Restless', _restless, (v) => setState(() => _restless = v ?? false)),
-            _buildCheckboxTile('Palpitations/Tremors', _palpitationsTremors, (v) => setState(() => _palpitationsTremors = v ?? false)),
-            _buildCheckboxTile('Phobia', _phobia, (v) => setState(() => _phobia = v ?? false)),
-            _buildCheckboxTile('Obsessions', _obsessions, (v) => setState(() => _obsessions = v ?? false)),
-            _buildCheckboxTile('Compulsions', _compulsions, (v) => setState(() => _compulsions = v ?? false)),
-            _buildCheckboxTile('Hypochondriacal', _hypochondriacal, (v) => setState(() => _hypochondriacal = v ?? false)),
-            _buildCheckboxTile('Fits-hyst./epileptic', _fitsHystEpileptic, (v) => setState(() => _fitsHystEpileptic = v ?? false)),
-            _buildCheckboxTile('Possession state', _possessionState, (v) => setState(() => _possessionState = v ?? false)),
+            _buildCheckboxTile(
+              'Anxiety/Worry',
+              _anxietyWorry,
+              (v) => setState(() => _anxietyWorry = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Panic',
+              _panic,
+              (v) => setState(() => _panic = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Restless',
+              _restless,
+              (v) => setState(() => _restless = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Palpitations/Tremors',
+              _palpitationsTremors,
+              (v) => setState(() => _palpitationsTremors = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Phobia',
+              _phobia,
+              (v) => setState(() => _phobia = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Obsessions',
+              _obsessions,
+              (v) => setState(() => _obsessions = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Compulsions',
+              _compulsions,
+              (v) => setState(() => _compulsions = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Hypochondriacal',
+              _hypochondriacal,
+              (v) => setState(() => _hypochondriacal = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Fits-hyst./epileptic',
+              _fitsHystEpileptic,
+              (v) => setState(() => _fitsHystEpileptic = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Possession state',
+              _possessionState,
+              (v) => setState(() => _possessionState = v ?? false),
+            ),
           ],
         ),
         const SizedBox(height: 16),
-        
+
         // Somatic Symptoms
         _buildSectionCard(
           context,
           title: 'Somatic Symptoms',
           color: Colors.teal,
           children: [
-            _buildCheckboxTile('Headache', _somaticHeadache, (v) => setState(() => _somaticHeadache = v ?? false)),
-            _buildCheckboxTile('Bodyache', _somaticBodyache, (v) => setState(() => _somaticBodyache = v ?? false)),
-            _buildCheckboxTile('Abd. Symptoms', _somaticAbdominal, (v) => setState(() => _somaticAbdominal = v ?? false)),
+            _buildCheckboxTile(
+              'Headache',
+              _somaticHeadache,
+              (v) => setState(() => _somaticHeadache = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Bodyache',
+              _somaticBodyache,
+              (v) => setState(() => _somaticBodyache = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Abd. Symptoms',
+              _somaticAbdominal,
+              (v) => setState(() => _somaticAbdominal = v ?? false),
+            ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: TextField(
@@ -949,14 +1038,18 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
           ],
         ),
         const SizedBox(height: 16),
-        
+
         // Substance Use
         _buildSectionCard(
           context,
           title: 'Substance Use',
           color: Colors.red,
           children: [
-            _buildCheckboxTile('Alcohol/Drugs/Tobacco', _alcoholDrugsTobacco, (v) => setState(() => _alcoholDrugsTobacco = v ?? false)),
+            _buildCheckboxTile(
+              'Alcohol/Drugs/Tobacco',
+              _alcoholDrugsTobacco,
+              (v) => setState(() => _alcoholDrugsTobacco = v ?? false),
+            ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: DropdownButtonFormField<String>(
@@ -969,7 +1062,10 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
                 items: const [
                   DropdownMenuItem(value: 'use', child: Text('Use')),
                   DropdownMenuItem(value: 'abuse', child: Text('Abuse')),
-                  DropdownMenuItem(value: 'dependence', child: Text('Dependence')),
+                  DropdownMenuItem(
+                    value: 'dependence',
+                    child: Text('Dependence'),
+                  ),
                 ],
                 onChanged: (v) => setState(() => _substanceUse = v),
               ),
@@ -977,19 +1073,43 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
           ],
         ),
         const SizedBox(height: 16),
-        
+
         // Sexual Dysfunction
         _buildSectionCard(
           context,
           title: 'Sexual Dysfunction',
           color: Colors.pink,
           children: [
-            _buildCheckboxTile('↓ Libido', _decreasedLibido, (v) => setState(() => _decreasedLibido = v ?? false)),
-            _buildCheckboxTile('↑ Libido', _increasedLibido, (v) => setState(() => _increasedLibido = v ?? false)),
-            _buildCheckboxTile('E.D.', _erectileDysfunction, (v) => setState(() => _erectileDysfunction = v ?? false)),
-            _buildCheckboxTile('Prematu. ejaculation', _prematureEjaculation, (v) => setState(() => _prematureEjaculation = v ?? false)),
-            _buildCheckboxTile('Retarded ejaculation', _retardedEjaculation, (v) => setState(() => _retardedEjaculation = v ?? false)),
-            _buildCheckboxTile('Worry rel.to Mast/NE', _worryMasturbationNE, (v) => setState(() => _worryMasturbationNE = v ?? false)),
+            _buildCheckboxTile(
+              '↓ Libido',
+              _decreasedLibido,
+              (v) => setState(() => _decreasedLibido = v ?? false),
+            ),
+            _buildCheckboxTile(
+              '↑ Libido',
+              _increasedLibido,
+              (v) => setState(() => _increasedLibido = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'E.D.',
+              _erectileDysfunction,
+              (v) => setState(() => _erectileDysfunction = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Prematu. ejaculation',
+              _prematureEjaculation,
+              (v) => setState(() => _prematureEjaculation = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Retarded ejaculation',
+              _retardedEjaculation,
+              (v) => setState(() => _retardedEjaculation = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Worry rel.to Mast/NE',
+              _worryMasturbationNE,
+              (v) => setState(() => _worryMasturbationNE = v ?? false),
+            ),
           ],
         ),
       ],
@@ -1006,35 +1126,111 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
           title: 'Psychotic Symptoms',
           color: Colors.purple,
           children: [
-            _buildCheckboxTile('Ideas/Del. of persecution', _ideasDelPersecution, (v) => setState(() => _ideasDelPersecution = v ?? false)),
-            _buildCheckboxTile('Ideas/Del. of reference', _ideasDelReference, (v) => setState(() => _ideasDelReference = v ?? false)),
-            _buildCheckboxTile('Other delusions', _otherDelusions, (v) => setState(() => _otherDelusions = v ?? false)),
-            _buildCheckboxTile('F.R.S. (First Rank)', _firstRankSymptoms, (v) => setState(() => _firstRankSymptoms = v ?? false)),
-            _buildCheckboxTile('Hallucinations - Auditory', _hallucinationsAuditory, (v) => setState(() => _hallucinationsAuditory = v ?? false)),
-            _buildCheckboxTile('Hallucinations - Visual', _hallucinationsVisual, (v) => setState(() => _hallucinationsVisual = v ?? false)),
-            _buildCheckboxTile('Incoherence', _incoherence, (v) => setState(() => _incoherence = v ?? false)),
-            _buildCheckboxTile('Muttering to self', _mutteringToSelf, (v) => setState(() => _mutteringToSelf = v ?? false)),
-            _buildCheckboxTile('Inappropriate smiling', _inappropriateSmiling, (v) => setState(() => _inappropriateSmiling = v ?? false)),
-            _buildCheckboxTile('Inappropriate weeping', _inappropriateWeeping, (v) => setState(() => _inappropriateWeeping = v ?? false)),
-            _buildCheckboxTile('Abusing', _abusing, (v) => setState(() => _abusing = v ?? false)),
-            _buildCheckboxTile('Violence', _violence, (v) => setState(() => _violence = v ?? false)),
-            _buildCheckboxTile('Withdrawal/Inertia', _withdrawalInertia, (v) => setState(() => _withdrawalInertia = v ?? false)),
+            _buildCheckboxTile(
+              'Ideas/Del. of persecution',
+              _ideasDelPersecution,
+              (v) => setState(() => _ideasDelPersecution = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Ideas/Del. of reference',
+              _ideasDelReference,
+              (v) => setState(() => _ideasDelReference = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Other delusions',
+              _otherDelusions,
+              (v) => setState(() => _otherDelusions = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'F.R.S. (First Rank)',
+              _firstRankSymptoms,
+              (v) => setState(() => _firstRankSymptoms = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Hallucinations - Auditory',
+              _hallucinationsAuditory,
+              (v) => setState(() => _hallucinationsAuditory = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Hallucinations - Visual',
+              _hallucinationsVisual,
+              (v) => setState(() => _hallucinationsVisual = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Incoherence',
+              _incoherence,
+              (v) => setState(() => _incoherence = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Muttering to self',
+              _mutteringToSelf,
+              (v) => setState(() => _mutteringToSelf = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Inappropriate smiling',
+              _inappropriateSmiling,
+              (v) => setState(() => _inappropriateSmiling = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Inappropriate weeping',
+              _inappropriateWeeping,
+              (v) => setState(() => _inappropriateWeeping = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Abusing',
+              _abusing,
+              (v) => setState(() => _abusing = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Violence',
+              _violence,
+              (v) => setState(() => _violence = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Withdrawal/Inertia',
+              _withdrawalInertia,
+              (v) => setState(() => _withdrawalInertia = v ?? false),
+            ),
           ],
         ),
         const SizedBox(height: 16),
-        
+
         // Manic Symptoms
         _buildSectionCard(
           context,
           title: 'Manic Symptoms',
           color: Colors.amber,
           children: [
-            _buildCheckboxTile('Irritable/Elated', _irritableElated, (v) => setState(() => _irritableElated = v ?? false)),
-            _buildCheckboxTile('Grandiose', _grandiose, (v) => setState(() => _grandiose = v ?? false)),
-            _buildCheckboxTile('Overtalkative', _overtalkative, (v) => setState(() => _overtalkative = v ?? false)),
-            _buildCheckboxTile('Flight of Ideas', _flightOfIdeas, (v) => setState(() => _flightOfIdeas = v ?? false)),
-            _buildCheckboxTile('Overactive/PMA', _overactivePMA, (v) => setState(() => _overactivePMA = v ?? false)),
-            _buildCheckboxTile('Extravagant', _extravagant, (v) => setState(() => _extravagant = v ?? false)),
+            _buildCheckboxTile(
+              'Irritable/Elated',
+              _irritableElated,
+              (v) => setState(() => _irritableElated = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Grandiose',
+              _grandiose,
+              (v) => setState(() => _grandiose = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Overtalkative',
+              _overtalkative,
+              (v) => setState(() => _overtalkative = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Flight of Ideas',
+              _flightOfIdeas,
+              (v) => setState(() => _flightOfIdeas = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Overactive/PMA',
+              _overactivePMA,
+              (v) => setState(() => _overactivePMA = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Extravagant',
+              _extravagant,
+              (v) => setState(() => _extravagant = v ?? false),
+            ),
           ],
         ),
       ],
@@ -1043,7 +1239,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
 
   Widget _buildRightColumn(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1053,12 +1249,36 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
           title: 'Depressive Symptoms',
           color: Colors.blue,
           children: [
-            _buildCheckboxTile('Sad - intermittent', _sadIntermittent, (v) => setState(() => _sadIntermittent = v ?? false)),
-            _buildCheckboxTile('Sad - persistent', _sadPersistent, (v) => setState(() => _sadPersistent = v ?? false)),
-            _buildCheckboxTile('Anhedonia/Inertia', _anhedoniaInertia, (v) => setState(() => _anhedoniaInertia = v ?? false)),
-            _buildCheckboxTile('Diurnal change', _diurnalChange, (v) => setState(() => _diurnalChange = v ?? false)),
-            _buildCheckboxTile('Weight loss', _weightLoss, (v) => setState(() => _weightLoss = v ?? false)),
-            _buildCheckboxTile('Weight gain', _weightGain, (v) => setState(() => _weightGain = v ?? false)),
+            _buildCheckboxTile(
+              'Sad - intermittent',
+              _sadIntermittent,
+              (v) => setState(() => _sadIntermittent = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Sad - persistent',
+              _sadPersistent,
+              (v) => setState(() => _sadPersistent = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Anhedonia/Inertia',
+              _anhedoniaInertia,
+              (v) => setState(() => _anhedoniaInertia = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Diurnal change',
+              _diurnalChange,
+              (v) => setState(() => _diurnalChange = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Weight loss',
+              _weightLoss,
+              (v) => setState(() => _weightLoss = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Weight gain',
+              _weightGain,
+              (v) => setState(() => _weightGain = v ?? false),
+            ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: DropdownButtonFormField<String>(
@@ -1077,29 +1297,81 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
                 onChanged: (v) => setState(() => _insomniaType = v),
               ),
             ),
-            _buildCheckboxTile('Hypersomnia', _hypersomnia, (v) => setState(() => _hypersomnia = v ?? false)),
-            _buildCheckboxTile('PMR/PMA', _pmrPma, (v) => setState(() => _pmrPma = v ?? false)),
-            _buildCheckboxTile('Fatigue', _fatigue, (v) => setState(() => _fatigue = v ?? false)),
-            _buildCheckboxTile('Worthlessness/Guilt', _worthlessnessGuilt, (v) => setState(() => _worthlessnessGuilt = v ?? false)),
-            _buildCheckboxTile('↓Thinking/Conc.', _decreasedThinkingConcentration, (v) => setState(() => _decreasedThinkingConcentration = v ?? false)),
-            _buildCheckboxTile('Indecisive', _indecisive, (v) => setState(() => _indecisive = v ?? false)),
+            _buildCheckboxTile(
+              'Hypersomnia',
+              _hypersomnia,
+              (v) => setState(() => _hypersomnia = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'PMR/PMA',
+              _pmrPma,
+              (v) => setState(() => _pmrPma = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Fatigue',
+              _fatigue,
+              (v) => setState(() => _fatigue = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Worthlessness/Guilt',
+              _worthlessnessGuilt,
+              (v) => setState(() => _worthlessnessGuilt = v ?? false),
+            ),
+            _buildCheckboxTile(
+              '↓Thinking/Conc.',
+              _decreasedThinkingConcentration,
+              (v) =>
+                  setState(() => _decreasedThinkingConcentration = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Indecisive',
+              _indecisive,
+              (v) => setState(() => _indecisive = v ?? false),
+            ),
             const Divider(),
-            _buildCheckboxTile('Suicidal thoughts', _suicidalThoughts, (v) => setState(() => _suicidalThoughts = v ?? false), isWarning: true),
-            _buildCheckboxTile('Suicidal plans', _suicidalPlans, (v) => setState(() => _suicidalPlans = v ?? false), isWarning: true),
-            _buildCheckboxTile('Suicidal attempts', _suicidalAttempts, (v) => setState(() => _suicidalAttempts = v ?? false), isDanger: true),
+            _buildCheckboxTile(
+              'Suicidal thoughts',
+              _suicidalThoughts,
+              (v) => setState(() => _suicidalThoughts = v ?? false),
+              isWarning: true,
+            ),
+            _buildCheckboxTile(
+              'Suicidal plans',
+              _suicidalPlans,
+              (v) => setState(() => _suicidalPlans = v ?? false),
+              isWarning: true,
+            ),
+            _buildCheckboxTile(
+              'Suicidal attempts',
+              _suicidalAttempts,
+              (v) => setState(() => _suicidalAttempts = v ?? false),
+              isDanger: true,
+            ),
           ],
         ),
         const SizedBox(height: 16),
-        
+
         // Cognitive Symptoms
         _buildSectionCard(
           context,
           title: 'Cognitive/Dementia',
           color: Colors.brown,
           children: [
-            _buildCheckboxTile('Disorientation - time', _disorientationTime, (v) => setState(() => _disorientationTime = v ?? false)),
-            _buildCheckboxTile('Disorientation - place', _disorientationPlace, (v) => setState(() => _disorientationPlace = v ?? false)),
-            _buildCheckboxTile('Disorientation - person', _disorientationPerson, (v) => setState(() => _disorientationPerson = v ?? false)),
+            _buildCheckboxTile(
+              'Disorientation - time',
+              _disorientationTime,
+              (v) => setState(() => _disorientationTime = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Disorientation - place',
+              _disorientationPlace,
+              (v) => setState(() => _disorientationPlace = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Disorientation - person',
+              _disorientationPerson,
+              (v) => setState(() => _disorientationPerson = v ?? false),
+            ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: DropdownButtonFormField<String>(
@@ -1117,14 +1389,46 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
                 onChanged: (v) => setState(() => _forgetfulness = v),
               ),
             ),
-            _buildCheckboxTile('Aphasia/apraxia/agnosia', _aphasiaApraxiaAgnosia, (v) => setState(() => _aphasiaApraxiaAgnosia = v ?? false)),
-            _buildCheckboxTile('↓ Intelligence', _decreasedIntelligence, (v) => setState(() => _decreasedIntelligence = v ?? false)),
-            _buildCheckboxTile('Perseveration', _perseveration, (v) => setState(() => _perseveration = v ?? false)),
-            _buildCheckboxTile('Losing path', _losingPath, (v) => setState(() => _losingPath = v ?? false)),
-            _buildCheckboxTile('Disinhibition', _disinhibition, (v) => setState(() => _disinhibition = v ?? false)),
-            _buildCheckboxTile('Incontinence urine', _incontinenceUrine, (v) => setState(() => _incontinenceUrine = v ?? false)),
-            _buildCheckboxTile('Incontinence stools', _incontinenceStools, (v) => setState(() => _incontinenceStools = v ?? false)),
-            _buildCheckboxTile('Emotional Lability', _emotionalLability, (v) => setState(() => _emotionalLability = v ?? false)),
+            _buildCheckboxTile(
+              'Aphasia/apraxia/agnosia',
+              _aphasiaApraxiaAgnosia,
+              (v) => setState(() => _aphasiaApraxiaAgnosia = v ?? false),
+            ),
+            _buildCheckboxTile(
+              '↓ Intelligence',
+              _decreasedIntelligence,
+              (v) => setState(() => _decreasedIntelligence = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Perseveration',
+              _perseveration,
+              (v) => setState(() => _perseveration = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Losing path',
+              _losingPath,
+              (v) => setState(() => _losingPath = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Disinhibition',
+              _disinhibition,
+              (v) => setState(() => _disinhibition = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Incontinence urine',
+              _incontinenceUrine,
+              (v) => setState(() => _incontinenceUrine = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Incontinence stools',
+              _incontinenceStools,
+              (v) => setState(() => _incontinenceStools = v ?? false),
+            ),
+            _buildCheckboxTile(
+              'Emotional Lability',
+              _emotionalLability,
+              (v) => setState(() => _emotionalLability = v ?? false),
+            ),
           ],
         ),
       ],
@@ -1133,7 +1437,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
 
   Widget _buildAdditionalInfoSection(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -1188,7 +1492,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
 
   Widget _buildClinicalNotesSection(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -1234,7 +1538,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
     required List<Widget> children,
   }) {
     final theme = Theme.of(context);
-    
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -1356,7 +1660,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
     IconData? icon,
   }) {
     final theme = Theme.of(context);
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(

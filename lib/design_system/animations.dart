@@ -6,7 +6,7 @@ class AppAnimations {
   AppAnimations._(); // Private constructor to prevent instantiation
 
   // Duration constants
-  
+
   /// Very fast animation - 100ms
   /// Use for: micro-interactions, button feedback
   static const Duration veryFast = Duration(milliseconds: 100);
@@ -28,7 +28,7 @@ class AppAnimations {
   static const Duration verySlow = Duration(milliseconds: 700);
 
   // Curve constants
-  
+
   /// Standard easing - easeInOut
   /// Use for: most animations
   static const Curve standard = Curves.easeInOut;
@@ -54,7 +54,7 @@ class AppAnimations {
   static const Curve elastic = Curves.elasticOut;
 
   // Specialized animation configs
-  
+
   /// Button press animation
   static const Duration buttonPress = veryFast;
   static const Curve buttonPressCurve = standard;

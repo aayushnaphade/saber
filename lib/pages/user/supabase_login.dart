@@ -8,6 +8,8 @@ import 'package:saber/data/supabase/supabase_auth_service.dart';
 import 'package:saber/pages/home/home.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:saber/components/misc/ethereal_background.dart';
+import 'dart:ui';
 
 /// Supabase authentication login page with Material 3 design
 class SupabaseLoginPage extends StatefulWidget {
@@ -42,7 +44,7 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
       (AuthState data) {
         // We handle navigation explicitly in _handleEmailPasswordAuth
         // or via the router redirect for restored sessions.
-        // This avoids race conditions where a non-doctor is 
+        // This avoids race conditions where a non-doctor is
         // briefly navigated to home before role check completes.
       },
       onError: (error) {
@@ -53,7 +55,7 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
           } else {
             message = ErrorHandler.getFriendlyErrorMessage(error);
           }
-          
+
           _showErrorSnackBar(message);
         }
       },
@@ -104,7 +106,7 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
           try {
             // Ensure profile is synced
             await SupabaseAuthService.syncProfile();
-            
+
             final role = stows.userRole.value;
             log.info('User signed in with role: $role');
 
@@ -125,7 +127,10 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
             if (mounted) {
               _showSuccessSnackBar('Signed in successfully!');
               context.go(
-                RoutePaths.home.replaceFirst(':subpage', HomePage.dashboardSubpage),
+                RoutePaths.home.replaceFirst(
+                  ':subpage',
+                  HomePage.dashboardSubpage,
+                ),
               );
             }
           } catch (roleError) {
@@ -133,7 +138,9 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
             // If we can't verify, play it safe and sign out
             await SupabaseAuthService.signOut();
             if (mounted) {
-              _showErrorSnackBar('Authentication error: Could not verify permissions.');
+              _showErrorSnackBar(
+                'Authentication error: Could not verify permissions.',
+              );
             }
           }
         }
@@ -176,10 +183,12 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
     } on AuthException catch (e) {
       if (mounted) {
         final errorString = e.toString();
-        if (errorString.contains('SocketException') || 
-            errorString.contains('Failed host lookup') || 
+        if (errorString.contains('SocketException') ||
+            errorString.contains('Failed host lookup') ||
             errorString.contains('Network is unreachable')) {
-          _showErrorSnackBar('Network error. Please check your internet connection.');
+          _showErrorSnackBar(
+            'Network error. Please check your internet connection.',
+          );
         } else {
           _showErrorSnackBar(e.message);
         }
@@ -217,10 +226,12 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
     } on AuthException catch (e) {
       if (mounted) {
         final errorString = e.toString();
-        if (errorString.contains('SocketException') || 
-            errorString.contains('Failed host lookup') || 
+        if (errorString.contains('SocketException') ||
+            errorString.contains('Failed host lookup') ||
             errorString.contains('Network is unreachable')) {
-          _showErrorSnackBar('Network error. Please check your internet connection.');
+          _showErrorSnackBar(
+            'Network error. Please check your internet connection.',
+          );
         } else {
           _showErrorSnackBar(e.message);
         }
@@ -274,23 +285,16 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
     final isLandscape = size.width > size.height;
 
     return Scaffold(
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              colorScheme.primary.withValues(alpha: 0.05),
-              colorScheme.secondary.withValues(alpha: 0.05),
-              colorScheme.tertiary.withValues(alpha: 0.05),
-            ],
+      backgroundColor: const Color(0xFF001220),
+      body: Stack(
+        children: [
+          const EtherealBackground(),
+          SafeArea(
+            child: isLandscape
+                ? _buildLandscapeLayout(context, colorScheme, textTheme)
+                : _buildPortraitLayout(context, colorScheme, textTheme),
           ),
-        ),
-        child: SafeArea(
-          child: isLandscape
-              ? _buildLandscapeLayout(context, colorScheme, textTheme)
-              : _buildPortraitLayout(context, colorScheme, textTheme),
-        ),
+        ],
       ),
     );
   }
@@ -334,22 +338,22 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildIllustration(colorScheme, 250),
-                  const SizedBox(height: 24),
+                  _buildIllustration(colorScheme, 180),
+                  const SizedBox(height: 32),
                   Text(
-                    'Compassionate Care,\nDigital Precision',
-                    style: textTheme.headlineMedium?.copyWith(
-                      color: colorScheme.primary,
+                    'SynapseAI',
+                    style: textTheme.headlineLarge?.copyWith(
+                      color: Colors.white,
                       fontWeight: FontWeight.bold,
-                      height: 1.3,
+                      letterSpacing: -1,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Empowering mental health professionals\nwith modern documentation tools',
+                    'Effortless Documentation\nfor Modern Psychiatry',
                     style: textTheme.bodyLarge?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                      color: Colors.white.withValues(alpha: 0.7),
                       height: 1.5,
                     ),
                     textAlign: TextAlign.center,
@@ -381,88 +385,21 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
   }
 
   Widget _buildIllustration(ColorScheme colorScheme, double size) {
-    return SizedBox(
+    return Container(
       width: size,
       height: size,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              colorScheme.primaryContainer,
-              colorScheme.secondaryContainer,
-            ],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: colorScheme.primary.withValues(alpha: 0.2),
-              blurRadius: 40,
-              offset: const Offset(0, 20),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            // Brain illustration using icons and shapes
-            Center(
-              child: Icon(
-                Icons.psychology_rounded,
-                size: size * 0.5,
-                color: colorScheme.primary.withValues(alpha: 0.9),
-              ),
-            ),
-            // Decorative elements
-            Positioned(
-              top: size * 0.15,
-              right: size * 0.15,
-              child: SizedBox(
-                width: size * 0.12,
-                height: size * 0.12,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colorScheme.tertiary.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: size * 0.2,
-              left: size * 0.1,
-              child: SizedBox(
-                width: size * 0.15,
-                height: size * 0.15,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colorScheme.secondary.withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-            ),
-            // Heart icon for care
-            Positioned(
-              bottom: size * 0.15,
-              right: size * 0.2,
-              child: Icon(
-                Icons.favorite,
-                size: size * 0.15,
-                color: colorScheme.error.withValues(alpha: 0.7),
-              ),
-            ),
-            // Stethoscope for medical
-            Positioned(
-              top: size * 0.2,
-              left: size * 0.15,
-              child: Icon(
-                Icons.medical_services_outlined,
-                size: size * 0.13,
-                color: colorScheme.primary.withValues(alpha: 0.6),
-              ),
-            ),
-          ],
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Center(
+        child: Image.asset(
+          'assets/icon/icon.png',
+          color: Colors.white.withValues(alpha: 0.9),
+          colorBlendMode: BlendMode.srcIn,
+          fit: BoxFit.contain,
         ),
       ),
     );
@@ -473,468 +410,472 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
     ColorScheme colorScheme,
     TextTheme textTheme,
   ) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 450),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withValues(alpha: 0.1),
-            blurRadius: 30,
-            offset: const Offset(0, 10),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(32),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 450),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
-        ],
-      ),
-      padding: const EdgeInsets.all(32.0),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_showOtpInput) ...[
-              // OTP Verification Header
-              Row(
-                children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Icon(
-                        Icons.mark_email_read_rounded,
-                        color: colorScheme.primary,
-                        size: 28,
+          padding: const EdgeInsets.all(32.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_showOtpInput) ...[
+                  // OTP Verification Header
+                  Row(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Icon(
+                            Icons.mark_email_read_rounded,
+                            color: Colors.cyanAccent,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Verify Email',
+                              style: textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              'Enter the code sent to your email',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+
+                  // OTP Field
+                  TextFormField(
+                    controller: _otpController,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.done,
+                    enabled: !_isLoading,
+                    style: textTheme.bodyLarge?.copyWith(letterSpacing: 4),
+                    textAlign: TextAlign.center,
+                    maxLength: 8,
+                    onFieldSubmitted: (_) => _handleOtpVerification(),
+                    decoration: InputDecoration(
+                      labelText: 'Verification Code',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      hintText: '000000',
+                      hintStyle: const TextStyle(color: Colors.white30),
+                      counterText: '',
+                      prefixIcon: const Icon(
+                        Icons.lock_clock_outlined,
+                        color: Colors.cyanAccent,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.05),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.1),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(
+                          color: Colors.cyanAccent,
+                          width: 2,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Verify Email',
-                          style: textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
-                        Text(
-                          'Enter the code sent to your email',
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
+                  const SizedBox(height: 24),
 
-              // OTP Field
-              TextFormField(
-                controller: _otpController,
-                keyboardType: TextInputType.number,
-                textInputAction: TextInputAction.done,
-                enabled: !_isLoading,
-                style: textTheme.bodyLarge?.copyWith(letterSpacing: 4),
-                textAlign: TextAlign.center,
-                maxLength: 8,
-                onFieldSubmitted: (_) => _handleOtpVerification(),
-                decoration: InputDecoration(
-                  labelText: 'Verification Code',
-                  hintText: '000000',
-                  counterText: '',
-                  prefixIcon: Icon(
-                    Icons.lock_clock_outlined,
-                    color: colorScheme.primary,
-                  ),
-                  filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.3,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(
-                      color: colorScheme.outline.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(
-                      color: colorScheme.primary,
-                      width: 2,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Verify Button
-              FilledButton(
-                onPressed: _isLoading ? null : _handleOtpVerification,
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(16)),
-                  ),
-                ),
-                child: _isLoading
-                    ? SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            colorScheme.onPrimary,
-                          ),
-                        ),
-                      )
-                    : Text(
-                        'Verify Code',
-                        style: textTheme.titleMedium?.copyWith(
-                          color: colorScheme.onPrimary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-              ),
-              const SizedBox(height: 16),
-
-              // Back Button
-              TextButton(
-                onPressed: _isLoading
-                    ? null
-                    : () {
-                        setState(() => _showOtpInput = false);
-                      },
-                child: const Text('Back to Login'),
-              ),
-            ] else ...[
-              // Header
-              Row(
-                children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Icon(
-                        Icons.lock_person_rounded,
-                        color: colorScheme.primary,
-                        size: 28,
+                  // Verify Button
+                  FilledButton(
+                    onPressed: _isLoading ? null : _handleOtpVerification,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.cyanAccent.withValues(alpha: 0.8),
+                      foregroundColor: Colors.black87,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(16)),
                       ),
                     ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.black87,
+                              ),
+                            ),
+                          )
+                        : const Text(
+                            'Verify Code',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _isSignUpMode ? 'Create Account' : 'Welcome Back',
-                          style: textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
+                  const SizedBox(height: 16),
+
+                  // Back Button
+                  TextButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            setState(() => _showOtpInput = false);
+                          },
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                    ),
+                    child: const Text('Back to Login'),
+                  ),
+                ] else ...[
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Icon(
+                            Icons.lock_person_rounded,
+                            color: Colors.cyanAccent,
+                            size: 28,
                           ),
                         ),
-                        Text(
-                          _isSignUpMode
-                              ? 'Join our mental health platform'
-                              : 'Sign in to continue',
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _isSignUpMode ? 'Create Account' : 'Welcome Back',
+                              style: textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              _isSignUpMode
+                                  ? 'Join our mental health platform'
+                                  : 'Sign in to continue',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 32),
+                  const SizedBox(height: 32),
 
-              // Email Field
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                enabled: !_isLoading,
-                style: textTheme.bodyLarge,
-                decoration: InputDecoration(
-                  labelText: 'Email Address',
-                  hintText: 'your.email@example.com',
-                  prefixIcon: Icon(
-                    Icons.email_outlined,
-                    color: colorScheme.primary,
-                  ),
-                  filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.3,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(
-                      color: colorScheme.outline.withValues(alpha: 0.2),
+                  // Email Field
+                  TextFormField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    enabled: !_isLoading,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'Email Address',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      hintText: 'your.email@example.com',
+                      hintStyle: const TextStyle(color: Colors.white30),
+                      prefixIcon: const Icon(
+                        Icons.email_outlined,
+                        color: Colors.cyanAccent,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.05),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.1),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(
+                          color: Colors.cyanAccent,
+                          width: 2,
+                        ),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: colorScheme.error),
+                      ),
                     ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(
-                      color: colorScheme.primary,
-                      width: 2,
-                    ),
-                  ),
-                  errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: colorScheme.error),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  if (!value.contains('@')) {
-                    return 'Please enter a valid email';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-
-              // Password Field
-              TextFormField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                textInputAction: TextInputAction.done,
-                enabled: !_isLoading,
-                style: textTheme.bodyLarge,
-                onFieldSubmitted: (_) => _handleEmailPasswordAuth(),
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  hintText: 'Enter your password',
-                  prefixIcon: Icon(
-                    Icons.lock_outline_rounded,
-                    color: colorScheme.primary,
-                  ),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter your email';
+                      }
+                      if (!value.contains('@')) {
+                        return 'Please enter a valid email';
+                      }
+                      return null;
                     },
                   ),
-                  filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.3,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(
-                      color: colorScheme.outline.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(
-                      color: colorScheme.primary,
-                      width: 2,
-                    ),
-                  ),
-                  errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: colorScheme.error),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your password';
-                  }
-                  if (_isSignUpMode && value.length < 6) {
-                    return 'Password must be at least 6 characters';
-                  }
-                  return null;
-                },
-              ),
+                  const SizedBox(height: 20),
 
-              // Forgot Password Link (only in sign in mode)
-              if (!_isSignUpMode) ...[
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: _isLoading ? null : _handleForgotPassword,
-                    style: TextButton.styleFrom(
-                      foregroundColor: colorScheme.primary,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                  // Password Field
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    textInputAction: TextInputAction.done,
+                    enabled: !_isLoading,
+                    style: const TextStyle(color: Colors.white),
+                    onFieldSubmitted: (_) => _handleEmailPasswordAuth(),
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      hintText: 'Enter your password',
+                      hintStyle: const TextStyle(color: Colors.white30),
+                      prefixIcon: const Icon(
+                        Icons.lock_outline_rounded,
+                        color: Colors.cyanAccent,
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                          color: Colors.white54,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.05),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.1),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(
+                          color: Colors.cyanAccent,
+                          width: 2,
+                        ),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: colorScheme.error),
                       ),
                     ),
-                    child: Text(
-                      'Forgot Password?',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.primary,
-                      ),
-                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter your password';
+                      }
+                      if (_isSignUpMode && value.length < 6) {
+                        return 'Password must be at least 6 characters';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-              ],
 
-              const SizedBox(height: 24),
-
-              // Sign In/Sign Up Button
-              FilledButton(
-                onPressed: _isLoading ? null : _handleEmailPasswordAuth,
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(16)),
-                  ),
-                  elevation: 2,
-                ),
-                child: _isLoading
-                    ? SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            colorScheme.onPrimary,
+                  // Forgot Password Link (only in sign in mode)
+                  if (!_isSignUpMode) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _isLoading ? null : _handleForgotPassword,
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.cyanAccent,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
                           ),
                         ),
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _isSignUpMode ? 'Create Account' : 'Sign In',
-                            style: textTheme.titleMedium?.copyWith(
-                              color: colorScheme.onPrimary,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        child: Text(
+                          'Forgot Password?',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.primary,
                           ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            _isSignUpMode
-                                ? Icons.person_add_rounded
-                                : Icons.arrow_forward_rounded,
-                            color: colorScheme.onPrimary,
-                          ),
-                        ],
-                      ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Divider
-              Row(
-                children: [
-                  Expanded(child: Divider(color: colorScheme.outlineVariant)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'or',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  Expanded(child: Divider(color: colorScheme.outlineVariant)),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // Toggle between Sign In and Sign Up
-              OutlinedButton(
-                onPressed: _isLoading
-                    ? null
-                    : () {
-                        setState(() {
-                          _isSignUpMode = !_isSignUpMode;
-                          _formKey.currentState?.reset();
-                        });
-                      },
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(16)),
-                  ),
-                  side: BorderSide(color: colorScheme.outline, width: 1.5),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _isSignUpMode
-                          ? 'Already have an account?'
-                          : 'Don\'t have an account?',
-                      style: textTheme.bodyLarge?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _isSignUpMode ? 'Sign In' : 'Sign Up',
-                      style: textTheme.bodyLarge?.copyWith(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
-                ),
-              ),
 
-              // Manual OTP Entry Button
-              if (!_isSignUpMode) ...[
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: _isLoading
-                      ? null
-                      : () {
-                          setState(() => _showOtpInput = true);
-                        },
-                  child: const Text('I have a verification code'),
+                  const SizedBox(height: 24),
+
+                  // Sign In/Sign Up Button
+                  FilledButton(
+                    onPressed: _isLoading ? null : _handleEmailPasswordAuth,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(16)),
+                      ),
+                      elevation: 2,
+                    ),
+                    child: _isLoading
+                        ? SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                colorScheme.onPrimary,
+                              ),
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _isSignUpMode ? 'Create Account' : 'Sign In',
+                                style: textTheme.titleMedium?.copyWith(
+                                  color: colorScheme.onPrimary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                _isSignUpMode
+                                    ? Icons.person_add_rounded
+                                    : Icons.arrow_forward_rounded,
+                                color: colorScheme.onPrimary,
+                              ),
+                            ],
+                          ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Divider
+                  Row(
+                    children: [
+                      const Expanded(child: Divider(color: Colors.white10)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'or',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: Colors.white38,
+                          ),
+                        ),
+                      ),
+                      const Expanded(child: Divider(color: Colors.white10)),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Toggle between Sign In and Sign Up
+                  OutlinedButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            setState(() {
+                              _isSignUpMode = !_isSignUpMode;
+                              _formKey.currentState?.reset();
+                            });
+                          },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(16)),
+                      ),
+                      side: const BorderSide(color: Colors.white10, width: 1.5),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _isSignUpMode
+                              ? 'Already have an account?'
+                              : 'Don\'t have an account?',
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _isSignUpMode ? 'Sign In' : 'Sign Up',
+                          style: const TextStyle(
+                            color: Colors.cyanAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Manual OTP Entry Button
+                  if (!_isSignUpMode) ...[
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              setState(() => _showOtpInput = true);
+                            },
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white54,
+                      ),
+                      child: const Text('I have a verification code'),
+                    ),
+                  ],
+                ],
+                const SizedBox(height: 24),
+
+                // Footer Text
+                const Text(
+                  'SynapseAI • Modern Psychiatry Portal',
+                  style: TextStyle(
+                    color: Colors.white24,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ],
-            ],
-
-            const SizedBox(height: 24),
-
-            // Footer Text
-            Text(
-              'For Mental Health Professionals',
-              style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-              ),
-              textAlign: TextAlign.center,
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -14,7 +14,8 @@ class MedicationHistoryOverlay extends StatefulWidget {
   });
 
   @override
-  State<MedicationHistoryOverlay> createState() => _MedicationHistoryOverlayState();
+  State<MedicationHistoryOverlay> createState() =>
+      _MedicationHistoryOverlayState();
 }
 
 class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
@@ -31,7 +32,9 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
   Future<void> _loadHistory() async {
     setState(() => _isLoading = true);
     try {
-      final history = await MedicationHistoryService.getMedicationHistory(widget.patientId);
+      final history = await MedicationHistoryService.getMedicationHistory(
+        widget.patientId,
+      );
       setState(() {
         _history = history;
         _isLoading = false;
@@ -49,7 +52,7 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Container(
       width: 600,
       height: 400,
@@ -71,7 +74,9 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
           if (_isLoading)
             const Expanded(child: Center(child: CircularProgressIndicator()))
           else if (_history == null || _history!.lifespans.isEmpty)
-            const Expanded(child: Center(child: Text('No medication history found')))
+            const Expanded(
+              child: Center(child: Text('No medication history found')),
+            )
           else
             Expanded(child: _buildTimeline(theme)),
         ],
@@ -96,7 +101,9 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
           Expanded(
             child: Text(
               'Medication History',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           _buildFilterChip('3m'),
@@ -126,14 +133,18 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.surface,
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
         ),
         child: Text(
           label.toUpperCase(),
           style: theme.textTheme.labelSmall?.copyWith(
-            color: isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface,
+            color: isSelected
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.onSurface,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
         ),
@@ -145,13 +156,18 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
     final now = DateTime.now();
     DateTime startDate;
     switch (_timeFilter) {
-      case '3m': startDate = now.subtract(const Duration(days: 90)); 
-      case '6m': startDate = now.subtract(const Duration(days: 180)); 
-      case '1y': startDate = now.subtract(const Duration(days: 365)); 
-      default: 
-        startDate = _history!.lifespans.isEmpty 
-            ? now.subtract(const Duration(days: 365)) 
-            : _history!.lifespans.map((l) => l.startDate).reduce((a, b) => a.isBefore(b) ? a : b);
+      case '3m':
+        startDate = now.subtract(const Duration(days: 90));
+      case '6m':
+        startDate = now.subtract(const Duration(days: 180));
+      case '1y':
+        startDate = now.subtract(const Duration(days: 365));
+      default:
+        startDate = _history!.lifespans.isEmpty
+            ? now.subtract(const Duration(days: 365))
+            : _history!.lifespans
+                  .map((l) => l.startDate)
+                  .reduce((a, b) => a.isBefore(b) ? a : b);
     }
 
     return LayoutBuilder(
@@ -163,12 +179,14 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
             children: [
               _buildTimelineRuler(constraints.maxWidth - 100, startDate, now),
               const SizedBox(height: 16),
-              ..._history!.lifespans.map((lifespan) => _buildMedicationRow(
-                lifespan,
-                constraints.maxWidth - 100,
-                startDate,
-                now,
-              )),
+              ..._history!.lifespans.map(
+                (lifespan) => _buildMedicationRow(
+                  lifespan,
+                  constraints.maxWidth - 100,
+                  startDate,
+                  now,
+                ),
+              ),
             ],
           ),
         );
@@ -189,16 +207,23 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
           final date = start.add(Duration(days: (duration * i / 3).round()));
           return Text(
             DateFormat('MMM yy').format(date),
-            style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           );
         }),
       ),
     );
   }
 
-  Widget _buildMedicationRow(MedicationLifespan lifespan, double width, DateTime rulerStart, DateTime rulerEnd) {
+  Widget _buildMedicationRow(
+    MedicationLifespan lifespan,
+    double width,
+    DateTime rulerStart,
+    DateTime rulerEnd,
+  ) {
     final theme = Theme.of(context);
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -207,7 +232,9 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
             width: 100,
             child: Text(
               lifespan.name,
-              style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -230,7 +257,10 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
                   // Active Lifespan Line
                   ..._buildLifespanLines(lifespan, width, rulerStart, rulerEnd),
                   // Event Markers
-                  ...lifespan.events.map((event) => _buildEventMarker(event, width, rulerStart, rulerEnd)),
+                  ...lifespan.events.map(
+                    (event) =>
+                        _buildEventMarker(event, width, rulerStart, rulerEnd),
+                  ),
                 ],
               ),
             ),
@@ -240,42 +270,77 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
     );
   }
 
-  List<Widget> _buildLifespanLines(MedicationLifespan lifespan, double width, DateTime rulerStart, DateTime rulerEnd) {
+  List<Widget> _buildLifespanLines(
+    MedicationLifespan lifespan,
+    double width,
+    DateTime rulerStart,
+    DateTime rulerEnd,
+  ) {
     final theme = Theme.of(context);
     final totalDays = rulerEnd.difference(rulerStart).inDays;
     if (totalDays <= 0) return [];
 
     final List<Widget> lines = [];
     DateTime? segmentStart;
-    
+
     for (int i = 0; i < lifespan.events.length; i++) {
       final event = lifespan.events[i];
-      
+
       if (event.type == MedicationEventType.started) {
         segmentStart = event.date;
-      } else if (event.type == MedicationEventType.stopped && segmentStart != null) {
-        lines.add(_buildSegment(segmentStart, event.date, width, rulerStart, totalDays, theme));
+      } else if (event.type == MedicationEventType.stopped &&
+          segmentStart != null) {
+        lines.add(
+          _buildSegment(
+            segmentStart,
+            event.date,
+            width,
+            rulerStart,
+            totalDays,
+            theme,
+          ),
+        );
         segmentStart = null;
       }
-      
+
       // If it's the last event and not stopped, draw until today
       if (i == lifespan.events.length - 1 && segmentStart != null) {
-        lines.add(_buildSegment(segmentStart, rulerEnd, width, rulerStart, totalDays, theme, isActive: true));
+        lines.add(
+          _buildSegment(
+            segmentStart,
+            rulerEnd,
+            width,
+            rulerStart,
+            totalDays,
+            theme,
+            isActive: true,
+          ),
+        );
       }
     }
-    
+
     return lines;
   }
 
-  Widget _buildSegment(DateTime start, DateTime end, double width, DateTime rulerStart, int totalDays, ThemeData theme, {bool isActive = false}) {
+  Widget _buildSegment(
+    DateTime start,
+    DateTime end,
+    double width,
+    DateTime rulerStart,
+    int totalDays,
+    ThemeData theme, {
+    bool isActive = false,
+  }) {
     // Clip dates to ruler bounds
     final effectiveStart = start.isBefore(rulerStart) ? rulerStart : start;
     final effectiveEnd = end.isAfter(DateTime.now()) ? DateTime.now() : end;
-    
+
     if (effectiveEnd.isBefore(rulerStart)) return const SizedBox.shrink();
 
-    final left = (effectiveStart.difference(rulerStart).inDays / totalDays) * width;
-    final right = (effectiveEnd.difference(rulerStart).inDays / totalDays) * width;
+    final left =
+        (effectiveStart.difference(rulerStart).inDays / totalDays) * width;
+    final right =
+        (effectiveEnd.difference(rulerStart).inDays / totalDays) * width;
     final segmentWidth = right - left;
 
     if (segmentWidth <= 0) return const SizedBox.shrink();
@@ -294,7 +359,12 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
     );
   }
 
-  Widget _buildEventMarker(MedicationEvent event, double width, DateTime rulerStart, DateTime rulerEnd) {
+  Widget _buildEventMarker(
+    MedicationEvent event,
+    double width,
+    DateTime rulerStart,
+    DateTime rulerEnd,
+  ) {
     if (event.date.isBefore(rulerStart)) return const SizedBox.shrink();
 
     final totalDays = rulerEnd.difference(rulerStart).inDays;
@@ -304,7 +374,8 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
       left: left - 10,
       top: 5,
       child: Tooltip(
-        message: '${event.typeLabel}: ${event.dose ?? ''} (${event.frequency ?? ''})\n${DateFormat('MMM dd, yyyy').format(event.date)}\n${event.remarks ?? ''}',
+        message:
+            '${event.typeLabel}: ${event.dose ?? ''} (${event.frequency ?? ''})\n${DateFormat('MMM dd, yyyy').format(event.date)}\n${event.remarks ?? ''}',
         child: Container(
           padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(

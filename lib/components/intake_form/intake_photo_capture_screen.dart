@@ -11,14 +11,15 @@ class IntakePhotoCaptureScreen extends StatefulWidget {
   const IntakePhotoCaptureScreen({super.key});
 
   @override
-  State<IntakePhotoCaptureScreen> createState() => _IntakePhotoCaptureScreenState();
+  State<IntakePhotoCaptureScreen> createState() =>
+      _IntakePhotoCaptureScreenState();
 }
 
 class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
   static final log = Logger('IntakePhotoCaptureScreen');
-  
+
   final ImagePicker _picker = ImagePicker();
-  
+
   XFile? _frontPhoto;
   XFile? _backPhoto;
   bool _isProcessing = false;
@@ -29,7 +30,7 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
     try {
       final bytes = await imageFile.readAsBytes();
       final image = img.decodeImage(bytes);
-      
+
       if (image == null) {
         log.warning('Failed to decode image');
         return false;
@@ -46,7 +47,10 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
       // Check minimum resolution
       if (image.width < 400 || image.height < 400) {
         log.warning('Image resolution too low: ${image.width}x${image.height}');
-        setState(() => _errorMessage = 'Image resolution too low. Please use a better camera.');
+        setState(
+          () => _errorMessage =
+              'Image resolution too low. Please use a better camera.',
+        );
         return false;
       }
 
@@ -132,7 +136,9 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
   /// Proceed with extracted photos
   Future<void> _proceedWithPhotos() async {
     if (_frontPhoto == null || _backPhoto == null) {
-      setState(() => _errorMessage = 'Please capture both front and back photos');
+      setState(
+        () => _errorMessage = 'Please capture both front and back photos',
+      );
       return;
     }
 
@@ -266,7 +272,10 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: _frontPhoto != null && _backPhoto != null && !_isProcessing
+                  onPressed:
+                      _frontPhoto != null &&
+                          _backPhoto != null &&
+                          !_isProcessing
                       ? _proceedWithPhotos
                       : null,
                   icon: _isProcessing
@@ -276,7 +285,9 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.check_circle),
-                  label: Text(_isProcessing ? 'Processing...' : 'Proceed with Photos'),
+                  label: Text(
+                    _isProcessing ? 'Processing...' : 'Proceed with Photos',
+                  ),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
@@ -319,7 +330,9 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
               children: [
                 Icon(
                   photo != null ? Icons.check_circle : Icons.camera_alt,
-                  color: photo != null ? MedicalColors.healthy : colorScheme.primary,
+                  color: photo != null
+                      ? MedicalColors.healthy
+                      : colorScheme.primary,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
@@ -349,10 +362,7 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
               child: photo != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        File(photo.path),
-                        fit: BoxFit.contain,
-                      ),
+                      child: Image.file(File(photo.path), fit: BoxFit.contain),
                     )
                   : Center(
                       child: Column(
@@ -361,13 +371,17 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
                           Icon(
                             Icons.add_photo_alternate_outlined,
                             size: 48,
-                            color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                            color: colorScheme.onSurfaceVariant.withOpacity(
+                              0.5,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'No photo captured',
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                              color: colorScheme.onSurfaceVariant.withOpacity(
+                                0.7,
+                              ),
                             ),
                           ),
                         ],

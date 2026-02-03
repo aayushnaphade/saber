@@ -241,9 +241,9 @@ class FileManager {
       // Queue for Supabase upload
       if (filePath.contains('/patients/') &&
           (filePath.endsWith(Editor.extension) ||
-           filePath.endsWith(Editor.extensionOldJson) ||
-           filePath.endsWith('${Editor.extension}.p') ||
-           filePath.endsWith('${Editor.extensionOldJson}.p'))) {
+              filePath.endsWith(Editor.extensionOldJson) ||
+              filePath.endsWith('${Editor.extension}.p') ||
+              filePath.endsWith('${Editor.extensionOldJson}.p'))) {
         DocumentSyncService.queueUpload(filePath);
       }
       if (filePath.endsWith(Editor.extension)) {

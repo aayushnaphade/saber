@@ -38,7 +38,7 @@ class AppRadius {
   static const double pill = 100.0;
 
   // BorderRadius helpers for common cases
-  
+
   static BorderRadius get xsRadius => BorderRadius.circular(xs);
   static BorderRadius get smRadius => BorderRadius.circular(sm);
   static BorderRadius get mdRadius => BorderRadius.circular(md);

@@ -7,11 +7,7 @@ import 'package:saber/data/routes.dart';
 import 'package:stow_codecs/stow_codecs.dart';
 
 class ResponsiveNavbar extends StatefulWidget {
-  const ResponsiveNavbar({
-    super.key,
-    required this.body,
-    this.selectedIndex,
-  });
+  const ResponsiveNavbar({super.key, required this.body, this.selectedIndex});
 
   final Widget body;
   final int? selectedIndex;
@@ -67,7 +63,7 @@ class _ResponsiveNavbarState extends State<ResponsiveNavbar> {
 
     _isNavigating = true;
     context.go(HomeRoutes.getRoute(index));
-    
+
     // Reset navigation flag after a short delay
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {

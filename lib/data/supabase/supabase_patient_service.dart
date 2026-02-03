@@ -205,7 +205,7 @@ class SupabasePatientService {
       final updates = {
         'status': status.value,
         if (status == PatientStatus.discharged)
-          'last_visit': DateTime.now().toIso8601String(),
+          'last_visit': DateTime.now().toUtc().toIso8601String(),
       };
 
       return await updatePatient(patientId, updates);

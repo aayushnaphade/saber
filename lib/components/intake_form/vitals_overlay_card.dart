@@ -116,7 +116,11 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.monitor_heart_outlined, size: 16, color: Colors.pink),
+                  const Icon(
+                    Icons.monitor_heart_outlined,
+                    size: 16,
+                    color: Colors.pink,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -127,7 +131,7 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
                       ),
                     ),
                   ),
-                  if (widget.onClose != null) ...[ 
+                  if (widget.onClose != null) ...[
                     InkWell(
                       onTap: widget.onClose,
                       borderRadius: BorderRadius.circular(12),
@@ -215,7 +219,11 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
       ),
       child: Row(
         children: [
-          const Icon(Icons.monitor_heart_outlined, size: 16, color: Colors.pink),
+          const Icon(
+            Icons.monitor_heart_outlined,
+            size: 16,
+            color: Colors.pink,
+          ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -259,10 +267,11 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
   }
 
   Widget _buildCompactSummary(ThemeData theme, Vitals vitals) {
-    final hasAnyVitals = vitals.systolic != null || 
-                         vitals.diastolic != null || 
-                         vitals.heartRate != null || 
-                         vitals.weight != null;
+    final hasAnyVitals =
+        vitals.systolic != null ||
+        vitals.diastolic != null ||
+        vitals.heartRate != null ||
+        vitals.weight != null;
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -271,7 +280,11 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 if (vitals.systolic != null && vitals.diastolic != null)
-                  _buildVitalItem(theme, 'BP', '${vitals.systolic}/${vitals.diastolic}'),
+                  _buildVitalItem(
+                    theme,
+                    'BP',
+                    '${vitals.systolic}/${vitals.diastolic}',
+                  ),
                 if (vitals.heartRate != null)
                   _buildVitalItem(theme, 'HR', '${vitals.heartRate}'),
                 if (vitals.weight != null)
@@ -301,7 +314,9 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
         ),
         Text(
           value,
-          style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ],
     );
@@ -323,7 +338,9 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
             if (widget.vitalsHistory.isNotEmpty) ...[
               Text(
                 'Blood Pressure Trends',
-                style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               SizedBox(
@@ -340,7 +357,9 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
               const SizedBox(height: 16),
               Text(
                 'Weight Trends',
-                style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               SizedBox(
@@ -358,7 +377,9 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
             ],
             Text(
               'History',
-              style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             ...historyList.map((v) => _buildHistoryRow(theme, v)),
@@ -373,7 +394,9 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: theme.dividerColor.withOpacity(0.5))),
+        border: Border(
+          bottom: BorderSide(color: theme.dividerColor.withOpacity(0.5)),
+        ),
       ),
       child: Row(
         children: [
@@ -390,9 +413,15 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 if (vitals.systolic != null)
-                  Text('${vitals.systolic}/${vitals.diastolic} mmHg', style: theme.textTheme.bodySmall),
+                  Text(
+                    '${vitals.systolic}/${vitals.diastolic} mmHg',
+                    style: theme.textTheme.bodySmall,
+                  ),
                 if (vitals.heartRate != null)
-                  Text('${vitals.heartRate} bpm', style: theme.textTheme.bodySmall),
+                  Text(
+                    '${vitals.heartRate} bpm',
+                    style: theme.textTheme.bodySmall,
+                  ),
                 if (vitals.weight != null)
                   Text('${vitals.weight} kg', style: theme.textTheme.bodySmall),
               ],
@@ -429,7 +458,7 @@ class TrendsPainter extends CustomPainter {
     final paintDot = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
-      
+
     final paintFill = Paint()
       ..color = color.withOpacity(0.1)
       ..style = PaintingStyle.fill;
@@ -450,7 +479,7 @@ class TrendsPainter extends CustomPainter {
     if (type == _TrendType.bloodPressure) {
       final allValues = [
         ...validVitals.map((v) => v.systolic!),
-        ...validVitals.map((v) => v.diastolic!)
+        ...validVitals.map((v) => v.diastolic!),
       ];
       minVal = allValues.reduce((a, b) => a < b ? a : b).toDouble();
       maxVal = allValues.reduce((a, b) => a > b ? a : b).toDouble();
@@ -461,7 +490,7 @@ class TrendsPainter extends CustomPainter {
       final weights = validVitals.map((v) => v.weight!).toList();
       minVal = weights.reduce((a, b) => a < b ? a : b).toDouble();
       maxVal = weights.reduce((a, b) => a > b ? a : b).toDouble();
-       // Add padding
+      // Add padding
       minVal -= 2;
       maxVal += 2;
     }
@@ -470,13 +499,33 @@ class TrendsPainter extends CustomPainter {
     double range = maxVal - minVal;
     if (range <= 0) range = 10;
 
-    final spacing = size.width / (validVitals.length > 1 ? validVitals.length - 1 : 1);
-    
+    final spacing =
+        size.width / (validVitals.length > 1 ? validVitals.length - 1 : 1);
+
     // Draw logic
     if (type == _TrendType.bloodPressure) {
-      _drawBPGraph(canvas, size, validVitals, minVal, range, spacing, paintStroke, paintDot, paintFill);
+      _drawBPGraph(
+        canvas,
+        size,
+        validVitals,
+        minVal,
+        range,
+        spacing,
+        paintStroke,
+        paintDot,
+        paintFill,
+      );
     } else {
-      _drawWeightGraph(canvas, size, validVitals, minVal, range, spacing, paintStroke, paintDot);
+      _drawWeightGraph(
+        canvas,
+        size,
+        validVitals,
+        minVal,
+        range,
+        spacing,
+        paintStroke,
+        paintDot,
+      );
     }
   }
 
@@ -493,28 +542,46 @@ class TrendsPainter extends CustomPainter {
   ) {
     // Draw shaded area between systolic and diastolic
     final path = Path();
-    
+
     for (int i = 0; i < data.length; i++) {
-        final x = (data.length == 1) ? size.width / 2 : i * spacing;
-        final ySys = size.height - ((data[i].systolic! - minVal) / range * size.height);
-        final yDia = size.height - ((data[i].diastolic! - minVal) / range * size.height);
+      final x = (data.length == 1) ? size.width / 2 : i * spacing;
+      final ySys =
+          size.height - ((data[i].systolic! - minVal) / range * size.height);
+      final yDia =
+          size.height - ((data[i].diastolic! - minVal) / range * size.height);
 
-        // Draw vertical connector
-        canvas.drawLine(Offset(x, ySys), Offset(x, yDia), strokePaint..strokeWidth = 1);
+      // Draw vertical connector
+      canvas.drawLine(
+        Offset(x, ySys),
+        Offset(x, yDia),
+        strokePaint..strokeWidth = 1,
+      );
 
-        // Draw dots
-        canvas.drawCircle(Offset(x, ySys), 3, dotPaint);
-        canvas.drawCircle(Offset(x, yDia), 3, dotPaint);
-        
-        // Connect lines if not first point and we have multiple points
-        if (i > 0) {
-             final prevX = (i - 1) * spacing;
-             final prevYSys = size.height - ((data[i-1].systolic! - minVal) / range * size.height);
-             final prevYDia = size.height - ((data[i-1].diastolic! - minVal) / range * size.height);
-             
-             canvas.drawLine(Offset(prevX, prevYSys), Offset(x, ySys), strokePaint..strokeWidth = 2);
-             canvas.drawLine(Offset(prevX, prevYDia), Offset(x, yDia), strokePaint..strokeWidth = 2);
-        }
+      // Draw dots
+      canvas.drawCircle(Offset(x, ySys), 3, dotPaint);
+      canvas.drawCircle(Offset(x, yDia), 3, dotPaint);
+
+      // Connect lines if not first point and we have multiple points
+      if (i > 0) {
+        final prevX = (i - 1) * spacing;
+        final prevYSys =
+            size.height -
+            ((data[i - 1].systolic! - minVal) / range * size.height);
+        final prevYDia =
+            size.height -
+            ((data[i - 1].diastolic! - minVal) / range * size.height);
+
+        canvas.drawLine(
+          Offset(prevX, prevYSys),
+          Offset(x, ySys),
+          strokePaint..strokeWidth = 2,
+        );
+        canvas.drawLine(
+          Offset(prevX, prevYDia),
+          Offset(x, yDia),
+          strokePaint..strokeWidth = 2,
+        );
+      }
     }
   }
 
@@ -528,18 +595,21 @@ class TrendsPainter extends CustomPainter {
     Paint strokePaint,
     Paint dotPaint,
   ) {
-      for (int i = 0; i < data.length; i++) {
-          final x = (data.length == 1) ? size.width / 2 : i * spacing;
-          final y = size.height - ((data[i].weight! - minVal) / range * size.height);
+    for (int i = 0; i < data.length; i++) {
+      final x = (data.length == 1) ? size.width / 2 : i * spacing;
+      final y =
+          size.height - ((data[i].weight! - minVal) / range * size.height);
 
-          canvas.drawCircle(Offset(x, y), 3, dotPaint);
-          
-          if (i > 0) {
-              final prevX = (i - 1) * spacing;
-              final prevY = size.height - ((data[i-1].weight! - minVal) / range * size.height);
-              canvas.drawLine(Offset(prevX, prevY), Offset(x, y), strokePaint);
-          }
+      canvas.drawCircle(Offset(x, y), 3, dotPaint);
+
+      if (i > 0) {
+        final prevX = (i - 1) * spacing;
+        final prevY =
+            size.height -
+            ((data[i - 1].weight! - minVal) / range * size.height);
+        canvas.drawLine(Offset(prevX, prevY), Offset(x, y), strokePaint);
       }
+    }
   }
 
   @override

@@ -49,7 +49,8 @@ class AIInsightsCard extends StatelessWidget {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: insights.length,
-              separatorBuilder: (context, index) => SizedBox(height: AppSpacing.md),
+              separatorBuilder: (context, index) =>
+                  SizedBox(height: AppSpacing.md),
               itemBuilder: (context, index) {
                 final insight = insights[index];
                 return _buildInsightItem(context, insight);

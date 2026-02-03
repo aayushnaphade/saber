@@ -6,7 +6,7 @@ class AppTypography {
   AppTypography._(); // Private constructor to prevent instantiation
 
   // Display styles - for large, prominent text
-  
+
   static TextStyle displayLarge(BuildContext context) {
     return Theme.of(context).textTheme.displayLarge!.copyWith(
       fontWeight: FontWeight.w700,
@@ -24,7 +24,7 @@ class AppTypography {
   }
 
   // Headline styles - for section headings
-  
+
   static TextStyle headlineLarge(BuildContext context) {
     return Theme.of(context).textTheme.headlineLarge!.copyWith(
       fontWeight: FontWeight.w700,
@@ -50,7 +50,7 @@ class AppTypography {
   }
 
   // Title styles - for card headers, list items
-  
+
   static TextStyle titleLarge(BuildContext context) {
     return Theme.of(context).textTheme.titleLarge!.copyWith(
       fontWeight: FontWeight.w600,
@@ -76,7 +76,7 @@ class AppTypography {
   }
 
   // Body styles - for standard content
-  
+
   static TextStyle bodyLarge(BuildContext context) {
     return Theme.of(context).textTheme.bodyLarge!.copyWith(
       fontWeight: FontWeight.w400,
@@ -102,7 +102,7 @@ class AppTypography {
   }
 
   // Label styles - for form labels, captions
-  
+
   static TextStyle labelLarge(BuildContext context) {
     return Theme.of(context).textTheme.labelLarge!.copyWith(
       fontWeight: FontWeight.w600,
@@ -128,19 +128,17 @@ class AppTypography {
   }
 
   // Specialized styles
-  
+
   /// For emphasized body text
   static TextStyle bodyEmphasis(BuildContext context) {
-    return bodyLarge(context).copyWith(
-      fontWeight: FontWeight.w600,
-    );
+    return bodyLarge(context).copyWith(fontWeight: FontWeight.w600);
   }
 
   /// For de-emphasized body text
   static TextStyle bodySubtle(BuildContext context) {
-    return bodyMedium(context).copyWith(
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
-    );
+    return bodyMedium(
+      context,
+    ).copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant);
   }
 
   /// For data/numbers that should stand out

@@ -15,6 +15,7 @@ import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/components/session/minimized_session_overlay.dart';
 import 'package:saber/data/session_manager.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:animated_theme_switcher/animated_theme_switcher.dart';
 
 import 'package:yaru/yaru.dart';
 
@@ -23,7 +24,7 @@ class DynamicMaterialApp extends StatefulWidget {
     super.key,
     required this.title,
     required this.router,
-    this.defaultSwatch = Colors.yellow,
+    this.defaultSwatch = const Color(0xFF50B9E8),
   });
 
   final String title;
@@ -101,20 +102,56 @@ class DynamicMaterialAppState extends State<DynamicMaterialApp>
       chosenAccentColor = null; // discard transparent accent color
     final platform = stows.platform.value;
 
+    Widget wrap(
+      ThemeData theme,
+      ThemeData darkTheme, {
+      ThemeData? highContrast,
+      ThemeData? highContrastDark,
+    }) {
+      var initTheme = theme;
+      final mode = stows.appTheme.value;
+      if (mode == ThemeMode.dark) {
+        initTheme = darkTheme;
+      } else if (mode == ThemeMode.system) {
+        if (MediaQuery.of(context).platformBrightness == Brightness.dark) {
+          initTheme = darkTheme;
+        }
+      }
+
+      return AvailableThemes(
+        light: theme,
+        dark: darkTheme,
+        highContrast: highContrast,
+        highContrastDark: highContrastDark,
+        child: ThemeProvider(
+          initTheme: initTheme,
+          duration: const Duration(milliseconds: 1000),
+          builder: (context, myTheme) {
+            return ExplicitlyThemedApp(
+              title: widget.title,
+              router: widget.router,
+              themeMode: ThemeMode.light,
+              theme: myTheme,
+              darkTheme: darkTheme,
+              highContrastTheme: highContrast,
+              highContrastDarkTheme: highContrastDark,
+            );
+          },
+        ),
+      );
+    }
+
     // Use Yaru theme, with or without [chosenAccentColor]
     if (platform == .linux) {
       return YaruBuilder(
         primary: chosenAccentColor, // if null, falls back to system color
         platform: platform,
         builder: (context, themes) {
-          return ExplicitlyThemedApp(
-            title: widget.title,
-            router: widget.router,
-            themeMode: stows.appTheme.value,
-            theme: themes.theme,
-            darkTheme: themes.darkTheme,
-            highContrastTheme: themes.highContrastTheme,
-            highContrastDarkTheme: themes.highContrastDarkTheme,
+          return wrap(
+            themes.theme,
+            themes.darkTheme,
+            highContrast: themes.highContrastTheme,
+            highContrastDark: themes.highContrastDarkTheme,
           );
         },
       );
@@ -122,38 +159,24 @@ class DynamicMaterialAppState extends State<DynamicMaterialApp>
 
     // Use [chosenAccentColor] with material/cupertino theme
     if (chosenAccentColor != null) {
-      return ExplicitlyThemedApp(
-        title: widget.title,
-        router: widget.router,
-        themeMode: stows.appTheme.value,
-        theme: SaberTheme.createThemeFromSeed(
-          chosenAccentColor,
-          .light,
-          platform,
-        ),
-        darkTheme: SaberTheme.createThemeFromSeed(
-          chosenAccentColor,
-          .dark,
-          platform,
-        ),
+      return wrap(
+        SaberTheme.createThemeFromSeed(chosenAccentColor, .light, platform),
+        SaberTheme.createThemeFromSeed(chosenAccentColor, .dark, platform),
       );
     }
 
     // Try and use device's accent color, or fall back to defaultSwatch
     return DynamicColorBuilder(
       builder: (ColorScheme? lightColorScheme, ColorScheme? darkColorScheme) {
-        return ExplicitlyThemedApp(
-          title: widget.title,
-          router: widget.router,
-          themeMode: stows.appTheme.value,
-          theme: (!platform.usesYaruColors && lightColorScheme != null)
+        return wrap(
+          (!platform.usesYaruColors && lightColorScheme != null)
               ? SaberTheme.createTheme(lightColorScheme, platform)
               : SaberTheme.createThemeFromSeed(
                   lightColorScheme?.primary ?? widget.defaultSwatch,
                   .light,
                   platform,
                 ),
-          darkTheme: (!platform.usesYaruColors && darkColorScheme != null)
+          (!platform.usesYaruColors && darkColorScheme != null)
               ? SaberTheme.createTheme(darkColorScheme, platform)
               : SaberTheme.createThemeFromSeed(
                   darkColorScheme?.primary ?? widget.defaultSwatch,
@@ -201,6 +224,8 @@ class ExplicitlyThemedApp extends StatelessWidget {
 
   static final _materialAppKey = GlobalKey<State<MaterialApp>>();
 
+  static DateTime? _lastBackPressTime;
+
   @override
   Widget build(BuildContext context) {
     final highContrastTheme =
@@ -242,45 +267,103 @@ class ExplicitlyThemedApp extends StatelessWidget {
         Widget app = (Platform.isWindows || Platform.isLinux)
             ? _BorderedWindow(child: child)
             : child ?? const SizedBox();
-            
-        return Stack(
-          children: [
-            app,
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 24,
-              child: ListenableBuilder(
-                listenable: SessionManager(),
-                builder: (context, _) {
-                  final sessionManager = SessionManager();
-                  final bool isVisible = sessionManager.hasActiveSession && sessionManager.isMinimized;
-                  
-                  return AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300), // Faster entrance
-                    reverseDuration: const Duration(milliseconds: 200), // Very fast exit
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    transitionBuilder: (child, animation) {
-                      return FadeTransition(
-                        opacity: animation,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.3),
-                            end: Offset.zero,
-                          ).animate(animation),
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: isVisible 
-                      ? MinimizedSessionOverlay(key: const ValueKey('session_bar'), router: router)
-                      : const SizedBox.shrink(key: ValueKey('empty_bar')),
-                  );
-                },
+
+        // Handle global back behavior for Android tablet
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) async {
+            if (didPop) return;
+
+            // 1. If we can pop (e.g. pushed pages like Patient Detail, Editor), pop it.
+            // But we should check if we are in the Editor first to let it handle its own logic.
+            final location =
+                router.routerDelegate.currentConfiguration.uri.path;
+            if (location.startsWith('/edit')) {
+              // The Editor has its own PopScope which handles saving state.
+              // We should allow it to work. If router.canPop() is true, we pop.
+              if (router.canPop()) {
+                router.pop();
+              }
+              return;
+            }
+
+            if (router.canPop()) {
+              router.pop();
+              return;
+            }
+
+            // 2. If not on dashboard (and not in a poppable route), go to dashboard
+            // The location might be /home/settings, /home/browse, etc.
+            if (!location.contains('dashboard')) {
+              router.go('/home/dashboard');
+              return;
+            }
+
+            // 3. Double back to exit logic on dashboard
+            final now = DateTime.now();
+            if (_lastBackPressTime == null ||
+                now.difference(_lastBackPressTime!) >
+                    const Duration(seconds: 2)) {
+              _lastBackPressTime = now;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(t.common.backAgainToExit),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            } else {
+              // Exit the app
+              SystemNavigator.pop();
+            }
+          },
+          child: Stack(
+            children: [
+              app,
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 24,
+                child: ListenableBuilder(
+                  listenable: SessionManager(),
+                  builder: (context, _) {
+                    final sessionManager = SessionManager();
+                    final bool isVisible =
+                        sessionManager.hasActiveSession &&
+                        sessionManager.isMinimized;
+
+                    return AnimatedSwitcher(
+                      duration: const Duration(
+                        milliseconds: 300,
+                      ), // Faster entrance
+                      reverseDuration: const Duration(
+                        milliseconds: 200,
+                      ), // Very fast exit
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder: (child, animation) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, 0.3),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: isVisible
+                          ? MinimizedSessionOverlay(
+                              key: const ValueKey('session_bar'),
+                              router: router,
+                            )
+                          : const SizedBox.shrink(key: ValueKey('empty_bar')),
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -356,4 +439,32 @@ extension _ColorSchemeContraster on ColorScheme {
     surface: brightness == .light ? Colors.white : Colors.black,
     contrastLevel: 1,
   );
+}
+
+class AvailableThemes extends InheritedWidget {
+  final ThemeData light;
+  final ThemeData dark;
+  final ThemeData? highContrast;
+  final ThemeData? highContrastDark;
+
+  const AvailableThemes({
+    super.key,
+    required this.light,
+    required this.dark,
+    this.highContrast,
+    this.highContrastDark,
+    required super.child,
+  });
+
+  static AvailableThemes of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<AvailableThemes>()!;
+  }
+
+  @override
+  bool updateShouldNotify(AvailableThemes oldWidget) {
+    return light != oldWidget.light ||
+        dark != oldWidget.dark ||
+        highContrast != oldWidget.highContrast ||
+        highContrastDark != oldWidget.highContrastDark;
+  }
 }

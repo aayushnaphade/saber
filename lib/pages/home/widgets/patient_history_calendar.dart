@@ -51,23 +51,15 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
       }
 
       // Load consultations for a 3-month window (prevent glitch when switching months)
-      final startDate = DateTime(
-        _focusedDay.year,
-        _focusedDay.month - 1,
-        1,
-      );
-      final endDate = DateTime(
-        _focusedDay.year,
-        _focusedDay.month + 2,
-        0,
-      );
+      final startDate = DateTime(_focusedDay.year, _focusedDay.month - 1, 1);
+      final endDate = DateTime(_focusedDay.year, _focusedDay.month + 2, 0);
 
-      final events = await SupabaseConsultationService
-          .getConsultationsGroupedByDate(
-        doctorId,
-        startDate,
-        endDate,
-      );
+      final events =
+          await SupabaseConsultationService.getConsultationsGroupedByDate(
+            doctorId,
+            startDate,
+            endDate,
+          );
 
       if (mounted) {
         setState(() {
@@ -109,7 +101,7 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 800;
@@ -122,15 +114,9 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                flex: 5,
-                child: _buildCalendarCard(theme, isWide: true),
-              ),
+              Expanded(flex: 5, child: _buildCalendarCard(theme, isWide: true)),
               const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                flex: 4,
-                child: _buildEventList(theme, isWide: true),
-              ),
+              Expanded(flex: 4, child: _buildEventList(theme, isWide: true)),
             ],
           );
         }
@@ -156,13 +142,15 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
       ],
     );
   }
-  
+
   Widget _buildCalendarCard(ThemeData theme, {required bool isWide}) {
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withOpacity(0.5)),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+        ),
         boxShadow: [
           BoxShadow(
             color: theme.shadowColor.withOpacity(0.05),
@@ -240,7 +228,9 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
             child: Text(
               day,
               style: theme.textTheme.labelMedium?.copyWith(
-                color: isSunday ? Colors.red.withOpacity(0.7) : theme.colorScheme.onSurfaceVariant,
+                color: isSunday
+                    ? Colors.red.withOpacity(0.7)
+                    : theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -251,7 +241,11 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
   }
 
   Widget _buildCalendarGrid(ThemeData theme) {
-    final daysInMonth = DateTime(_focusedDay.year, _focusedDay.month + 1, 0).day;
+    final daysInMonth = DateTime(
+      _focusedDay.year,
+      _focusedDay.month + 1,
+      0,
+    ).day;
     final firstDayOfMonth = DateTime(_focusedDay.year, _focusedDay.month, 1);
     final offset = firstDayOfMonth.weekday - 1; // 0=Mon
 
@@ -273,15 +267,17 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
         final isSelected = isSameDay(_selectedDay, date);
         final isToday = isSameDay(DateTime.now(), date);
         final isSunday = date.weekday == DateTime.sunday;
-        
+
         return InkWell(
           onTap: () => _onDaySelected(date, _focusedDay),
           borderRadius: BorderRadius.circular(12),
           child: Container(
             decoration: BoxDecoration(
-              color: isSelected 
-                  ? theme.colorScheme.primary 
-                  : (isToday ? theme.colorScheme.primaryContainer.withOpacity(0.3) : Colors.transparent),
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : (isToday
+                        ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+                        : Colors.transparent),
               borderRadius: BorderRadius.circular(12),
               border: isToday && !isSelected
                   ? Border.all(color: theme.colorScheme.primary, width: 1.5)
@@ -293,10 +289,14 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
                 Text(
                   '$day',
                   style: theme.textTheme.titleMedium?.copyWith(
-                    color: isSelected 
-                        ? theme.colorScheme.onPrimary 
-                        : (isSunday ? Colors.red.withOpacity(0.8) : theme.colorScheme.onSurface),
-                    fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected
+                        ? theme.colorScheme.onPrimary
+                        : (isSunday
+                              ? Colors.red.withOpacity(0.8)
+                              : theme.colorScheme.onSurface),
+                    fontWeight: isSelected || isToday
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
                 if (events.isNotEmpty)
@@ -305,8 +305,8 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
                     width: 6,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: isSelected 
-                          ? theme.colorScheme.onPrimary 
+                      color: isSelected
+                          ? theme.colorScheme.onPrimary
                           : theme.colorScheme.secondary,
                       shape: BoxShape.circle,
                     ),
@@ -321,7 +321,7 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
 
   Widget _buildEventList(ThemeData theme, {required bool isWide}) {
     if (_selectedDay == null) return const SizedBox();
-    
+
     final events = _getEventsForDay(_selectedDay!);
     final dateStr = DateFormat('EEEE, MMM d').format(_selectedDay!);
 
@@ -342,7 +342,10 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
                   color: theme.colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.event_note_rounded, color: theme.colorScheme.onPrimaryContainer),
+                child: Icon(
+                  Icons.event_note_rounded,
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
               ),
               const SizedBox(width: 16),
               Column(
@@ -350,13 +353,15 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
                 children: [
                   Text(
                     'Schedule',
-                    style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   Text(
-                     dateStr,
-                     style: theme.textTheme.titleLarge?.copyWith(
-                       fontWeight: FontWeight.bold,
-                     ),
+                    dateStr,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -364,38 +369,48 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
           ),
           const SizedBox(height: 24),
           if (events.isEmpty)
-             Center(
-               child: Padding(
-                 padding: const EdgeInsets.symmetric(vertical: 48),
-                 child: Column(
-                   children: [
-                     Icon(Icons.free_breakfast_outlined, size: 48, color: theme.colorScheme.outline.withOpacity(0.5)),
-                     const SizedBox(height: 16),
-                     Text(
-                       'No sessions scheduled',
-                       style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.outline),
-                     ),
-                   ],
-                 ),
-               ),
-             )
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 48),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.free_breakfast_outlined,
+                      size: 48,
+                      color: theme.colorScheme.outline.withOpacity(0.5),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No sessions scheduled',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
           else
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: events.length,
               separatorBuilder: (c, i) => const SizedBox(height: 12),
-              itemBuilder: (context, index) => _buildEventCard(context, events[index]),
+              itemBuilder: (context, index) =>
+                  _buildEventCard(context, events[index]),
             ),
         ],
       ),
     );
   }
 
-  Widget _buildEventCard(BuildContext context, PatientConsultation consultation) {
+  Widget _buildEventCard(
+    BuildContext context,
+    PatientConsultation consultation,
+  ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,
@@ -424,23 +439,30 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
             children: [
               // Time Pill
               Container(
-                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                 decoration: BoxDecoration(
-                   color: colorScheme.surfaceContainerHighest,
-                   borderRadius: BorderRadius.circular(8),
-                 ),
-                 child: Column(
-                   children: [
-                     Text(
-                       DateFormat('h:mm').format(consultation.scheduledTime),
-                       style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                     ),
-                     Text(
-                       DateFormat('a').format(consultation.scheduledTime),
-                       style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                     ),
-                   ],
-                 ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      DateFormat('h:mm').format(consultation.scheduledTime),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      DateFormat('a').format(consultation.scheduledTime),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(width: 16),
               // Details
@@ -450,7 +472,9 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
                   children: [
                     Text(
                       consultation.patientName,
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     _buildStatusBadge(context, consultation.appointmentStatus),
@@ -464,12 +488,12 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
       ),
     );
   }
-  
+
   Widget _buildStatusBadge(BuildContext context, AppointmentStatus status) {
     final theme = Theme.of(context);
     Color color;
     String label;
-    
+
     switch (status) {
       case AppointmentStatus.upcoming:
         color = Colors.blue;
@@ -488,7 +512,7 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
         label = 'In Progress';
         break;
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -499,7 +523,11 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
           const SizedBox(width: 6),
           Text(
             label,

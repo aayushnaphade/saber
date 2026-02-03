@@ -85,7 +85,6 @@ class Toolbar extends StatefulWidget {
   @override
   State<Toolbar> createState() => _ToolbarState();
 
-
   static const _buttonPaddingHorizontal = EdgeInsets.symmetric(horizontal: 6);
   static const _buttonPaddingVertical = EdgeInsets.symmetric(vertical: 6);
 }
@@ -393,7 +392,6 @@ class _ToolbarState extends State<Toolbar> {
               ValueListenableBuilder(
                 valueListenable: showColorOptions,
                 builder: (context, showColorOptions, child) {
-
                   return ToolbarIconButton(
                     tooltip: t.editor.toolbar.toggleColors,
                     selected: showColorOptions,

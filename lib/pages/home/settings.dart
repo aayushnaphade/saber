@@ -18,6 +18,8 @@ import 'package:saber/pages/home/settings_subpages/app_settings_page.dart';
 import 'package:saber/pages/home/settings_subpages/professional_profile_page.dart';
 import 'package:stow/stow.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:animated_theme_switcher/animated_theme_switcher.dart';
+import 'package:saber/components/theming/dynamic_material_app.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -60,8 +62,6 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _hospitalController = TextEditingController();
-  final _specializationController = TextEditingController();
   final _phoneController = TextEditingController();
 
   var _isLoggingOut = false;
@@ -86,8 +86,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
   void _loadFromCache() {
     _nameController.text = stows.userDisplayName.value;
-    _hospitalController.text = stows.userHospital.value;
-    _specializationController.text = stows.userSpecialization.value;
     _phoneController.text = stows.userPhone.value;
     _avatarUrl = stows.userAvatarUrl.value;
 
@@ -99,8 +97,6 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void dispose() {
     _nameController.dispose();
-    _hospitalController.dispose();
-    _specializationController.dispose();
     _phoneController.dispose();
     stows.locale.removeListener(onChanged);
     UpdateManager.status.removeListener(onChanged);
@@ -123,21 +119,15 @@ class _SettingsPageState extends State<SettingsPage> {
 
       if (data != null && mounted) {
         final fullName = data['full_name'] as String? ?? '';
-        final hospitalName = data['hospital_name'] as String? ?? '';
-        final specialization = data['specialization'] as String? ?? '';
         final phoneNumber = data['phone_number'] as String? ?? '';
         final avatarUrl = data['avatar_url'] as String?;
 
         stows.userDisplayName.value = fullName;
-        stows.userHospital.value = hospitalName;
-        stows.userSpecialization.value = specialization;
         stows.userPhone.value = phoneNumber;
         stows.userAvatarUrl.value = avatarUrl;
 
         setState(() {
           _nameController.text = fullName;
-          _hospitalController.text = hospitalName;
-          _specializationController.text = specialization;
           _phoneController.text = phoneNumber;
           _avatarUrl = avatarUrl;
         });
@@ -170,16 +160,12 @@ class _SettingsPageState extends State<SettingsPage> {
       await supabase.from('profiles').upsert({
         'id': user.id,
         'full_name': _nameController.text.trim(),
-        'hospital_name': _hospitalController.text.trim(),
-        'specialization': _specializationController.text.trim(),
         'phone_number': _phoneController.text.trim(),
         'avatar_url': _avatarUrl,
-        'updated_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       });
 
       stows.userDisplayName.value = _nameController.text.trim();
-      stows.userHospital.value = _hospitalController.text.trim();
-      stows.userSpecialization.value = _specializationController.text.trim();
       stows.userPhone.value = _phoneController.text.trim();
       stows.userAvatarUrl.value = _avatarUrl;
 
@@ -486,32 +472,75 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               actions: [
-                ValueListenableBuilder(
-                  valueListenable: stows.appTheme,
-                  builder: (context, currentMode, _) {
-                    IconData icon;
-                    String tooltip;
-                    if (currentMode == ThemeMode.light) {
-                      icon = Icons.light_mode;
-                      tooltip = 'Switch to Dark Mode';
-                    } else if (currentMode == ThemeMode.dark) {
-                      icon = Icons.dark_mode;
-                      tooltip = 'Switch to System Mode';
-                    } else {
-                      icon = Icons.brightness_auto;
-                      tooltip = 'Switch to Light Mode';
-                    }
+                ThemeSwitcher(
+                  clipper: const ThemeSwitcherCircleClipper(),
+                  builder: (context) {
+                    final themeToggleKey = GlobalKey();
+                    return ValueListenableBuilder(
+                      valueListenable: stows.appTheme,
+                      builder: (context, currentMode, _) {
+                        IconData icon;
+                        String tooltip;
+                        if (currentMode == ThemeMode.light) {
+                          icon = Icons.light_mode;
+                          tooltip = 'Switch to Dark Mode';
+                        } else if (currentMode == ThemeMode.dark) {
+                          icon = Icons.dark_mode;
+                          tooltip = 'Switch to System Mode';
+                        } else {
+                          icon = Icons.brightness_auto;
+                          tooltip = 'Switch to Light Mode';
+                        }
 
-                    return IconButton(
-                      tooltip: tooltip,
-                      icon: Icon(icon),
-                      onPressed: () {
-                        final currentIndex = ThemeMode.values.indexOf(
-                          currentMode,
+                        return IconButton(
+                          key: themeToggleKey,
+                          tooltip: tooltip,
+                          icon: Icon(icon),
+                          iconSize: 32, // Increased size for better visibility
+                          onPressed: () {
+                            final currentIndex = ThemeMode.values.indexOf(
+                              currentMode,
+                            );
+                            final nextIndex =
+                                (currentIndex + 1) % ThemeMode.values.length;
+                            final nextMode = ThemeMode.values[nextIndex];
+
+                            final availableThemes = AvailableThemes.of(context);
+                            ThemeData nextTheme;
+                            if (nextMode == ThemeMode.light) {
+                              nextTheme = availableThemes.light;
+                            } else if (nextMode == ThemeMode.dark) {
+                              nextTheme = availableThemes.dark;
+                            } else {
+                              final brightness = MediaQuery.of(
+                                context,
+                              ).platformBrightness;
+                              nextTheme = brightness == Brightness.dark
+                                  ? availableThemes.dark
+                                  : availableThemes.light;
+                            }
+
+                            final renderBox =
+                                themeToggleKey.currentContext
+                                        ?.findRenderObject()
+                                    as RenderBox?;
+                            final offset = renderBox?.localToGlobal(
+                              renderBox.size.center(Offset.zero),
+                            );
+
+                            debugPrint(
+                              'Theme toggle: nextMode=$nextMode, offset=$offset',
+                            );
+                            ThemeSwitcher.of(context).changeTheme(
+                              theme: nextTheme,
+                              offset: offset,
+                              onAnimationFinish: () {
+                                debugPrint('Theme transition finished');
+                                stows.appTheme.value = nextMode;
+                              },
+                            );
+                          },
                         );
-                        final nextIndex =
-                            (currentIndex + 1) % ThemeMode.values.length;
-                        stows.appTheme.value = ThemeMode.values[nextIndex];
                       },
                     );
                   },
@@ -527,6 +556,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       );
                     },
                   ),
+                const SizedBox(width: 16),
               ],
             ),
             SliverPadding(
@@ -546,9 +576,11 @@ class _SettingsPageState extends State<SettingsPage> {
                             _buildTeamSection(colorScheme, isDark),
                           ],
                           const SizedBox(height: 16),
-                          _buildAIReportsSection(colorScheme, isDark),
-                          const SizedBox(height: 16),
-                          _buildAppPreferencesSection(colorScheme, isDark),
+                          // _buildAIReportsSection(colorScheme, isDark),
+                          // const SizedBox(height: 16),
+                          // _buildAppPreferencesSection(colorScheme, isDark),
+                          // const SizedBox(height: 16),
+                          _buildTroubleshootingSection(colorScheme, isDark),
                           const SizedBox(height: 32),
                         ],
                       ),
@@ -728,24 +760,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     const SizedBox(height: 12),
                     _buildReadOnlyField(
-                      icon: Icons.medical_services_outlined,
-                      label: 'Specialization',
-                      value: _specializationController.text.isNotEmpty
-                          ? _specializationController.text
-                          : 'Not set',
-                      colorScheme: colorScheme,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildReadOnlyField(
-                      icon: Icons.local_hospital_outlined,
-                      label: 'Hospital / Clinic',
-                      value: _hospitalController.text.isNotEmpty
-                          ? _hospitalController.text
-                          : 'Not set',
-                      colorScheme: colorScheme,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildReadOnlyField(
                       icon: Icons.phone_outlined,
                       label: 'Contact Number',
                       value: _phoneController.text.isNotEmpty
@@ -828,40 +842,6 @@ class _SettingsPageState extends State<SettingsPage> {
                               }
                               return null;
                             },
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _specializationController,
-                            decoration: InputDecoration(
-                              labelText: 'Specialization',
-                              hintText: 'e.g. Psychiatrist',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.medical_services_outlined,
-                              ),
-                              filled: true,
-                              fillColor: colorScheme.surfaceContainerHighest
-                                  .withOpacity(0.3),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _hospitalController,
-                            decoration: InputDecoration(
-                              labelText: 'Hospital / Clinic',
-                              hintText: 'City General Hospital',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.local_hospital_outlined,
-                              ),
-                              filled: true,
-                              fillColor: colorScheme.surfaceContainerHighest
-                                  .withOpacity(0.3),
-                            ),
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
@@ -1216,6 +1196,244 @@ class _SettingsPageState extends State<SettingsPage> {
                   style: Theme.of(
                     context,
                   ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTroubleshootingSection(ColorScheme colorScheme, bool isDark) {
+    return _buildGlassCard(
+      colorScheme: colorScheme,
+      isDark: isDark,
+      child: InkWell(
+        onTap: () => _showStylusTroubleshooting(context),
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colorScheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.gesture_rounded,
+                  color: colorScheme.secondary,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t.settings.prefLabels.stylusTroubleshooting,
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Solve unresponsiveness, lag, or jitters',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 16,
+                color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showStylusTroubleshooting(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.75,
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: isDark
+                ? [
+                    colorScheme.surface,
+                    colorScheme.surfaceContainerHighest.withOpacity(0.8),
+                  ]
+                : [
+                    colorScheme.surface,
+                    colorScheme.secondaryContainer.withOpacity(0.2),
+                  ],
+          ),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colorScheme.onSurfaceVariant.withOpacity(0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              t.settings.troubleshooting.stylus.title,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Follow these steps to restore precision',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                children: [
+                  _buildEnhancedTroubleItem(
+                    context,
+                    title: 'Magnetic Interference',
+                    description: t.settings.troubleshooting.stylus.magneticCase,
+                    icon: Icons.vibration_rounded,
+                    color: Colors.orange,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildEnhancedTroubleItem(
+                    context,
+                    title: 'Physical Obstruction',
+                    description:
+                        t.settings.troubleshooting.stylus.screenProtectors,
+                    icon: Icons.layers_outlined,
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildEnhancedTroubleItem(
+                    context,
+                    title: 'Hardware Maintenance',
+                    description: t.settings.troubleshooting.stylus.nib,
+                    icon: Icons.edit_rounded,
+                    color: Colors.teal,
+                  ),
+                  const SizedBox(height: 32),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: colorScheme.primary.withOpacity(0.2),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: colorScheme.primary),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            'If problems persist, try restarting your tablet or re-pairing the stylus via the side magnetic strip.',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: colorScheme.onPrimaryContainer,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEnhancedTroubleItem(
+    BuildContext context, {
+    required String title,
+    required String description,
+    required IconData icon,
+    required Color color,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark
+            ? colorScheme.surfaceContainerHighest.withOpacity(0.4)
+            : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withOpacity(0.2), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? color.withOpacity(0.9) : color,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  description,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    height: 1.4,
+                    color: colorScheme.onSurface.withOpacity(0.8),
+                  ),
                 ),
               ],
             ),

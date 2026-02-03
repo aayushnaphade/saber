@@ -37,7 +37,7 @@ class Vitals {
       'diastolic': diastolic,
       'heart_rate': heartRate,
       'weight': weight,
-      'captured_at': capturedAt.toIso8601String(),
+      'captured_at': capturedAt.toUtc().toIso8601String(),
     };
   }
 }

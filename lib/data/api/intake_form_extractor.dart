@@ -11,11 +11,14 @@ class IntakeFormExtractor {
   static final log = Logger('IntakeFormExtractor');
 
   // Service Account Credentials (same as ReportGenerator)
-  static final _serviceAccountJson = jsonDecode(dotenv.env['GOOGLE_SERVICE_ACCOUNT_JSON']!);
+  static final _serviceAccountJson = jsonDecode(
+    dotenv.env['GOOGLE_SERVICE_ACCOUNT_JSON']!,
+  );
 
   static const _projectId = 'synapseai-production';
   static const _location = 'asia-south1';
-  static const _modelId = 'gemini-3-flash-preview'; // Using flash model for speed
+  static const _modelId =
+      'gemini-3-flash-preview'; // Using flash model for speed
 
   static const _systemPrompt = '''
 **Role:**
@@ -154,27 +157,32 @@ Return a single valid JSON object with the following structure. Do NOT include m
       }
 
       log.info('Authenticating with Google Cloud...');
-      
+
       // Fix for private key formatting
       final serviceAccount = Map<String, dynamic>.from(_serviceAccountJson);
       if (serviceAccount.containsKey('private_key')) {
-        serviceAccount['private_key'] = (serviceAccount['private_key'] as String)
-            .replaceAll(r'\n', '\n');
+        serviceAccount['private_key'] =
+            (serviceAccount['private_key'] as String).replaceAll(r'\n', '\n');
       }
 
-      final accountCredentials = ServiceAccountCredentials.fromJson(serviceAccount);
+      final accountCredentials = ServiceAccountCredentials.fromJson(
+        serviceAccount,
+      );
       final scopes = [AiplatformApi.cloudPlatformScope];
-      
+
       final client = await clientViaServiceAccount(accountCredentials, scopes);
       final api = AiplatformApi(client);
 
-      const parent = 'projects/$_projectId/locations/$_location/publishers/google/models/$_modelId';
-      
+      const parent =
+          'projects/$_projectId/locations/$_location/publishers/google/models/$_modelId';
+
       log.info('Sending request to Vertex AI ($parent)...');
 
       // Create parts with both photos
       final parts = <GoogleCloudAiplatformV1Part>[
-        GoogleCloudAiplatformV1Part(text: 'Extract all data from this psychiatric intake form:'),
+        GoogleCloudAiplatformV1Part(
+          text: 'Extract all data from this psychiatric intake form:',
+        ),
         GoogleCloudAiplatformV1Part(text: 'Front page:'),
         GoogleCloudAiplatformV1Part(
           inlineData: GoogleCloudAiplatformV1Blob(
@@ -193,16 +201,9 @@ Return a single valid JSON object with the following structure. Do NOT include m
 
       final request = GoogleCloudAiplatformV1GenerateContentRequest(
         systemInstruction: GoogleCloudAiplatformV1Content(
-          parts: [
-            GoogleCloudAiplatformV1Part(text: _systemPrompt),
-          ],
+          parts: [GoogleCloudAiplatformV1Part(text: _systemPrompt)],
         ),
-        contents: [
-          GoogleCloudAiplatformV1Content(
-            role: 'user',
-            parts: parts,
-          ),
-        ],
+        contents: [GoogleCloudAiplatformV1Content(role: 'user', parts: parts)],
         generationConfig: GoogleCloudAiplatformV1GenerationConfig(
           temperature: 0.1, // Low temperature for precise extraction
           maxOutputTokens: 8192,
@@ -229,10 +230,8 @@ Return a single valid JSON object with the following structure. Do NOT include m
         ],
       );
 
-      final response = await api.projects.locations.publishers.models.generateContent(
-        request,
-        parent,
-      );
+      final response = await api.projects.locations.publishers.models
+          .generateContent(request, parent);
 
       log.info('Received response from Vertex AI');
 
@@ -240,49 +239,64 @@ Return a single valid JSON object with the following structure. Do NOT include m
 
       // Check for prompt feedback
       if (response.promptFeedback != null) {
-        log.info('Prompt feedback: ${jsonEncode(response.promptFeedback!.toJson())}');
+        log.info(
+          'Prompt feedback: ${jsonEncode(response.promptFeedback!.toJson())}',
+        );
         if (response.promptFeedback!.blockReason != null) {
-          throw Exception('Request blocked by Vertex AI: ${response.promptFeedback!.blockReason}');
+          throw Exception(
+            'Request blocked by Vertex AI: ${response.promptFeedback!.blockReason}',
+          );
         }
       }
 
       if (response.candidates != null && response.candidates!.isNotEmpty) {
         final candidate = response.candidates!.first;
-        
+
         log.info('Candidate finish reason: ${candidate.finishReason}');
-        
+
         if (candidate.finishReason != 'STOP') {
-          log.warning('IntakeFormExtractor: Candidate finish reason: ${candidate.finishReason}');
-          if (candidate.finishReason == 'SAFETY' || candidate.finishReason == 'OTHER') {
-            throw Exception('Vertex AI stopped generation. Reason: ${candidate.finishReason}');
+          log.warning(
+            'IntakeFormExtractor: Candidate finish reason: ${candidate.finishReason}',
+          );
+          if (candidate.finishReason == 'SAFETY' ||
+              candidate.finishReason == 'OTHER') {
+            throw Exception(
+              'Vertex AI stopped generation. Reason: ${candidate.finishReason}',
+            );
           }
         }
 
-        if (candidate.content != null && candidate.content!.parts != null && candidate.content!.parts!.isNotEmpty) {
+        if (candidate.content != null &&
+            candidate.content!.parts != null &&
+            candidate.content!.parts!.isNotEmpty) {
           String responseText = candidate.content!.parts!.first.text ?? '';
-          
+
           // Clean up markdown code blocks
           responseText = responseText
               .replaceFirst(RegExp(r'^```json\s*'), '')
               .replaceFirst(RegExp(r'\s*```$'), '')
               .trim();
-          
+
           log.info('Extraction successful, parsing JSON...');
           try {
-            final extractedData = jsonDecode(responseText) as Map<String, dynamic>;
-            log.info('Successfully extracted ${extractedData.keys.length} fields');
+            final extractedData =
+                jsonDecode(responseText) as Map<String, dynamic>;
+            log.info(
+              'Successfully extracted ${extractedData.keys.length} fields',
+            );
             return extractedData;
           } catch (e) {
             log.severe('Failed to parse JSON response: $responseText');
             throw Exception('Failed to parse AI response');
           }
         } else {
-          throw Exception('Vertex AI returned no content. Finish reason: ${candidate.finishReason}');
+          throw Exception(
+            'Vertex AI returned no content. Finish reason: ${candidate.finishReason}',
+          );
         }
       }
-      
-      throw Exception('No candidates returned from Vertex AI');
 
+      throw Exception('No candidates returned from Vertex AI');
     } catch (e) {
       log.severe('Error extracting intake form data', e);
       rethrow;

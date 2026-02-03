@@ -11,10 +11,12 @@ class MedicationHistoryService {
   static final _log = Logger('MedicationHistoryService');
 
   /// Fetches all prescriptions for a patient and analyzes the history
-  static Future<PatientMedicationHistory> getMedicationHistory(String patientId) async {
+  static Future<PatientMedicationHistory> getMedicationHistory(
+    String patientId,
+  ) async {
     try {
       _log.info('Fetching prescription history for patient: $patientId');
-      
+
       final response = await supabase
           .from('prescriptions')
           .select('id, created_at, content, consultation_id')
@@ -27,18 +29,25 @@ class MedicationHistoryService {
       }
 
       final List prescriptions = (response as List).reversed.toList();
-      _log.info('Found ${prescriptions.length} prescriptions. Analyzing transitions...');
+      _log.info(
+        'Found ${prescriptions.length} prescriptions. Analyzing transitions...',
+      );
 
       // Decrypt/Decode service account once
-      final serviceAccountJson = jsonDecode(dotenv.env['GOOGLE_SERVICE_ACCOUNT_JSON']!);
+      final serviceAccountJson = jsonDecode(
+        dotenv.env['GOOGLE_SERVICE_ACCOUNT_JSON']!,
+      );
       final serviceAccount = Map<String, dynamic>.from(serviceAccountJson);
       if (serviceAccount.containsKey('private_key')) {
-        serviceAccount['private_key'] = (serviceAccount['private_key'] as String).replaceAll(r'\n', '\n');
+        serviceAccount['private_key'] =
+            (serviceAccount['private_key'] as String).replaceAll(r'\n', '\n');
       }
-      final accountCredentials = ServiceAccountCredentials.fromJson(serviceAccount);
+      final accountCredentials = ServiceAccountCredentials.fromJson(
+        serviceAccount,
+      );
       final scopes = [AiplatformApi.cloudPlatformScope];
       final client = await clientViaServiceAccount(accountCredentials, scopes);
-      
+
       try {
         final Map<String, List<MedicationEvent>> lifespansMap = {};
         final List<Future<List<Map<String, dynamic>>>> transitionFutures = [];
@@ -54,18 +63,24 @@ class MedicationHistoryService {
           if (prev == null) {
             for (final med in currentMeds) {
               final name = _getMedName(med);
-              _addEvent(lifespansMap, name, MedicationEvent(
-                date: currentDate,
-                type: MedicationEventType.started,
-                dose: med['name'],
-                frequency: med['frequency'],
-                remarks: med['remarks'],
-                consultationId: current['consultation_id'],
-              ));
+              _addEvent(
+                lifespansMap,
+                name,
+                MedicationEvent(
+                  date: currentDate,
+                  type: MedicationEventType.started,
+                  dose: med['name'],
+                  frequency: med['frequency'],
+                  remarks: med['remarks'],
+                  consultationId: current['consultation_id'],
+                ),
+              );
             }
           } else {
             final prevMeds = (prev['content']['medications'] as List? ?? []);
-            transitionFutures.add(_analyzeTransitionsAIWithClient(client, prevMeds, currentMeds));
+            transitionFutures.add(
+              _analyzeTransitionsAIWithClient(client, prevMeds, currentMeds),
+            );
             transitionDates.add(currentDate);
             transitionConsultationIds.add(current['consultation_id']);
           }
@@ -82,23 +97,29 @@ class MedicationHistoryService {
 
           for (final transition in transitions) {
             final name = transition['name'];
-            _addEvent(lifespansMap, name, MedicationEvent(
-              date: date,
-              type: _mapTransitionType(transition['type']),
-              dose: transition['current_dose'],
-              frequency: transition['current_frequency'],
-              remarks: transition['remarks'],
-              consultationId: consultationId,
-            ));
+            _addEvent(
+              lifespansMap,
+              name,
+              MedicationEvent(
+                date: date,
+                type: _mapTransitionType(transition['type']),
+                dose: transition['current_dose'],
+                frequency: transition['current_frequency'],
+                remarks: transition['remarks'],
+                consultationId: consultationId,
+              ),
+            );
           }
         }
 
-        final lifespans = lifespansMap.entries.map((e) => MedicationLifespan(
-          name: e.key,
-          events: e.value,
-        )).toList();
+        final lifespans = lifespansMap.entries
+            .map((e) => MedicationLifespan(name: e.key, events: e.value))
+            .toList();
 
-        return PatientMedicationHistory(patientId: patientId, lifespans: lifespans);
+        return PatientMedicationHistory(
+          patientId: patientId,
+          lifespans: lifespans,
+        );
       } finally {
         client.close();
       }
@@ -115,7 +136,11 @@ class MedicationHistoryService {
     return med['name']?.toString() ?? 'Unknown';
   }
 
-  static void _addEvent(Map<String, List<MedicationEvent>> map, String name, MedicationEvent event) {
+  static void _addEvent(
+    Map<String, List<MedicationEvent>> map,
+    String name,
+    MedicationEvent event,
+  ) {
     if (!map.containsKey(name)) {
       map[name] = [];
     }
@@ -124,20 +149,31 @@ class MedicationHistoryService {
 
   static MedicationEventType _mapTransitionType(String? type) {
     switch (type?.toLowerCase()) {
-      case 'started': return MedicationEventType.started;
-      case 'increased': return MedicationEventType.increased;
-      case 'decreased': return MedicationEventType.decreased;
-      case 'stopped': return MedicationEventType.stopped;
-      case 'continued': return MedicationEventType.continued;
-      default: return MedicationEventType.continued;
+      case 'started':
+        return MedicationEventType.started;
+      case 'increased':
+        return MedicationEventType.increased;
+      case 'decreased':
+        return MedicationEventType.decreased;
+      case 'stopped':
+        return MedicationEventType.stopped;
+      case 'continued':
+        return MedicationEventType.continued;
+      default:
+        return MedicationEventType.continued;
     }
   }
 
-  static Future<List<Map<String, dynamic>>> _analyzeTransitionsAIWithClient(AuthClient client, List prevMeds, List currentMeds) async {
+  static Future<List<Map<String, dynamic>>> _analyzeTransitionsAIWithClient(
+    AuthClient client,
+    List prevMeds,
+    List currentMeds,
+  ) async {
     try {
       if (prevMeds.isEmpty && currentMeds.isEmpty) return [];
 
-      final prompt = '''
+      final prompt =
+          '''
 Compare two lists of psychiatric medications from a patient's consecutive prescriptions and identify the transitions for each medication.
 
 **Previous Medications:**
@@ -169,8 +205,10 @@ Output ONLY the JSON list.
 
       const projectId = 'synapseai-production';
       const location = 'asia-south1';
-      const modelId = 'gemini-3-flash-preview'; // Flash is fast and good for this
-      final parent = 'projects/$projectId/locations/$location/publishers/google/models/$modelId';
+      const modelId =
+          'gemini-3-flash-preview'; // Flash is fast and good for this
+      final parent =
+          'projects/$projectId/locations/$location/publishers/google/models/$modelId';
 
       final request = GoogleCloudAiplatformV1GenerateContentRequest(
         contents: [
@@ -185,7 +223,8 @@ Output ONLY the JSON list.
         ),
       );
 
-      final response = await api.projects.locations.publishers.models.generateContent(request, parent);
+      final response = await api.projects.locations.publishers.models
+          .generateContent(request, parent);
       // Client is closed by the caller
 
       if (response.candidates != null && response.candidates!.isNotEmpty) {
@@ -193,7 +232,10 @@ Output ONLY the JSON list.
         if (part != null && part.text != null) {
           String text = part.text!.trim();
           // Clean markdown blocks
-          text = text.replaceFirst(RegExp(r'^```json\s*'), '').replaceFirst(RegExp(r'\s*```$'), '').trim();
+          text = text
+              .replaceFirst(RegExp(r'^```json\s*'), '')
+              .replaceFirst(RegExp(r'\s*```$'), '')
+              .trim();
           return (jsonDecode(text) as List).cast<Map<String, dynamic>>();
         }
       }
@@ -206,7 +248,10 @@ Output ONLY the JSON list.
     }
   }
 
-  static List<Map<String, dynamic>> _fallbackComparison(List prevMeds, List currentMeds) {
+  static List<Map<String, dynamic>> _fallbackComparison(
+    List prevMeds,
+    List currentMeds,
+  ) {
     final List<Map<String, dynamic>> results = [];
     final prevNames = prevMeds.map((m) => m['name']?.toString()).toSet();
     final currentNames = currentMeds.map((m) => m['name']?.toString()).toSet();
@@ -214,9 +259,19 @@ Output ONLY the JSON list.
     for (final med in currentMeds) {
       final name = med['name']?.toString();
       if (!prevNames.contains(name)) {
-        results.add({'name': name, 'type': 'STARTED', 'current_dose': med['name'], 'current_frequency': med['frequency']});
+        results.add({
+          'name': name,
+          'type': 'STARTED',
+          'current_dose': med['name'],
+          'current_frequency': med['frequency'],
+        });
       } else {
-        results.add({'name': name, 'type': 'CONTINUED', 'current_dose': med['name'], 'current_frequency': med['frequency']});
+        results.add({
+          'name': name,
+          'type': 'CONTINUED',
+          'current_dose': med['name'],
+          'current_frequency': med['frequency'],
+        });
       }
     }
 

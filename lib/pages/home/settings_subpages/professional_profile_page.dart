@@ -5,6 +5,7 @@ import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_clinic_service.dart';
+import 'package:saber/data/utils/report_printer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:signature/signature.dart';
@@ -298,7 +299,29 @@ class _ProfessionalProfilePageState extends State<ProfessionalProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Professional & Clinic Profile')),
+      appBar: AppBar(
+        title: const Text('Professional & Clinic Profile'),
+        actions: [
+          IconButton(
+            onPressed: () {
+              ReportPrinter.printDemoReport({
+                'clinicName': _clinicNameController.text.trim(),
+                'clinicAddress': _clinicAddressController.text.trim(),
+                'clinicPhone': _clinicPhoneController.text.trim(),
+                'clinicWebsite': _clinicWebsiteController.text.trim(),
+                'clinicLogoUrl': _logoUrl,
+                'doctorName': stows.userDisplayName.value,
+                'qualification': _qualificationController.text.trim(),
+                'regNo': _regNoController.text.trim(),
+                'signatureUrl': _signatureUrl,
+              });
+            },
+            tooltip: 'View Demo Report',
+            icon: const Icon(Icons.print_outlined),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -399,6 +422,83 @@ class _ProfessionalProfilePageState extends State<ProfessionalProfilePage> {
                   prefixIcon: Icon(Icons.language),
                 ),
               ),
+
+              const SizedBox(height: 32),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.2),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.description_outlined,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 32,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Report Preview',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                'See how your clinic details and signature appear on clinical reports.',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          ReportPrinter.printDemoReport({
+                            'clinicName': _clinicNameController.text.trim(),
+                            'clinicAddress': _clinicAddressController.text
+                                .trim(),
+                            'clinicPhone': _clinicPhoneController.text.trim(),
+                            'clinicWebsite': _clinicWebsiteController.text
+                                .trim(),
+                            'clinicLogoUrl': _logoUrl,
+                            'doctorName': stows.userDisplayName.value,
+                            'qualification': _qualificationController.text
+                                .trim(),
+                            'regNo': _regNoController.text.trim(),
+                            'signatureUrl': _signatureUrl,
+                          });
+                        },
+                        icon: const Icon(Icons.print_outlined),
+                        label: const Text('View Demo Report'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 100), // Space for bottom bar
             ],
           ),
         ),

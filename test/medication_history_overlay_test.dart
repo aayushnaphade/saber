@@ -5,13 +5,13 @@ import 'package:saber/data/models/medication_history_models.dart';
 
 void main() {
   group('MedicationHistoryOverlay Widget Tests', () {
-    testWidgets('should display loading indicator initially', (WidgetTester tester) async {
+    testWidgets('should display loading indicator initially', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: MedicationHistoryOverlay(
-              patientId: 'patient-123',
-            ),
+            body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
         ),
       );
@@ -20,13 +20,13 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('should display empty state when no history found', (WidgetTester tester) async {
+    testWidgets('should display empty state when no history found', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: MedicationHistoryOverlay(
-              patientId: 'patient-123',
-            ),
+            body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
         ),
       );
@@ -38,13 +38,13 @@ void main() {
       // In a real scenario, you'd mock MedicationHistoryService
     });
 
-    testWidgets('should display header with title and filter chips', (WidgetTester tester) async {
+    testWidgets('should display header with title and filter chips', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: MedicationHistoryOverlay(
-              patientId: 'patient-123',
-            ),
+            body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
         ),
       );
@@ -61,7 +61,9 @@ void main() {
       expect(find.byIcon(Icons.close), findsOneWidget);
     });
 
-    testWidgets('should call onClose when close button is pressed', (WidgetTester tester) async {
+    testWidgets('should call onClose when close button is pressed', (
+      WidgetTester tester,
+    ) async {
       bool closeCalled = false;
 
       await tester.pumpWidget(
@@ -84,13 +86,13 @@ void main() {
       expect(closeCalled, true);
     });
 
-    testWidgets('should change filter when filter chip is tapped', (WidgetTester tester) async {
+    testWidgets('should change filter when filter chip is tapped', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: MedicationHistoryOverlay(
-              patientId: 'patient-123',
-            ),
+            body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
         ),
       );
@@ -106,13 +108,13 @@ void main() {
       // Visual verification would be needed to confirm the filter changed
     });
 
-    testWidgets('should have correct container dimensions', (WidgetTester tester) async {
+    testWidgets('should have correct container dimensions', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: MedicationHistoryOverlay(
-              patientId: 'patient-123',
-            ),
+            body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
         ),
       );
@@ -121,10 +123,12 @@ void main() {
 
       // Find the main container
       final container = tester.widget<Container>(
-        find.descendant(
-          of: find.byType(MedicationHistoryOverlay),
-          matching: find.byType(Container),
-        ).first,
+        find
+            .descendant(
+              of: find.byType(MedicationHistoryOverlay),
+              matching: find.byType(Container),
+            )
+            .first,
       );
 
       // Check dimensions
@@ -134,13 +138,13 @@ void main() {
   });
 
   group('MedicationHistoryOverlay - Timeline Rendering', () {
-    testWidgets('should render timeline ruler with date markers', (WidgetTester tester) async {
+    testWidgets('should render timeline ruler with date markers', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: MedicationHistoryOverlay(
-              patientId: 'patient-123',
-            ),
+            body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
         ),
       );
@@ -153,13 +157,13 @@ void main() {
   });
 
   group('MedicationHistoryOverlay - Filter Functionality', () {
-    testWidgets('should filter timeline to 3 months when 3M is selected', (WidgetTester tester) async {
+    testWidgets('should filter timeline to 3 months when 3M is selected', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: MedicationHistoryOverlay(
-              patientId: 'patient-123',
-            ),
+            body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
         ),
       );
@@ -174,13 +178,13 @@ void main() {
       // Would need to check that only events from the last 3 months are shown
     });
 
-    testWidgets('should show all history when ALL is selected', (WidgetTester tester) async {
+    testWidgets('should show all history when ALL is selected', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: MedicationHistoryOverlay(
-              patientId: 'patient-123',
-            ),
+            body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
         ),
       );
@@ -196,14 +200,14 @@ void main() {
   });
 
   group('MedicationHistoryOverlay - Error Handling', () {
-    testWidgets('should display error message when loading fails', (WidgetTester tester) async {
+    testWidgets('should display error message when loading fails', (
+      WidgetTester tester,
+    ) async {
       // This test would require mocking the service to throw an error
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: MedicationHistoryOverlay(
-              patientId: 'patient-123',
-            ),
+            body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
         ),
       );
@@ -216,13 +220,13 @@ void main() {
   });
 
   group('MedicationHistoryOverlay - Accessibility', () {
-    testWidgets('should have proper semantics for screen readers', (WidgetTester tester) async {
+    testWidgets('should have proper semantics for screen readers', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: MedicationHistoryOverlay(
-              patientId: 'patient-123',
-            ),
+            body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
         ),
       );
@@ -234,13 +238,13 @@ void main() {
       expect(find.byIcon(Icons.close), findsOneWidget);
     });
 
-    testWidgets('should support keyboard navigation', (WidgetTester tester) async {
+    testWidgets('should support keyboard navigation', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: MedicationHistoryOverlay(
-              patientId: 'patient-123',
-            ),
+            body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
         ),
       );
@@ -253,14 +257,14 @@ void main() {
   });
 
   group('MedicationHistoryOverlay - Visual Styling', () {
-    testWidgets('should apply correct theme colors', (WidgetTester tester) async {
+    testWidgets('should apply correct theme colors', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData.light(),
           home: Scaffold(
-            body: MedicationHistoryOverlay(
-              patientId: 'patient-123',
-            ),
+            body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
         ),
       );
@@ -269,22 +273,24 @@ void main() {
 
       // Verify theme colors are applied correctly
       final container = tester.widget<Container>(
-        find.descendant(
-          of: find.byType(MedicationHistoryOverlay),
-          matching: find.byType(Container),
-        ).first,
+        find
+            .descendant(
+              of: find.byType(MedicationHistoryOverlay),
+              matching: find.byType(Container),
+            )
+            .first,
       );
 
       expect(container.decoration, isNotNull);
     });
 
-    testWidgets('should have rounded corners and shadow', (WidgetTester tester) async {
+    testWidgets('should have rounded corners and shadow', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: MedicationHistoryOverlay(
-              patientId: 'patient-123',
-            ),
+            body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
         ),
       );
@@ -292,10 +298,12 @@ void main() {
       await tester.pump();
 
       final container = tester.widget<Container>(
-        find.descendant(
-          of: find.byType(MedicationHistoryOverlay),
-          matching: find.byType(Container),
-        ).first,
+        find
+            .descendant(
+              of: find.byType(MedicationHistoryOverlay),
+              matching: find.byType(Container),
+            )
+            .first,
       );
 
       final decoration = container.decoration as BoxDecoration;

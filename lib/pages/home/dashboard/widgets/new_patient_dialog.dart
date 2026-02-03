@@ -15,7 +15,7 @@ class _NewPatientDialogState extends State<NewPatientDialog> {
   final _nameController = TextEditingController();
   final _ageController = TextEditingController();
   final _phoneController = TextEditingController();
-  
+
   String? _selectedGender;
   var _isLoading = false;
 

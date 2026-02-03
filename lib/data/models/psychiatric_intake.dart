@@ -7,7 +7,7 @@ class PsychiatricIntake {
   final String patientId;
   final DateTime createdAt;
   final DateTime? updatedAt;
-  
+
   // Header Information
   final String? caseNumber;
   final DateTime? dateOfExamination;
@@ -18,7 +18,7 @@ class PsychiatricIntake {
   final String? durationOfIllness;
   final String? referredBy;
   final String? precipitatingFactor;
-  
+
   // Anxiety & Related Symptoms
   final bool anxietyWorry;
   final bool panic;
@@ -30,17 +30,17 @@ class PsychiatricIntake {
   final bool hypochondriacal;
   final bool fitsHystEpileptic;
   final bool possessionState;
-  
+
   // Somatic Symptoms
   final bool somaticHeadache;
   final bool somaticBodyache;
   final bool somaticAbdominal;
   final String? somaticOther;
-  
+
   // Substance Use
   final String? substanceUse; // use/abuse/dependence
   final bool alcoholDrugsTobacco;
-  
+
   // Sexual Dysfunction
   final bool decreasedLibido;
   final bool increasedLibido;
@@ -49,7 +49,7 @@ class PsychiatricIntake {
   final bool retardedEjaculation;
   final bool worryMasturbationNE;
   final String? sexualDysfunctionOther;
-  
+
   // Psychotic Symptoms
   final bool ideasDelPersecution;
   final bool ideasDelReference;
@@ -64,7 +64,7 @@ class PsychiatricIntake {
   final bool abusing;
   final bool violence;
   final bool withdrawalInertia;
-  
+
   // Manic Symptoms
   final bool irritableElated;
   final bool grandiose;
@@ -72,7 +72,7 @@ class PsychiatricIntake {
   final bool flightOfIdeas;
   final bool overactivePMA;
   final bool extravagant;
-  
+
   // Depressive Symptoms
   final bool sadIntermittent;
   final bool sadPersistent;
@@ -90,7 +90,7 @@ class PsychiatricIntake {
   final bool suicidalThoughts;
   final bool suicidalPlans;
   final bool suicidalAttempts;
-  
+
   // Cognitive Symptoms
   final bool disorientationTime;
   final bool disorientationPlace;
@@ -104,17 +104,17 @@ class PsychiatricIntake {
   final bool incontinenceUrine;
   final bool incontinenceStools;
   final bool emotionalLability;
-  
+
   // Additional Information
   final String? medicalIllnesses;
   final String? stresses;
   final String? ongoingTreatment;
   final String? otherSymptoms;
-  
+
   // Clinical Notes
   final String? clinicalNotes;
   final String? provisionalDiagnosis;
-  
+
   // Import Metadata (for photo capture imports)
   final bool importedFromPhoto;
   final DateTime? importedAt;
@@ -290,7 +290,8 @@ class PsychiatricIntake {
       pmrPma: json['pmr_pma'] as bool? ?? false,
       fatigue: json['fatigue'] as bool? ?? false,
       worthlessnessGuilt: json['worthlessness_guilt'] as bool? ?? false,
-      decreasedThinkingConcentration: json['decreased_thinking_concentration'] as bool? ?? false,
+      decreasedThinkingConcentration:
+          json['decreased_thinking_concentration'] as bool? ?? false,
       indecisive: json['indecisive'] as bool? ?? false,
       suicidalThoughts: json['suicidal_thoughts'] as bool? ?? false,
       suicidalPlans: json['suicidal_plans'] as bool? ?? false,
@@ -326,17 +327,19 @@ class PsychiatricIntake {
     return {
       'id': id,
       'patient_id': patientId,
-      'created_at': createdAt.toIso8601String(),
-      if (updatedAt != null) 'updated_at': updatedAt!.toIso8601String(),
+      'created_at': createdAt.toUtc().toIso8601String(),
+      if (updatedAt != null) 'updated_at': updatedAt!.toUtc().toIso8601String(),
       if (caseNumber != null) 'case_number': caseNumber,
-      if (dateOfExamination != null) 'date_of_examination': dateOfExamination!.toIso8601String(),
+      if (dateOfExamination != null)
+        'date_of_examination': dateOfExamination!.toUtc().toIso8601String(),
       if (education != null) 'education': education,
       if (occupation != null) 'occupation': occupation,
       if (residence != null) 'residence': residence,
       if (informants != null) 'informants': informants,
       if (durationOfIllness != null) 'duration_of_illness': durationOfIllness,
       if (referredBy != null) 'referred_by': referredBy,
-      if (precipitatingFactor != null) 'precipitating_factor': precipitatingFactor,
+      if (precipitatingFactor != null)
+        'precipitating_factor': precipitatingFactor,
       'anxiety_worry': anxietyWorry,
       'panic': panic,
       'restless': restless,
@@ -359,7 +362,8 @@ class PsychiatricIntake {
       'premature_ejaculation': prematureEjaculation,
       'retarded_ejaculation': retardedEjaculation,
       'worry_masturbation_ne': worryMasturbationNE,
-      if (sexualDysfunctionOther != null) 'sexual_dysfunction_other': sexualDysfunctionOther,
+      if (sexualDysfunctionOther != null)
+        'sexual_dysfunction_other': sexualDysfunctionOther,
       'ideas_del_persecution': ideasDelPersecution,
       'ideas_del_reference': ideasDelReference,
       'other_delusions': otherDelusions,
@@ -412,9 +416,11 @@ class PsychiatricIntake {
       if (ongoingTreatment != null) 'ongoing_treatment': ongoingTreatment,
       if (otherSymptoms != null) 'other_symptoms': otherSymptoms,
       if (clinicalNotes != null) 'clinical_notes': clinicalNotes,
-      if (provisionalDiagnosis != null) 'provisional_diagnosis': provisionalDiagnosis,
+      if (provisionalDiagnosis != null)
+        'provisional_diagnosis': provisionalDiagnosis,
       'imported_from_photo': importedFromPhoto,
-      if (importedAt != null) 'imported_at': importedAt!.toIso8601String(),
+      if (importedAt != null)
+        'imported_at': importedAt!.toUtc().toIso8601String(),
       if (importedBy != null) 'imported_by': importedBy,
     };
   }
@@ -422,7 +428,7 @@ class PsychiatricIntake {
   /// Get list of active symptoms for compact display
   List<String> getActiveSymptoms() {
     final symptoms = <String>[];
-    
+
     // Anxiety Related
     if (anxietyWorry) symptoms.add('Anxiety/Worry');
     if (panic) symptoms.add('Panic');
@@ -431,20 +437,20 @@ class PsychiatricIntake {
     if (phobia) symptoms.add('Phobia');
     if (obsessions) symptoms.add('Obsessions');
     if (compulsions) symptoms.add('Compulsions');
-    
+
     // Psychotic
     if (ideasDelPersecution) symptoms.add('Del. of Persecution');
     if (ideasDelReference) symptoms.add('Del. of Reference');
     if (hallucinationsAuditory) symptoms.add('Auditory Hallucinations');
     if (hallucinationsVisual) symptoms.add('Visual Hallucinations');
     if (incoherence) symptoms.add('Incoherence');
-    
+
     // Manic
     if (irritableElated) symptoms.add('Irritable/Elated');
     if (grandiose) symptoms.add('Grandiose');
     if (flightOfIdeas) symptoms.add('Flight of Ideas');
     if (overactivePMA) symptoms.add('Overactive/PMA');
-    
+
     // Depressive
     if (sadPersistent) symptoms.add('Persistent Sadness');
     if (sadIntermittent) symptoms.add('Intermittent Sadness');
@@ -454,7 +460,7 @@ class PsychiatricIntake {
     if (suicidalThoughts) symptoms.add('Suicidal Thoughts');
     if (suicidalPlans) symptoms.add('Suicidal Plans');
     if (suicidalAttempts) symptoms.add('Suicidal Attempts');
-    
+
     // Cognitive
     if (disorientationTime || disorientationPlace || disorientationPerson) {
       symptoms.add('Disorientation');
@@ -463,29 +469,60 @@ class PsychiatricIntake {
       symptoms.add('Forgetfulness ($forgetfulness)');
     }
     if (emotionalLability) symptoms.add('Emotional Lability');
-    
+
     // Substance
     if (alcoholDrugsTobacco) symptoms.add('Substance Use');
-    
+
     return symptoms;
   }
 
   /// Get symptom categories with counts for summary
   Map<String, int> getSymptomCategoryCounts() {
     return {
-      'Anxiety': [anxietyWorry, panic, restless, palpitationsTremors, phobia, obsessions, compulsions]
-          .where((s) => s).length,
-      'Psychotic': [ideasDelPersecution, ideasDelReference, otherDelusions, firstRankSymptoms,
-          hallucinationsAuditory, hallucinationsVisual, incoherence, mutteringToSelf]
-          .where((s) => s).length,
-      'Manic': [irritableElated, grandiose, overtalkative, flightOfIdeas, overactivePMA, extravagant]
-          .where((s) => s).length,
-      'Depressive': [sadIntermittent, sadPersistent, anhedoniaInertia, fatigue, worthlessnessGuilt,
-          suicidalThoughts, suicidalPlans, suicidalAttempts]
-          .where((s) => s).length,
-      'Cognitive': [disorientationTime, disorientationPlace, disorientationPerson,
-          decreasedIntelligence, emotionalLability]
-          .where((s) => s).length,
+      'Anxiety': [
+        anxietyWorry,
+        panic,
+        restless,
+        palpitationsTremors,
+        phobia,
+        obsessions,
+        compulsions,
+      ].where((s) => s).length,
+      'Psychotic': [
+        ideasDelPersecution,
+        ideasDelReference,
+        otherDelusions,
+        firstRankSymptoms,
+        hallucinationsAuditory,
+        hallucinationsVisual,
+        incoherence,
+        mutteringToSelf,
+      ].where((s) => s).length,
+      'Manic': [
+        irritableElated,
+        grandiose,
+        overtalkative,
+        flightOfIdeas,
+        overactivePMA,
+        extravagant,
+      ].where((s) => s).length,
+      'Depressive': [
+        sadIntermittent,
+        sadPersistent,
+        anhedoniaInertia,
+        fatigue,
+        worthlessnessGuilt,
+        suicidalThoughts,
+        suicidalPlans,
+        suicidalAttempts,
+      ].where((s) => s).length,
+      'Cognitive': [
+        disorientationTime,
+        disorientationPlace,
+        disorientationPerson,
+        decreasedIntelligence,
+        emotionalLability,
+      ].where((s) => s).length,
     };
   }
 
@@ -620,12 +657,14 @@ class PsychiatricIntake {
       prematureEjaculation: prematureEjaculation ?? this.prematureEjaculation,
       retardedEjaculation: retardedEjaculation ?? this.retardedEjaculation,
       worryMasturbationNE: worryMasturbationNE ?? this.worryMasturbationNE,
-      sexualDysfunctionOther: sexualDysfunctionOther ?? this.sexualDysfunctionOther,
+      sexualDysfunctionOther:
+          sexualDysfunctionOther ?? this.sexualDysfunctionOther,
       ideasDelPersecution: ideasDelPersecution ?? this.ideasDelPersecution,
       ideasDelReference: ideasDelReference ?? this.ideasDelReference,
       otherDelusions: otherDelusions ?? this.otherDelusions,
       firstRankSymptoms: firstRankSymptoms ?? this.firstRankSymptoms,
-      hallucinationsAuditory: hallucinationsAuditory ?? this.hallucinationsAuditory,
+      hallucinationsAuditory:
+          hallucinationsAuditory ?? this.hallucinationsAuditory,
       hallucinationsVisual: hallucinationsVisual ?? this.hallucinationsVisual,
       incoherence: incoherence ?? this.incoherence,
       mutteringToSelf: mutteringToSelf ?? this.mutteringToSelf,
@@ -651,7 +690,8 @@ class PsychiatricIntake {
       pmrPma: pmrPma ?? this.pmrPma,
       fatigue: fatigue ?? this.fatigue,
       worthlessnessGuilt: worthlessnessGuilt ?? this.worthlessnessGuilt,
-      decreasedThinkingConcentration: decreasedThinkingConcentration ?? this.decreasedThinkingConcentration,
+      decreasedThinkingConcentration:
+          decreasedThinkingConcentration ?? this.decreasedThinkingConcentration,
       indecisive: indecisive ?? this.indecisive,
       suicidalThoughts: suicidalThoughts ?? this.suicidalThoughts,
       suicidalPlans: suicidalPlans ?? this.suicidalPlans,
@@ -660,8 +700,10 @@ class PsychiatricIntake {
       disorientationPlace: disorientationPlace ?? this.disorientationPlace,
       disorientationPerson: disorientationPerson ?? this.disorientationPerson,
       forgetfulness: forgetfulness ?? this.forgetfulness,
-      aphasiaApraxiaAgnosia: aphasiaApraxiaAgnosia ?? this.aphasiaApraxiaAgnosia,
-      decreasedIntelligence: decreasedIntelligence ?? this.decreasedIntelligence,
+      aphasiaApraxiaAgnosia:
+          aphasiaApraxiaAgnosia ?? this.aphasiaApraxiaAgnosia,
+      decreasedIntelligence:
+          decreasedIntelligence ?? this.decreasedIntelligence,
       perseveration: perseveration ?? this.perseveration,
       losingPath: losingPath ?? this.losingPath,
       disinhibition: disinhibition ?? this.disinhibition,

@@ -20,7 +20,7 @@ class SaveIndicator extends StatelessWidget {
       builder: (context, state, _) {
         final theme = Theme.of(context);
         final colorScheme = theme.colorScheme;
-        
+
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
           child: InkWell(
@@ -62,7 +62,8 @@ class SaveIndicator extends StatelessWidget {
 
   Color _getBgColor(SavingState state, ColorScheme colorScheme) {
     return switch (state) {
-      SavingState.waitingToSave => colorScheme.surfaceContainerHighest.withOpacity(0.4),
+      SavingState.waitingToSave =>
+        colorScheme.surfaceContainerHighest.withOpacity(0.4),
       SavingState.saving => colorScheme.primary.withOpacity(0.08),
       SavingState.saved => Colors.green.withOpacity(0.08),
     };
@@ -78,7 +79,9 @@ class SaveIndicator extends StatelessWidget {
 
   Color _getTextColor(SavingState state, ColorScheme colorScheme) {
     return switch (state) {
-      SavingState.waitingToSave => colorScheme.onSurfaceVariant.withOpacity(0.7),
+      SavingState.waitingToSave => colorScheme.onSurfaceVariant.withOpacity(
+        0.7,
+      ),
       SavingState.saving => colorScheme.primary,
       SavingState.saved => Colors.green.shade700,
     };
@@ -87,20 +90,20 @@ class SaveIndicator extends StatelessWidget {
   Widget _buildIcon(SavingState state, ColorScheme colorScheme) {
     return switch (state) {
       SavingState.waitingToSave => Icon(
-          Icons.cloud_upload_outlined, 
-          size: 16, 
-          color: colorScheme.onSurfaceVariant.withOpacity(0.6)
-        ),
+        Icons.cloud_upload_outlined,
+        size: 16,
+        color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+      ),
       SavingState.saving => const SizedBox(
-          width: 14,
-          height: 14,
-          child: AdaptiveCircularProgressIndicator(strokeWidth: 2),
-        ),
+        width: 14,
+        height: 14,
+        child: AdaptiveCircularProgressIndicator(strokeWidth: 2),
+      ),
       SavingState.saved => const Icon(
-          Icons.cloud_done_rounded, 
-          size: 16, 
-          color: Colors.green
-        ),
+        Icons.cloud_done_rounded,
+        size: 16,
+        color: Colors.green,
+      ),
     };
   }
 

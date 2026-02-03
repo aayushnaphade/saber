@@ -34,7 +34,8 @@ class EmptyState extends StatelessWidget {
       key: key,
       icon: Icons.person_search_outlined,
       title: 'No Patients Yet',
-      message: 'Start by adding your first patient to begin managing their care.',
+      message:
+          'Start by adding your first patient to begin managing their care.',
       actionLabel: actionLabel ?? 'Add Patient',
       onAction: onAction,
       iconColor: Colors.blue,
@@ -51,7 +52,8 @@ class EmptyState extends StatelessWidget {
       key: key,
       icon: Icons.calendar_today_outlined,
       title: 'No Consultations Scheduled',
-      message: 'Your calendar is clear. Schedule a consultation to get started.',
+      message:
+          'Your calendar is clear. Schedule a consultation to get started.',
       actionLabel: actionLabel ?? 'Schedule Consultation',
       onAction: onAction,
       iconColor: Colors.green,
@@ -59,10 +61,7 @@ class EmptyState extends StatelessWidget {
   }
 
   /// Empty state for no search results
-  factory EmptyState.noResults({
-    Key? key,
-    String? searchQuery,
-  }) {
+  factory EmptyState.noResults({Key? key, String? searchQuery}) {
     return EmptyState(
       key: key,
       icon: Icons.search_off_outlined,
@@ -129,11 +128,7 @@ class EmptyState extends StatelessWidget {
                   color: effectiveIconColor.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  icon,
-                  size: 64,
-                  color: effectiveIconColor,
-                ),
+                child: Icon(icon, size: 64, color: effectiveIconColor),
               ),
 
             SizedBox(height: AppSpacing.lg),
@@ -150,9 +145,9 @@ class EmptyState extends StatelessWidget {
             // Message
             Text(
               message,
-              style: AppTypography.bodyMedium(context).copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: AppTypography.bodyMedium(
+                context,
+              ).copyWith(color: theme.colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
 
@@ -199,17 +194,13 @@ class CompactEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 48,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            Icon(icon, size: 48, color: theme.colorScheme.onSurfaceVariant),
             SizedBox(height: AppSpacing.sm),
             Text(
               message,
-              style: AppTypography.bodyMedium(context).copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: AppTypography.bodyMedium(
+                context,
+              ).copyWith(color: theme.colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
           ],

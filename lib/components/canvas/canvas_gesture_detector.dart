@@ -522,10 +522,10 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
           ),
         ),
         Positioned.fill(
-            child: CanvasHud(
-              transformationController: widget._transformationController,
-              resetZoom: zoomLockedValue != null ? null : resetZoom,
-            ),
+          child: CanvasHud(
+            transformationController: widget._transformationController,
+            resetZoom: zoomLockedValue != null ? null : resetZoom,
+          ),
         ),
       ],
     );

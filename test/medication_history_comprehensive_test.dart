@@ -6,7 +6,9 @@ import 'package:saber/data/models/medication_history_models.dart';
 /// Comprehensive test with a mock patient having multiple medications over a year
 /// This test verifies the medication history overlay displays correctly with complex data
 void main() {
-  testWidgets('Mock patient with multiple medications over 1+ year', (WidgetTester tester) async {
+  testWidgets('Mock patient with multiple medications over 1+ year', (
+    WidgetTester tester,
+  ) async {
     // Create a comprehensive medication history for a mock patient
     final mockHistory = _createMockPatientWithYearLongHistory();
 
@@ -25,12 +27,15 @@ void main() {
         print('   End Date: ${lifespan.endDate.toString().split(' ')[0]}');
       }
       print('   Total Events: ${lifespan.events.length}');
-      
+
       for (var event in lifespan.events) {
         final icon = _getEventIcon(event.type);
-        print('      $icon ${event.date.toString().split(' ')[0]} - ${event.typeLabel}');
+        print(
+          '      $icon ${event.date.toString().split(' ')[0]} - ${event.typeLabel}',
+        );
         if (event.dose != null) print('         Dose: ${event.dose}');
-        if (event.frequency != null) print('         Frequency: ${event.frequency}');
+        if (event.frequency != null)
+          print('         Frequency: ${event.frequency}');
         if (event.remarks != null) print('         Remarks: ${event.remarks}');
       }
       print('');
@@ -43,9 +48,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           appBar: AppBar(title: const Text('Medication History Test')),
-          body: MedicationHistoryOverlay(
-            patientId: mockHistory.patientId,
-          ),
+          body: MedicationHistoryOverlay(patientId: mockHistory.patientId),
         ),
       ),
     );
@@ -112,7 +115,7 @@ void main() {
 /// Creates a comprehensive mock patient with multiple medications over 1+ year
 PatientMedicationHistory _createMockPatientWithYearLongHistory() {
   final now = DateTime.now();
-  
+
   return PatientMedicationHistory(
     patientId: 'mock-patient-year-history',
     lifespans: [
@@ -318,18 +321,23 @@ String _getEventIcon(MedicationEventType type) {
 }
 
 int _countTotalEvents(PatientMedicationHistory history) {
-  return history.lifespans.fold(0, (sum, lifespan) => sum + lifespan.events.length);
+  return history.lifespans.fold(
+    0,
+    (sum, lifespan) => sum + lifespan.events.length,
+  );
 }
 
 int _calculateTimeSpan(PatientMedicationHistory history) {
   if (history.lifespans.isEmpty) return 0;
-  
-  final allDates = history.lifespans
-      .expand((lifespan) => lifespan.events.map((e) => e.date))
-      .toList()..sort();
-  
+
+  final allDates =
+      history.lifespans
+          .expand((lifespan) => lifespan.events.map((e) => e.date))
+          .toList()
+        ..sort();
+
   if (allDates.isEmpty) return 0;
-  
+
   return DateTime.now().difference(allDates.first).inDays;
 }
 

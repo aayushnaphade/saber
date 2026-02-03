@@ -72,12 +72,12 @@ class Patient {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'created_at': createdAt.toIso8601String(),
+      'created_at': createdAt.toUtc().toIso8601String(),
       'full_name': fullName,
       'age': age,
       'gender': gender,
       'status': status.value,
-      'last_visit': lastVisit?.toIso8601String(),
+      'last_visit': lastVisit?.toUtc().toIso8601String(),
       'doctor_id': doctorId,
       'phone_number': phoneNumber,
       'email': email,
@@ -97,7 +97,7 @@ class Patient {
       'age': age,
       'gender': gender,
       'status': status.value,
-      'last_visit': lastVisit?.toIso8601String(),
+      'last_visit': lastVisit?.toUtc().toIso8601String(),
       'doctor_id': doctorId,
       'phone_number': phoneNumber,
       'email': email,
@@ -182,7 +182,7 @@ enum PatientStatus {
     // Handle legacy values mapping
     if (value == 'in_consultation') return PatientStatus.active;
     if (value == 'completed') return PatientStatus.discharged;
-    
+
     return PatientStatus.values.firstWhere(
       (status) => status.value == value,
       orElse: () => PatientStatus.waiting,

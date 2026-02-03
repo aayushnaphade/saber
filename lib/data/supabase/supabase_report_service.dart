@@ -26,8 +26,8 @@ class ClinicalReport {
       id: json['id'] as String,
       patientId: json['patient_id'] as String,
       doctorId: json['doctor_id'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      sessionDate: DateTime.parse(json['session_date'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
+      sessionDate: DateTime.parse(json['session_date'] as String).toLocal(),
       sourceDocumentPath: json['source_document_path'] as String?,
       structuredData: json['structured_data'] as Map<String, dynamic>,
       markdownContent: json['markdown_content'] as String?,
@@ -39,7 +39,7 @@ class ClinicalReport {
       'id': id,
       'patient_id': patientId,
       'doctor_id': doctorId,
-      'created_at': createdAt.toIso8601String(),
+      'created_at': createdAt.toUtc().toIso8601String(),
       'session_date': sessionDate.toIso8601String().split('T')[0],
       'source_document_path': sourceDocumentPath,
       'structured_data': structuredData,
@@ -58,29 +58,37 @@ class SupabaseReportService {
     final user = supabase.auth.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
-    final response = await supabase.from('clinical_reports').insert({
-      'patient_id': patientId,
-      'doctor_id': user.id,
-      'session_date': DateTime.now().toIso8601String().split('T')[0],
-      'source_document_path': sourceDocumentPath,
-      'structured_data': structuredData,
-      'markdown_content': markdownContent,
-    }).select().single();
+    final response = await supabase
+        .from('clinical_reports')
+        .insert({
+          'patient_id': patientId,
+          'doctor_id': user.id,
+          'session_date': DateTime.now().toIso8601String().split('T')[0],
+          'source_document_path': sourceDocumentPath,
+          'structured_data': structuredData,
+          'markdown_content': markdownContent,
+        })
+        .select()
+        .single();
 
     return ClinicalReport.fromJson(response);
   }
 
-  static Future<List<ClinicalReport>> getReportsForPatient(String patientId) async {
+  static Future<List<ClinicalReport>> getReportsForPatient(
+    String patientId,
+  ) async {
     final response = await supabase
         .from('clinical_reports')
         .select()
         .eq('patient_id', patientId)
         .order('session_date', ascending: false);
-    
+
     return (response as List).map((e) => ClinicalReport.fromJson(e)).toList();
   }
 
-  static Future<ClinicalReport?> getReportBySourcePath(String sourcePath) async {
+  static Future<ClinicalReport?> getReportBySourcePath(
+    String sourcePath,
+  ) async {
     final response = await supabase
         .from('clinical_reports')
         .select()
@@ -88,16 +96,13 @@ class SupabaseReportService {
         .order('created_at', ascending: false)
         .limit(1)
         .maybeSingle();
-    
+
     if (response == null) return null;
     return ClinicalReport.fromJson(response);
   }
 
   /// Deletes a clinical report by ID
   static Future<void> deleteReport(String reportId) async {
-    await supabase
-        .from('clinical_reports')
-        .delete()
-        .eq('id', reportId);
+    await supabase.from('clinical_reports').delete().eq('id', reportId);
   }
 }

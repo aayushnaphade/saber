@@ -45,7 +45,10 @@ class _StatCardState extends State<StatCard> {
       onTapUp: (_) => setState(() => _isPressed = false),
       onTapCancel: () => setState(() => _isPressed = false),
       child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 1.0, end: _isPressed ? AppAnimations.buttonPressScale : 1.0),
+        tween: Tween(
+          begin: 1.0,
+          end: _isPressed ? AppAnimations.buttonPressScale : 1.0,
+        ),
         duration: AppAnimations.buttonPress,
         curve: AppAnimations.buttonPressCurve,
         builder: (context, scale, child) => Transform.scale(
@@ -62,7 +65,7 @@ class _StatCardState extends State<StatCard> {
                   offset: const Offset(0, 8),
                 ),
               ],
-                  ),
+            ),
             child: ClipRRect(
               borderRadius: AppRadius.xxlRadius,
               child: Stack(
@@ -109,9 +112,13 @@ class _StatCardState extends State<StatCard> {
                                 color: baseColor.withOpacity(0.1),
                                 borderRadius: AppRadius.mdRadius,
                               ),
-                              child: Icon(widget.icon, color: baseColor, size: 20),
+                              child: Icon(
+                                widget.icon,
+                                color: baseColor,
+                                size: 20,
+                              ),
                             ),
-                            
+
                             // Trend Pill
                             if (widget.trend != null)
                               Flexible(
@@ -122,8 +129,10 @@ class _StatCardState extends State<StatCard> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: widget.isPositiveTrend
-                                        ? MedicalColors.positiveMetric.withOpacity(0.08)
-                                        : MedicalColors.negativeMetric.withOpacity(0.08),
+                                        ? MedicalColors.positiveMetric
+                                              .withOpacity(0.08)
+                                        : MedicalColors.negativeMetric
+                                              .withOpacity(0.08),
                                     borderRadius: AppRadius.pillRadius,
                                   ),
                                   child: Row(
@@ -139,16 +148,22 @@ class _StatCardState extends State<StatCard> {
                                             : MedicalColors.negativeMetric,
                                       ),
                                       const SizedBox(width: 4),
-                                      Flexible( // Allow text to shrink
+                                      Flexible(
+                                        // Allow text to shrink
                                         child: Text(
                                           widget.trend!,
-                                          style: AppTypography.labelSmall(context).copyWith(
-                                            color: widget.isPositiveTrend
-                                                ? MedicalColors.positiveMetric
-                                                : MedicalColors.negativeMetric,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 10,
-                                          ),
+                                          style:
+                                              AppTypography.labelSmall(
+                                                context,
+                                              ).copyWith(
+                                                color: widget.isPositiveTrend
+                                                    ? MedicalColors
+                                                          .positiveMetric
+                                                    : MedicalColors
+                                                          .negativeMetric,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 10,
+                                              ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -178,7 +193,7 @@ class _StatCardState extends State<StatCard> {
                         ),
                       ],
                     ),
-                        ),
+                  ),
                 ],
               ),
             ),
