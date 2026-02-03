@@ -481,171 +481,51 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
         final patient = displayList[index];
         final isSelected = _selectedPatientIds.contains(patient.id);
 
-        return Dismissible(
-          key: Key(patient.id),
-          direction: _isSelectionMode
-              ? DismissDirection.none
-              : DismissDirection.endToStart,
-          background: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20),
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.error,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.delete_outline,
-              color: Theme.of(context).colorScheme.onError,
-            ),
-          ),
-          confirmDismiss: (direction) async {
-            return await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Delete Patient'),
-                content: Text(
-                  'Are you sure you want to delete ${patient.fullName}? '
-                  'This will permanently delete all their records and documents.',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text('Cancel'),
-                  ),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.error,
-                    ),
-                    child: const Text('Delete'),
-                  ),
-                ],
-              ),
-            );
-          },
-          onDismissed: (direction) async {
-            // Dismissible requires the item to be removed from the tree immediately.
-            // Remove from local lists first, then perform async deletion.
-            final removedPatient = patient;
-            final removedPatientsIndex =
-                patients?.indexWhere((p) => p.id == removedPatient.id) ?? -1;
-            final removedFilteredIndex =
-                filteredPatients?.indexWhere(
-                  (p) => p.id == removedPatient.id,
-                ) ??
-                -1;
-
-            setState(() {
-              patients?.removeWhere((p) => p.id == removedPatient.id);
-              filteredPatients?.removeWhere((p) => p.id == removedPatient.id);
-              _selectedPatientIds.remove(removedPatient.id);
-              if (_selectedPatientIds.isEmpty) _isSelectionMode = false;
-            });
-
-            try {
-              await SupabasePatientService.deletePatient(removedPatient.id);
-            } catch (e) {
-              // Restore the patient in the UI if server deletion failed.
-              if (mounted) {
-                setState(() {
-                  if (patients != null && removedPatientsIndex >= 0) {
-                    final safeIndex = removedPatientsIndex.clamp(
-                      0,
-                      patients!.length,
-                    );
-                    patients!.insert(safeIndex, removedPatient);
-                  } else {
-                    patients ??= <Patient>[];
-                    patients!.insert(0, removedPatient);
-                  }
-
-                  if (filteredPatients != null && removedFilteredIndex >= 0) {
-                    final safeIndex = removedFilteredIndex.clamp(
-                      0,
-                      filteredPatients!.length,
-                    );
-                    filteredPatients!.insert(safeIndex, removedPatient);
-                  }
-                });
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
-                    backgroundColor: Theme.of(context).colorScheme.error,
-                  ),
-                );
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          color: isSelected
+              ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+              : null,
+          child: InkWell(
+            onLongPress: () {
+              setState(() {
+                _isSelectionMode = true;
+                _toggleSelection(patient.id);
+              });
+            },
+            onTap: () {
+              if (_isSelectionMode) {
+                _toggleSelection(patient.id);
+              } else {
+                _openPatient(patient);
               }
-              return;
-            }
-
-            try {
-              await FileManager.deleteDirectory(removedPatient.localFolderPath);
-            } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
-                    backgroundColor: Theme.of(context).colorScheme.error,
-                  ),
-                );
-              }
-            }
-
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${removedPatient.fullName} deleted')),
-              );
-            }
-          },
-          child: Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            color: isSelected
-                ? Theme.of(
-                    context,
-                  ).colorScheme.primaryContainer.withOpacity(0.3)
-                : null,
-            child: InkWell(
-              onLongPress: () {
-                setState(() {
-                  _isSelectionMode = true;
-                  _toggleSelection(patient.id);
-                });
-              },
-              onTap: () {
-                if (_isSelectionMode) {
-                  _toggleSelection(patient.id);
-                } else {
-                  _openPatient(patient);
-                }
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: ListTile(
-                leading: _isSelectionMode
-                    ? Checkbox(
-                        value: isSelected,
-                        onChanged: (value) => _toggleSelection(patient.id),
-                      )
-                    : CircleAvatar(
-                        backgroundColor: Theme.of(
-                          context,
-                        ).colorScheme.primaryContainer,
-                        child: Text(
-                          patient.fullName[0].toUpperCase(),
-                          style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.bold,
-                          ),
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: ListTile(
+              leading: _isSelectionMode
+                  ? Checkbox(
+                      value: isSelected,
+                      onChanged: (value) => _toggleSelection(patient.id),
+                    )
+                  : CircleAvatar(
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer,
+                      child: Text(
+                        patient.fullName[0].toUpperCase(),
+                        style: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                title: Text(patient.fullName),
-                subtitle: _buildPatientMetadata(patient: patient),
-                trailing: _isSelectionMode
-                    ? null
-                    : const Icon(Icons.chevron_right),
-              ),
+                    ),
+              title: Text(patient.fullName),
+              subtitle: _buildPatientMetadata(patient: patient),
+              trailing: _isSelectionMode
+                  ? null
+                  : const Icon(Icons.chevron_right),
             ),
           ),
         );

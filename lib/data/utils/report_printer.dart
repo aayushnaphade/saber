@@ -64,6 +64,7 @@ class ReportPrinter {
     // Dynamic Branding Colors
     PdfColor primaryColor = PdfColors.blue900;
     PdfColor secondaryColor = PdfColors.blueGrey50;
+    PdfColor tableHeaderColor = PdfColors.teal900; // Default distinct color
 
     if (clinicLogoUrl != null && clinicLogoUrl.isNotEmpty) {
       try {
@@ -71,30 +72,31 @@ class ReportPrinter {
           m.NetworkImage(clinicLogoUrl),
         );
         if (palette.vibrantColor != null) {
-          primaryColor = PdfColor.fromInt(
-            palette.vibrantColor!.color.toARGB32(),
-          );
+          primaryColor = PdfColor.fromInt(palette.vibrantColor!.color.value);
         } else if (palette.dominantColor != null) {
-          primaryColor = PdfColor.fromInt(
-            palette.dominantColor!.color.toARGB32(),
-          );
+          primaryColor = PdfColor.fromInt(palette.dominantColor!.color.value);
         }
 
         if (palette.lightVibrantColor != null) {
           secondaryColor = PdfColor.fromInt(
-            palette.lightVibrantColor!.color.toARGB32(),
+            palette.lightVibrantColor!.color.value,
           );
-        } else if (palette.lightMutedColor != null) {
-          secondaryColor = PdfColor.fromInt(
-            palette.lightMutedColor!.color.toARGB32(),
+        } else if (palette.mutedColor != null) {
+          secondaryColor = PdfColor.fromInt(palette.mutedColor!.color.value);
+        }
+
+        // Select a distinct color for the table (Darker/Different variance)
+        if (palette.darkVibrantColor != null) {
+          tableHeaderColor = PdfColor.fromInt(
+            palette.darkVibrantColor!.color.value,
+          );
+        } else if (palette.darkMutedColor != null) {
+          tableHeaderColor = PdfColor.fromInt(
+            palette.darkMutedColor!.color.value,
           );
         } else {
-          secondaryColor = PdfColor(
-            primaryColor.red,
-            primaryColor.green,
-            primaryColor.blue,
-            0.1,
-          );
+          // Fallback if no dark variant: darken the primary
+          tableHeaderColor = primaryColor;
         }
       } catch (e) {
         // ignore
@@ -246,6 +248,7 @@ class ReportPrinter {
                 reportData['medications'],
                 primaryColor,
                 secondaryColor,
+                tableHeaderColor,
               ),
 
             pw.Spacer(),
@@ -419,10 +422,19 @@ class ReportPrinter {
     ];
   }
 
+  static PdfColor _lighten(PdfColor color, [double amount = 0.9]) {
+    return PdfColor(
+      color.red + (1 - color.red) * amount,
+      color.green + (1 - color.green) * amount,
+      color.blue + (1 - color.blue) * amount,
+    );
+  }
+
   static List<pw.Widget> _buildMedicationSection(
     List medications,
     PdfColor primaryColor,
     PdfColor secondaryColor,
+    PdfColor tableHeaderColor,
   ) {
     return [
       pw.Text(
@@ -435,11 +447,17 @@ class ReportPrinter {
       ),
       pw.SizedBox(height: 6),
       pw.TableHelper.fromTextArray(
-        headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
-        headerDecoration: pw.BoxDecoration(color: secondaryColor),
+        headerStyle: pw.TextStyle(
+          fontWeight: pw.FontWeight.bold,
+          fontSize: 9,
+          color: tableHeaderColor, // Dark Text
+        ),
+        headerDecoration: pw.BoxDecoration(
+          color: _lighten(tableHeaderColor, 0.9), // Solid Light Background
+        ),
         rowDecoration: pw.BoxDecoration(
           border: pw.Border(
-            bottom: pw.BorderSide(color: primaryColor, width: 1.0),
+            bottom: pw.BorderSide(color: tableHeaderColor, width: 0.5),
           ),
         ),
         cellStyle: const pw.TextStyle(fontSize: 9),

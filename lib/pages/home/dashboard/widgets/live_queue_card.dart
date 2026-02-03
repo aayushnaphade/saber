@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-
 import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/design_system/radius.dart';
 import 'package:saber/design_system/spacing.dart';
@@ -65,18 +64,9 @@ class _LiveQueueCardState extends State<LiveQueueCard>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        // Organic fluid motion using non-linear math
-        final t = _controller.value * 2 * math.pi;
-
         return Container(
           decoration: BoxDecoration(
-            color: colorScheme.surface,
             borderRadius: AppRadius.xlRadius,
-            border: Border.all(
-              color: isDark
-                  ? colorScheme.primary.withValues(alpha: 0.12)
-                  : colorScheme.outlineVariant.withValues(alpha: 0.35),
-            ),
             boxShadow: [
               BoxShadow(
                 color: (isDark ? Colors.black : colorScheme.primary).withValues(
@@ -87,36 +77,31 @@ class _LiveQueueCardState extends State<LiveQueueCard>
               ),
             ],
           ),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
-            children: [
-              // Liquid Blobs - Oversized to ensure "whole card is filled"
-              Positioned(
-                top: -250 + 130 * math.sin(t * 0.4),
-                left: -250 + 130 * math.cos(t * 0.4),
-                child: _buildFluidBlob(blob1Color, isDark ? 0.5 : 0.2, 700),
+          child: ClipRRect(
+            borderRadius: AppRadius.xlRadius,
+            child: CustomPaint(
+              painter: _FluidBlobPainter(
+                animation: _controller,
+                blob1Color: blob1Color,
+                blob2Color: blob2Color,
+                blob3Color: blob3Color,
+                isDark: isDark,
+                surfaceColor: colorScheme.surface,
               ),
-              Positioned(
-                bottom: -220 + 140 * math.cos(t * 0.5),
-                right: -220 + 140 * math.sin(t * 0.5),
-                child: _buildFluidBlob(blob2Color, isDark ? 0.4 : 0.25, 600),
-              ),
-              Positioned(
-                top: 40 + 100 * math.sin(t * 0.6),
-                right: -180 + 100 * math.cos(t * 0.6),
-                child: _buildFluidBlob(blob3Color, isDark ? 0.35 : 0.22, 550),
-              ),
-              Positioned(
-                bottom: 80 + 110 * math.cos(t * 0.3),
-                left: -120 + 110 * math.sin(t * 0.3),
-                child: _buildFluidBlob(blob2Color, isDark ? 0.3 : 0.18, 650),
-              ),
-              if (child != null) child,
-            ],
+              child: child,
+            ),
           ),
         );
       },
-      child: Padding(
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: AppRadius.xlRadius,
+          border: Border.all(
+            color: isDark
+                ? colorScheme.primary.withValues(alpha: 0.12)
+                : colorScheme.outlineVariant.withValues(alpha: 0.35),
+          ),
+        ),
         padding: const EdgeInsets.all(AppSpacing.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -148,78 +133,87 @@ class _LiveQueueCardState extends State<LiveQueueCard>
                           boxShadow: [
                             BoxShadow(
                               color: colorScheme.primary.withValues(alpha: 0.4),
-                              blurRadius: 8,
-                              spreadRadius: 2,
+                              blurRadius: 4,
+                              spreadRadius: 1,
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'LIVE QUEUE',
-                        style: theme.textTheme.labelSmall?.copyWith(
+                        'Live Queue',
+                        style: theme.textTheme.labelMedium?.copyWith(
                           color: colorScheme.primary,
                           fontWeight: FontWeight.bold,
-                          letterSpacing: 1.0,
                         ),
                       ),
                     ],
                   ),
                 ),
-                Text(
-                  '$_displayWaitingCount Waiting',
-                  textAlign: TextAlign.end,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
+                if (widget.currentPatient != null && widget.onCancel != null)
+                  IconButton(
+                    icon: Icon(
+                      Icons.more_horiz,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    onPressed: widget.onCancel,
+                    tooltip: 'Cancel Appointment',
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 24),
             if (widget.currentPatient != null) ...[
               Text(
-                widget.currentPatient!.status.toLowerCase() == 'in consultation'
-                    ? 'Active Session'
-                    : 'Next Patient',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                widget.currentPatient!.patientName,
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  color: colorScheme.onSurface,
-                  fontWeight: FontWeight.bold,
+                'Current Patient',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Text(
-                    '${widget.currentPatient!.age} yrs',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildGenderTag(widget.currentPatient!.gender, theme),
-                  const SizedBox(width: 8),
-                  Text(
-                    '•',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.6,
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+                    child: Text(
+                      widget.currentPatient!.patientName.isNotEmpty
+                          ? widget.currentPatient!.patientName[0].toUpperCase()
+                          : '?',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    widget.currentPatient!.status,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.currentPatient!.patientName,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (widget.currentPatient!.status == 'in_progress')
+                          Text(
+                            'Session in Progress',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.green,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          )
+                        else
+                          Text(
+                            'Next in line',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -232,147 +226,170 @@ class _LiveQueueCardState extends State<LiveQueueCard>
                       onPressed: widget.onStartSession,
                       icon: const Icon(Icons.play_arrow_rounded),
                       label: Text(
-                        widget.currentPatient!.status.toLowerCase() ==
-                                'in consultation'
+                        widget.currentPatient!.status == 'in_progress'
                             ? 'Continue Session'
                             : 'Start Session',
+                      ),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                     ),
                   ),
                   if (widget.onViewProfile != null) ...[
                     const SizedBox(width: 12),
-                    IconButton.filledTonal(
+                    OutlinedButton(
                       onPressed: widget.onViewProfile,
-                      icon: const Icon(Icons.person_outline),
-                      tooltip: 'View Patient Profile',
-                    ),
-                  ],
-                  if (widget.onCancel != null) ...[
-                    const SizedBox(width: 12),
-                    IconButton.filledTonal(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('Cancel Appointment'),
-                            content: Text(
-                              'Are you sure you want to cancel the appointment for ${widget.currentPatient!.patientName}?',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('No'),
-                              ),
-                              FilledButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  widget.onCancel!();
-                                },
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: colorScheme.error,
-                                  foregroundColor: colorScheme.onError,
-                                ),
-                                child: const Text('Yes, Cancel'),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                      style: IconButton.styleFrom(
-                        backgroundColor: colorScheme.errorContainer,
-                        foregroundColor: colorScheme.error,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      icon: const Icon(Icons.close),
-                      tooltip: 'Cancel Appointment',
+                      child: const Text('Profile'),
                     ),
                   ],
                 ],
               ),
-            ] else
-              Container(
-                height: 200,
-                alignment: Alignment.center,
+            ] else ...[
+              const SizedBox(height: 32),
+              Center(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      Icons.check_circle_outline,
+                      Icons.coffee_outlined,
                       size: 48,
-                      color: colorScheme.outlineVariant,
+                      color: colorScheme.outline.withValues(alpha: 0.5),
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'All Caught Up!',
+                      'No patients in queue',
                       style: theme.textTheme.titleMedium?.copyWith(
-                        color: colorScheme.onSurface,
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(height: 32),
+            ],
+            if (_displayWaitingCount > 0) ...[
+              const SizedBox(height: 24),
+              Divider(height: 1, color: colorScheme.outlineVariant),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(
+                    Icons.people_outline,
+                    size: 16,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$_displayWaitingCount waiting',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildGenderTag(String gender, ThemeData theme) {
-    final lowerGender = gender.toLowerCase().trim();
-    Color backgroundColor;
-    Color textColor;
+class _FluidBlobPainter extends CustomPainter {
+  final Animation<double> animation;
+  final Color blob1Color;
+  final Color blob2Color;
+  final Color blob3Color;
+  final bool isDark;
+  final Color surfaceColor;
 
-    if (lowerGender == 'male' || lowerGender == 'm') {
-      backgroundColor = Colors.blue.withValues(alpha: 0.1);
-      textColor = Colors.blue.shade700;
-    } else if (lowerGender == 'female' || lowerGender == 'f') {
-      backgroundColor = Colors.pink.withValues(alpha: 0.1);
-      textColor = Colors.pink.shade700;
-    } else {
-      backgroundColor = theme.colorScheme.surfaceContainerHighest;
-      textColor = theme.colorScheme.onSurfaceVariant;
-    }
+  _FluidBlobPainter({
+    required this.animation,
+    required this.blob1Color,
+    required this.blob2Color,
+    required this.blob3Color,
+    required this.isDark,
+    required this.surfaceColor,
+  }) : super(repaint: animation);
 
-    // Adjust for dark mode if needed
-    if (theme.brightness == Brightness.dark) {
-      if (lowerGender == 'male' || lowerGender == 'm') {
-        backgroundColor = Colors.blue.withValues(alpha: 0.2);
-        textColor = Colors.blue.shade200;
-      } else if (lowerGender == 'female' || lowerGender == 'f') {
-        backgroundColor = Colors.pink.withValues(alpha: 0.2);
-        textColor = Colors.pink.shade200;
-      }
-    }
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Fill background
+    final bgPaint = Paint()..color = surfaceColor;
+    canvas.drawRect(Offset.zero & size, bgPaint);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: textColor.withValues(alpha: 0.2)),
-      ),
-      child: Text(
-        gender,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: textColor,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+    final t = animation.value * 2 * math.pi;
+
+    // Draw blobs with INCREASED opacity
+    _drawBlob(
+      canvas,
+      dx: -250 + 130 * math.cos(t * 0.4),
+      dy: -250 + 130 * math.sin(t * 0.4),
+      color: blob1Color,
+      opacity: isDark ? 0.65 : 0.35, // Increased from 0.5/0.2
+      radius: 350,
+    );
+
+    _drawBlob(
+      canvas,
+      dx: size.width - 100 + 130 * math.sin(t * 0.5),
+      dy: size.height - 100 + 130 * math.cos(t * 0.5),
+      color: blob2Color,
+      opacity: isDark ? 0.55 : 0.4, // Increased from 0.4/0.25
+      radius: 300,
+    );
+
+    _drawBlob(
+      canvas,
+      dx: size.width - 100 + 100 * math.cos(t * 0.6),
+      dy: -50 + 100 * math.sin(t * 0.6),
+      color: blob3Color,
+      opacity: isDark ? 0.5 : 0.35, // Increased from 0.35/0.22
+      radius: 275,
+    );
+
+    _drawBlob(
+      canvas,
+      dx: -50 + 110 * math.sin(t * 0.3),
+      dy: size.height - 50 + 110 * math.cos(t * 0.3),
+      color: blob2Color,
+      opacity: isDark ? 0.45 : 0.3, // Increased from 0.3/0.18
+      radius: 325,
     );
   }
 
-  Widget _buildFluidBlob(Color color, double opacity, double size) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [
-            color.withValues(alpha: opacity),
-            color.withValues(alpha: 0),
-          ],
-        ),
-      ),
-    );
+  void _drawBlob(
+    Canvas canvas, {
+    required double dx,
+    required double dy,
+    required Color color,
+    required double opacity,
+    required double radius,
+  }) {
+    final center = Offset(dx, dy); // Center of the blob
+    // Correct radial gradient center logic:
+    // The previous implementation used a Container(width, height) with RadialGradient.
+    // The gradient center is usually the center of that container.
+    // Here we draw a circle at certain offset.
+
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          color.withValues(alpha: opacity),
+          color.withValues(alpha: 0),
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+
+    canvas.drawCircle(center, radius, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FluidBlobPainter oldDelegate) {
+    return oldDelegate.isDark != isDark ||
+        oldDelegate.surfaceColor != surfaceColor;
   }
 }

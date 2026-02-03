@@ -224,8 +224,6 @@ class ExplicitlyThemedApp extends StatelessWidget {
 
   static final _materialAppKey = GlobalKey<State<MaterialApp>>();
 
-  static DateTime? _lastBackPressTime;
-
   @override
   Widget build(BuildContext context) {
     final highContrastTheme =
@@ -268,102 +266,53 @@ class ExplicitlyThemedApp extends StatelessWidget {
             ? _BorderedWindow(child: child)
             : child ?? const SizedBox();
 
-        // Handle global back behavior for Android tablet
-        return PopScope(
-          canPop: false,
-          onPopInvokedWithResult: (didPop, result) async {
-            if (didPop) return;
+        return Stack(
+          children: [
+            app,
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 24,
+              child: ListenableBuilder(
+                listenable: SessionManager(),
+                builder: (context, _) {
+                  final sessionManager = SessionManager();
+                  final bool isVisible =
+                      sessionManager.hasActiveSession &&
+                      sessionManager.isMinimized;
 
-            // 1. If we can pop (e.g. pushed pages like Patient Detail, Editor), pop it.
-            // But we should check if we are in the Editor first to let it handle its own logic.
-            final location =
-                router.routerDelegate.currentConfiguration.uri.path;
-            if (location.startsWith('/edit')) {
-              // The Editor has its own PopScope which handles saving state.
-              // We should allow it to work. If router.canPop() is true, we pop.
-              if (router.canPop()) {
-                router.pop();
-              }
-              return;
-            }
-
-            if (router.canPop()) {
-              router.pop();
-              return;
-            }
-
-            // 2. If not on dashboard (and not in a poppable route), go to dashboard
-            // The location might be /home/settings, /home/browse, etc.
-            if (!location.contains('dashboard')) {
-              router.go('/home/dashboard');
-              return;
-            }
-
-            // 3. Double back to exit logic on dashboard
-            final now = DateTime.now();
-            if (_lastBackPressTime == null ||
-                now.difference(_lastBackPressTime!) >
-                    const Duration(seconds: 2)) {
-              _lastBackPressTime = now;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(t.common.backAgainToExit),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            } else {
-              // Exit the app
-              SystemNavigator.pop();
-            }
-          },
-          child: Stack(
-            children: [
-              app,
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: 24,
-                child: ListenableBuilder(
-                  listenable: SessionManager(),
-                  builder: (context, _) {
-                    final sessionManager = SessionManager();
-                    final bool isVisible =
-                        sessionManager.hasActiveSession &&
-                        sessionManager.isMinimized;
-
-                    return AnimatedSwitcher(
-                      duration: const Duration(
-                        milliseconds: 300,
-                      ), // Faster entrance
-                      reverseDuration: const Duration(
-                        milliseconds: 200,
-                      ), // Very fast exit
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      transitionBuilder: (child, animation) {
-                        return FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0, 0.3),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: isVisible
-                          ? MinimizedSessionOverlay(
-                              key: const ValueKey('session_bar'),
-                              router: router,
-                            )
-                          : const SizedBox.shrink(key: ValueKey('empty_bar')),
-                    );
-                  },
-                ),
+                  return AnimatedSwitcher(
+                    duration: const Duration(
+                      milliseconds: 300,
+                    ), // Faster entrance
+                    reverseDuration: const Duration(
+                      milliseconds: 200,
+                    ), // Very fast exit
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.3),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: isVisible
+                        ? MinimizedSessionOverlay(
+                            key: const ValueKey('session_bar'),
+                            router: router,
+                          )
+                        : const SizedBox.shrink(key: ValueKey('empty_bar')),
+                  );
+                },
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );

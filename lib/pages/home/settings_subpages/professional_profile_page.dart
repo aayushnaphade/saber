@@ -302,24 +302,66 @@ class _ProfessionalProfilePageState extends State<ProfessionalProfilePage> {
       appBar: AppBar(
         title: const Text('Professional & Clinic Profile'),
         actions: [
-          IconButton(
-            onPressed: () {
-              ReportPrinter.printDemoReport({
-                'clinicName': _clinicNameController.text.trim(),
-                'clinicAddress': _clinicAddressController.text.trim(),
-                'clinicPhone': _clinicPhoneController.text.trim(),
-                'clinicWebsite': _clinicWebsiteController.text.trim(),
-                'clinicLogoUrl': _logoUrl,
-                'doctorName': stows.userDisplayName.value,
-                'qualification': _qualificationController.text.trim(),
-                'regNo': _regNoController.text.trim(),
-                'signatureUrl': _signatureUrl,
-              });
-            },
-            tooltip: 'View Demo Report',
-            icon: const Icon(Icons.print_outlined),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    ReportPrinter.printDemoReport({
+                      'clinicName': _clinicNameController.text.trim(),
+                      'clinicAddress': _clinicAddressController.text.trim(),
+                      'clinicPhone': _clinicPhoneController.text.trim(),
+                      'clinicWebsite': _clinicWebsiteController.text.trim(),
+                      'clinicLogoUrl': _logoUrl,
+                      'doctorName': stows.userDisplayName.value,
+                      'qualification': _qualificationController.text.trim(),
+                      'regNo': _regNoController.text.trim(),
+                      'signatureUrl': _signatureUrl,
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withOpacity(0.15),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.print_outlined,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Print Demo',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-          const SizedBox(width: 8),
         ],
       ),
       bottomNavigationBar: SafeArea(
@@ -590,6 +632,13 @@ class _ProfessionalProfilePageState extends State<ProfessionalProfilePage> {
                     image: DecorationImage(
                       image: NetworkImage(_signatureUrl!),
                       fit: BoxFit.contain,
+                      colorFilter:
+                          Theme.of(context).brightness == Brightness.dark
+                          ? const ColorFilter.mode(
+                              Colors.white,
+                              BlendMode.srcIn,
+                            )
+                          : null,
                     ),
                   ),
                 )
