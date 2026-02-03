@@ -20,6 +20,8 @@ class Patient {
 
   final String? allergies;
   final String? address;
+  final String? referencedBy;
+  final String? registrationNumber;
 
   const Patient({
     required this.id,
@@ -38,6 +40,8 @@ class Patient {
 
     this.allergies,
     this.address,
+    this.referencedBy,
+    this.registrationNumber,
   });
 
   /// Create Patient from Supabase JSON
@@ -65,7 +69,19 @@ class Patient {
 
       allergies: json['allergies']?.toString(),
       address: json['address']?.toString(),
+      referencedBy: json['referenced_by']?.toString(),
+      registrationNumber: _parseRegistrationNumber(json),
     );
+  }
+
+  static String? _parseRegistrationNumber(Map<String, dynamic> json) {
+    final intake = json['psychiatric_intakes'];
+    if (intake is List && intake.isNotEmpty) {
+      return intake[0]['registration_number']?.toString();
+    } else if (intake is Map) {
+      return intake['registration_number']?.toString();
+    }
+    return json['registration_number']?.toString();
   }
 
   /// Convert to JSON for Supabase
@@ -87,6 +103,8 @@ class Patient {
 
       'allergies': allergies,
       'address': address,
+      'referenced_by': referencedBy,
+      'registration_number': registrationNumber,
     };
   }
 
@@ -107,6 +125,7 @@ class Patient {
 
       'allergies': allergies,
       'address': address,
+      'referenced_by': referencedBy,
     };
   }
 
@@ -136,6 +155,7 @@ class Patient {
 
     String? allergies,
     String? address,
+    String? referencedBy,
   }) {
     return Patient(
       id: id ?? this.id,
@@ -153,6 +173,7 @@ class Patient {
       weight: weight ?? this.weight,
       allergies: allergies ?? this.allergies,
       address: address ?? this.address,
+      referencedBy: referencedBy ?? this.referencedBy,
     );
   }
 

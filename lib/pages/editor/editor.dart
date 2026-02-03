@@ -16,7 +16,7 @@ import 'package:intl/intl.dart';
 import 'package:keybinder/keybinder.dart';
 import 'package:logging/logging.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lottie/lottie.dart' as lottie_pkg;
+import 'package:saber/components/animations/siri_circular_waveform.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
@@ -28,7 +28,8 @@ import 'package:saber/components/canvas/canvas_preview.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
 import 'package:saber/components/canvas/save_indicator.dart';
 import 'package:saber/data/models/vitals.dart';
-import 'package:saber/components/intake_form/intake_overlay_card.dart';
+import 'package:saber/components/intake_form/intake_overlay_card.dart'
+    hide AnimatedBuilder;
 import 'package:saber/components/intake_form/psychiatric_intake_form.dart';
 import 'package:saber/components/intake_form/vitals_overlay_card.dart';
 import 'package:saber/components/editor/previous_notes_overlay_card.dart';
@@ -57,6 +58,7 @@ import 'package:saber/data/models/psychiatric_intake.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/data/supabase/supabase_intake_service.dart';
+import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_prescription_service.dart';
 import 'package:saber/data/supabase/supabase_vitals_service.dart';
@@ -169,35 +171,12 @@ class EditorState extends State<Editor> {
   late bool needsNaming = widget.needsNaming && stows.editorPromptRename.value;
 
   late Tool _currentTool = () {
-    switch (stows.lastTool.value) {
-      case .fountainPen:
-        if (Pen.currentPen.toolId != stows.lastTool.value) {
-          Pen.currentPen = Pen.fountainPen();
-        }
-        return Pen.currentPen;
-      case .ballpointPen:
-        if (Pen.currentPen.toolId != stows.lastTool.value) {
-          Pen.currentPen = Pen.ballpointPen();
-        }
-        return Pen.currentPen;
-      case .shapePen:
-        if (Pen.currentPen.toolId != stows.lastTool.value) {
-          Pen.currentPen = ShapePen();
-        }
-        return Pen.currentPen;
-      case .highlighter:
-        return Highlighter.currentHighlighter;
-      case .pencil:
-        return Pencil.currentPencil;
-      case .eraser:
-        return Eraser();
-      case .select:
-        return Select.currentSelect;
-      case .textEditing:
-        return Tool.textEditing;
-      case .laserPointer:
-        return LaserPointer.currentLaserPointer;
+    // We always want to default to the fountain pen when opening the editor
+    if (Pen.currentPen.toolId != ToolId.fountainPen) {
+      Pen.currentPen = Pen.fountainPen();
     }
+    stows.lastTool.value = ToolId.fountainPen;
+    return Pen.currentPen;
   }();
   Tool get currentTool => _currentTool;
   set currentTool(Tool tool) {
@@ -226,6 +205,7 @@ class EditorState extends State<Editor> {
   String? _doctorName;
   String? _patientId;
   String? _patientName;
+  Patient? _patient;
 
   // Previous Session Notes overlay state
   bool _showPreviousNotesOverlay = false;
@@ -391,7 +371,10 @@ class EditorState extends State<Editor> {
           setState(() {
             if (intake != null) _patientIntake = intake;
             _vitalsHistory = vitals;
-            if (patient != null) _patientName = patient.fullName;
+            if (patient != null) {
+              _patientName = patient.fullName;
+              _patient = patient;
+            }
 
             // Check if this is a restored session
             final isRestore =
@@ -1615,32 +1598,9 @@ class EditorState extends State<Editor> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Center(
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              lottie_pkg.Lottie.asset(
-                'assets/saber.json',
-                width: 250,
-                height: 250,
-                errorBuilder: (context, error, stackTrace) =>
-                    const CircularProgressIndicator(),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Digitizing clinical notes...',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-        ),
-      ),
+      builder: (context) {
+        return const _ReportGenerationDialog();
+      },
     );
 
     try {
@@ -1711,7 +1671,10 @@ class EditorState extends State<Editor> {
       // ignore: use_build_context_synchronously
       if (!context.mounted) return;
 
-      final reportData = await ReportGenerator.generateReport(imageBytesList);
+      final reportData = await ReportGenerator.generateReport(
+        imageBytesList,
+        registrationNumber: _patient?.registrationNumber,
+      );
 
       // 3. Show Split Screen / Report View
       // ignore: use_build_context_synchronously
@@ -3533,6 +3496,7 @@ class EditorState extends State<Editor> {
                 key: reportViewKey,
                 reportData: reportData,
                 onRegenerate: onRegenerate,
+                patient: _patient,
                 onVerify: () async {
                   try {
                     // Convert to Markdown
@@ -4287,6 +4251,233 @@ class EditorState extends State<Editor> {
       ),
     );
   }
+}
+
+class _ReportGenerationDialog extends StatefulWidget {
+  const _ReportGenerationDialog({super.key});
+
+  @override
+  State<_ReportGenerationDialog> createState() =>
+      _ReportGenerationDialogState();
+}
+
+class _ReportGenerationDialogState extends State<_ReportGenerationDialog>
+    with TickerProviderStateMixin {
+  late AnimationController _progressController;
+  late AnimationController _backgroundController;
+  late AnimationController _fadeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _progressController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 15),
+    )..forward();
+    _backgroundController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    )..repeat();
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _progressController.dispose();
+    _backgroundController.dispose();
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Brand Colors from temp_logo.png
+    final brandColors = [
+      const Color(0xFF00319C), // Deep Navy
+      const Color(0xFF2796D5), // Medium Azure
+      const Color(0xFF93D6F6), // Sky Blue
+      const Color(0xFF0050E6), // Vibrant Cobalt
+      const Color(0xFFFFFFFF), // White highlights
+    ];
+
+    return AnimatedBuilder(
+      animation: _fadeController,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _fadeController.value,
+          child: Transform.scale(
+            scale: 0.95 + (0.05 * _fadeController.value),
+            child: child,
+          ),
+        );
+      },
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Stack(
+          children: [
+            // Immersive Radial Gradient Background
+            // Darker at center (orb area), lighter/whiter at edges
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment.center,
+                    radius: 1.2,
+                    colors: [
+                      const Color(
+                        0xFF000000,
+                      ).withOpacity(0.95), // Deep dark at center
+                      const Color(
+                        0xFFFFFFFF,
+                      ).withOpacity(0.15), // Light/white at edges
+                    ],
+                    stops: const [0.3, 1.0],
+                  ),
+                ),
+              ),
+            ),
+
+            // Full-screen Particle Absorption Animation
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _backgroundController,
+                builder: (context, child) {
+                  return CustomPaint(
+                    painter: ParticleAbsorptionPainter(
+                      progress: _backgroundController.value,
+                      colors: brandColors,
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // Central Siri Orb
+            Center(
+              child: SiriCircularWaveform(
+                size: 300, // Slightly larger for full screen
+                colors: brandColors,
+                duration: const Duration(seconds: 10),
+              ),
+            ),
+
+            // "Synapse AI is thinking..." at the bottom
+            Positioned(
+              bottom: 80,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Text(
+                  'Synapse AI is thinking...',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withOpacity(0.8),
+                        offset: const Offset(0, 4),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Progress indicator at the very bottom
+            Positioned(
+              bottom: 32,
+              left: 48,
+              right: 48,
+              child: Column(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: AnimatedBuilder(
+                      animation: _progressController,
+                      builder: (context, child) {
+                        return LinearProgressIndicator(
+                          minHeight: 6,
+                          value: _progressController.value,
+                          backgroundColor: Colors.white.withOpacity(0.05),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            const Color(0xFF93D6F6).withOpacity(0.8),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ParticleAbsorptionPainter extends CustomPainter {
+  final double progress;
+  final List<Color> colors;
+
+  ParticleAbsorptionPainter({required this.progress, required this.colors});
+
+  @override
+  void paint(ui.Canvas canvas, ui.Size size) {
+    final center = ui.Offset(size.width / 2, size.height / 2);
+    final random = math.Random(42);
+    final paint = ui.Paint()..style = ui.PaintingStyle.fill;
+
+    for (int i = 0; i < 120; i++) {
+      // Individual staggered progress
+      final double p = (progress + (i / 120.0)) % 1.0;
+
+      // Random starting point on a large circle
+      final double angle = random.nextDouble() * 2 * math.pi;
+      // Start further out for full screen
+      final double maxDist = math.max(size.width, size.height) * 0.8;
+
+      // Move toward center: distance decreases as p increases
+      // We use a non-linear curve to make them accelerate as they get closer
+      final double curve = math.pow(1.0 - p, 1.5).toDouble();
+      final double currentDist = maxDist * curve;
+
+      final double x = center.dx + math.cos(angle) * currentDist;
+      final double y = center.dy + math.sin(angle) * currentDist;
+
+      // Pulse opacity: fade in from edges, fade out before hitting center
+      double opacity = 0.0;
+      if (p < 0.2) {
+        opacity = p / 0.2; // Fade in
+      } else if (p > 0.8) {
+        opacity = (1.0 - p) / 0.2; // Fade out
+      } else {
+        opacity = 1.0;
+      }
+
+      paint.color = colors[i % colors.length].withOpacity(opacity * 0.5);
+
+      // Particle size gets slightly larger as it gets "hotter" (closer)
+      final double radius = (1.0 + random.nextDouble() * 3.0) * (1.0 + p);
+
+      // Add a slight glow/blur effect by drawing twice
+      canvas.drawCircle(ui.Offset(x, y), radius, paint);
+      canvas.drawCircle(
+        ui.Offset(x, y),
+        radius * 1.5,
+        paint..color = paint.color.withOpacity(opacity * 0.2),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant ParticleAbsorptionPainter oldDelegate) => true;
 }
 
 class WindPainter extends CustomPainter {

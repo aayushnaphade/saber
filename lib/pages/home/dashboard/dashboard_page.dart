@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/dashboard_models.dart';
+import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
@@ -46,10 +47,20 @@ class _DashboardPageState extends State<DashboardPage> {
     super.initState();
     _loadDashboardData();
     _setupRealtimeSubscription();
+    stows.isOnline.addListener(_onConnectivityChanged);
+  }
+
+  void _onConnectivityChanged() {
+    if (stows.isOnline.value && mounted) {
+      debugPrint('Dashboard: Internet restored, refreshing data...');
+      _loadDashboardData();
+      _setupRealtimeSubscription();
+    }
   }
 
   @override
   void dispose() {
+    stows.isOnline.removeListener(_onConnectivityChanged);
     if (_consultationsSubscription != null) {
       supabase.removeChannel(_consultationsSubscription!);
     }
@@ -68,7 +79,16 @@ class _DashboardPageState extends State<DashboardPage> {
             _fetchDashboardData();
           },
         )
-        .subscribe();
+        .subscribe((status, error) {
+          if (status == RealtimeSubscribeStatus.timedOut) {
+            debugPrint(
+              'Dashboard: Realtime subscription timed out, retrying...',
+            );
+            Future.delayed(const Duration(seconds: 5), () {
+              if (mounted) _setupRealtimeSubscription();
+            });
+          }
+        });
   }
 
   Future<void> _loadDashboardData() async {

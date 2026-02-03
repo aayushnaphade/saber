@@ -21,6 +21,7 @@ class ErrorHandler {
     if (errorString.contains('socketexception') ||
         errorString.contains('connection timed out') ||
         errorString.contains('connection failed') ||
+        errorString.contains('timedout') ||
         errorString.contains('timed out') ||
         errorString.contains('connection refused') ||
         errorString.contains('network') ||

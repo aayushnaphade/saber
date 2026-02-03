@@ -2,7 +2,7 @@ common:
   done: Done
   continueBtn: Continue
   cancel: Cancel
-  backAgainToExit: Press back again to exit the app
+  backAgainToExit: Swipe again to exit the app
 home: 
   tabs: 
     home: History

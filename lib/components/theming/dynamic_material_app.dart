@@ -10,9 +10,11 @@ import 'package:go_router/go_router.dart';
 import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/components/theming/yaru_builder.dart';
 import 'package:saber/data/prefs.dart';
+import 'package:saber/data/services/shell_aware_back_dispatcher.dart';
 import 'package:saber/i18n/extensions/redirecting_localization_delegate.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/components/session/minimized_session_overlay.dart';
+import 'package:saber/components/connectivity/network_error_banner.dart';
 import 'package:saber/data/session_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:animated_theme_switcher/animated_theme_switcher.dart';
@@ -203,7 +205,7 @@ class DynamicMaterialAppState extends State<DynamicMaterialApp>
 }
 
 @visibleForTesting
-class ExplicitlyThemedApp extends StatelessWidget {
+class ExplicitlyThemedApp extends StatefulWidget {
   @protected
   const ExplicitlyThemedApp({
     super.key,
@@ -225,20 +227,34 @@ class ExplicitlyThemedApp extends StatelessWidget {
   static final _materialAppKey = GlobalKey<State<MaterialApp>>();
 
   @override
+  State<ExplicitlyThemedApp> createState() => _ExplicitlyThemedAppState();
+}
+
+class _ExplicitlyThemedAppState extends State<ExplicitlyThemedApp> {
+  late final ShellAwareBackButtonDispatcher _backButtonDispatcher;
+
+  @override
+  void initState() {
+    super.initState();
+    _backButtonDispatcher = ShellAwareBackButtonDispatcher(router: widget.router);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final highContrastTheme =
-        this.highContrastTheme ??
-        theme.copyWith(colorScheme: theme.colorScheme.withHighContrast());
+        widget.highContrastTheme ??
+        widget.theme.copyWith(colorScheme: widget.theme.colorScheme.withHighContrast());
     final highContrastDarkTheme =
-        this.highContrastDarkTheme ??
-        darkTheme.copyWith(colorScheme: theme.colorScheme.withHighContrast());
+        widget.highContrastDarkTheme ??
+        widget.darkTheme.copyWith(colorScheme: widget.theme.colorScheme.withHighContrast());
 
     return MaterialApp.router(
-      key: _materialAppKey,
-      title: title,
-      routeInformationProvider: router.routeInformationProvider,
-      routeInformationParser: router.routeInformationParser,
-      routerDelegate: router.routerDelegate,
+      key: ExplicitlyThemedApp._materialAppKey,
+      title: widget.title,
+      routeInformationProvider: widget.router.routeInformationProvider,
+      routeInformationParser: widget.router.routeInformationParser,
+      routerDelegate: widget.router.routerDelegate,
+      backButtonDispatcher: _backButtonDispatcher,
       locale: TranslationProvider.of(context).flutterLocale,
       supportedLocales: AppLocaleUtils.supportedLocales,
       localizationsDelegates: const [
@@ -255,9 +271,9 @@ class ExplicitlyThemedApp extends StatelessWidget {
           FlutterQuillLocalizations.delegate,
         ),
       ],
-      themeMode: themeMode,
-      theme: theme,
-      darkTheme: darkTheme,
+      themeMode: widget.themeMode,
+      theme: widget.theme,
+      darkTheme: widget.darkTheme,
       highContrastTheme: highContrastTheme,
       highContrastDarkTheme: highContrastDarkTheme,
       debugShowCheckedModeBanner: false,
@@ -269,6 +285,12 @@ class ExplicitlyThemedApp extends StatelessWidget {
         return Stack(
           children: [
             app,
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: NetworkErrorBanner(),
+            ),
             Positioned(
               left: 16,
               right: 16,
@@ -305,7 +327,7 @@ class ExplicitlyThemedApp extends StatelessWidget {
                     child: isVisible
                         ? MinimizedSessionOverlay(
                             key: const ValueKey('session_bar'),
-                            router: router,
+                            router: widget.router,
                           )
                         : const SizedBox.shrink(key: ValueKey('empty_bar')),
                   );

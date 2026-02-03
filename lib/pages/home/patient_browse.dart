@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/patient.dart';
+import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
@@ -38,6 +39,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
   // Search state
   final _searchController = TextEditingController();
   var _isSearching = false;
+  var _retryCount = 0;
 
   // Selection state
   var _isSelectionMode = false;
@@ -48,10 +50,18 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
     super.initState();
     _loadData();
     _searchController.addListener(_onSearchChanged);
+    stows.isOnline.addListener(_onConnectivityChanged);
+  }
+
+  void _onConnectivityChanged() {
+    if (stows.isOnline.value && mounted) {
+      _loadData();
+    }
   }
 
   @override
   void dispose() {
+    stows.isOnline.removeListener(_onConnectivityChanged);
     _patientsSubscription?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -162,7 +172,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
 
   Future<void> _loadData() async {
     setState(() {
-      isLoading = true;
+      if (patients == null) isLoading = true;
       error = null;
     });
 
@@ -188,6 +198,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
             if (mounted) {
               setState(() {
                 patients = patientList;
+                _retryCount = 0; // Reset retry count on success
                 patients?.sort(
                   (a, b) => a.fullName.toLowerCase().compareTo(
                     b.fullName.toLowerCase(),
@@ -201,8 +212,21 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
           },
           onError: (e) {
             if (mounted) {
+              final errorStr = e.toString().toLowerCase();
+              if (errorStr.contains('timedout') && _retryCount < 3) {
+                _retryCount++;
+                debugPrint(
+                  'PatientBrowse: Subscription timed out, retrying ($_retryCount/3)...',
+                );
+                Future.delayed(
+                  Duration(seconds: 2 * _retryCount),
+                  () => _loadData(),
+                );
+                return;
+              }
+
               setState(() {
-                error = e.toString();
+                error = ErrorHandler.getFriendlyErrorMessage(e);
                 isLoading = false;
               });
             }
@@ -212,7 +236,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          error = e.toString();
+          error = ErrorHandler.getFriendlyErrorMessage(e);
           isLoading = false;
         });
       }
@@ -265,7 +289,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
       }
     } catch (e) {
       setState(() {
-        error = e.toString();
+        error = ErrorHandler.getFriendlyErrorMessage(e);
         isLoading = false;
       });
     }

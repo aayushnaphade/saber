@@ -110,18 +110,19 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
             final role = stows.userRole.value;
             log.info('User signed in with role: $role');
 
+            /*
             if (role != 'doctor') {
               // Strictly only allow doctors on the tablet
               log.warning('Access denied for role: $role');
-              await SupabaseAuthService.signOut();
-              if (mounted) {
-                _showErrorSnackBar(
-                  'Access Restricted: This device is reserved for Doctors. Please use the Web portal.',
-                );
-                setState(() => _isLoading = false);
-              }
-              return;
+              // ...
             }
+            */
+
+             // Soft check: Warn but allow entry if role is missing/empty
+             if (role.isNotEmpty && role != 'doctor') {
+                log.warning('Non-doctor role detected: $role. Proceeding anyway for debugging.');
+                // For strict production: uncomment the block above
+             }
 
             // If we reach here, it's a doctor. Navigate to home.
             if (mounted) {

@@ -44,6 +44,43 @@ class _LiveQueueCardState extends State<LiveQueueCard>
     super.dispose();
   }
 
+  void _showCancelConfirmation(BuildContext context) {
+    if (widget.currentPatient == null) return;
+
+    final theme = Theme.of(context);
+    final isInProgress = widget.currentPatient!.status == 'in_progress';
+    final patientName = widget.currentPatient!.patientName;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(isInProgress ? 'Terminate Session' : 'Cancel Appointment'),
+        content: Text(
+          isInProgress
+              ? 'Are you sure you want to terminate the current session with $patientName?'
+              : 'Are you sure you want to cancel the appointment for $patientName?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Back'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: theme.colorScheme.error,
+              foregroundColor: theme.colorScheme.onError,
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onCancel?.call();
+            },
+            child: Text(isInProgress ? 'Terminate' : 'Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Calculate safe waiting count (excluding current patient if in progress)
   int get _displayWaitingCount {
     if (widget.currentPatient == null) return 0;
@@ -150,14 +187,37 @@ class _LiveQueueCardState extends State<LiveQueueCard>
                     ],
                   ),
                 ),
-                if (widget.currentPatient != null && widget.onCancel != null)
-                  IconButton(
-                    icon: Icon(
-                      Icons.more_horiz,
-                      color: colorScheme.onSurfaceVariant,
+                if (_displayWaitingCount > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
                     ),
-                    onPressed: widget.onCancel,
-                    tooltip: 'Cancel Appointment',
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: colorScheme.onSurface.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.people_alt_rounded,
+                          size: 14,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$_displayWaitingCount Waiting',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
               ],
             ),
@@ -242,7 +302,21 @@ class _LiveQueueCardState extends State<LiveQueueCard>
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: const Text('Profile'),
+                      child: const Icon(Icons.person_outline),
+                    ),
+                  ],
+                  if (widget.onCancel != null) ...[
+                    const SizedBox(width: 12),
+                    OutlinedButton(
+                      onPressed: () => _showCancelConfirmation(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        foregroundColor: colorScheme.error,
+                        side: BorderSide(
+                          color: colorScheme.error.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: const Icon(Icons.close_rounded),
                     ),
                   ],
                 ],
@@ -269,28 +343,6 @@ class _LiveQueueCardState extends State<LiveQueueCard>
                 ),
               ),
               const SizedBox(height: 32),
-            ],
-            if (_displayWaitingCount > 0) ...[
-              const SizedBox(height: 24),
-              Divider(height: 1, color: colorScheme.outlineVariant),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Icon(
-                    Icons.people_outline,
-                    size: 16,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '$_displayWaitingCount waiting',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
             ],
           ],
         ),

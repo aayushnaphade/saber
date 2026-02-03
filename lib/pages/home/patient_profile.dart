@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/patient.dart';
+import 'package:saber/data/prefs.dart';
 import 'package:saber/data/models/psychiatric_intake.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/document_sync_service.dart';
@@ -53,6 +54,20 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     super.initState();
     _loadPatientData();
     _fetchDoctorProfile();
+    stows.isOnline.addListener(_onConnectivityChanged);
+  }
+
+  void _onConnectivityChanged() {
+    if (stows.isOnline.value && mounted) {
+      _loadPatientData();
+      _fetchDoctorProfile();
+    }
+  }
+
+  @override
+  void dispose() {
+    stows.isOnline.removeListener(_onConnectivityChanged);
+    super.dispose();
   }
 
   Future<void> _fetchDoctorProfile() async {
@@ -236,7 +251,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       });
     } catch (e) {
       setState(() {
-        error = e.toString();
+        error = ErrorHandler.getFriendlyErrorMessage(e);
         isLoading = false;
       });
     }
@@ -602,13 +617,19 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () {
-                  // Check if there's a returnPath query parameter
-                  final uri = GoRouterState.of(context).uri;
-                  final returnPath = uri.queryParameters['returnPath'];
-                  if (returnPath != null && returnPath.isNotEmpty) {
-                    context.go(returnPath);
+                  if (context.canPop()) {
+                    context.pop();
                   } else {
-                    context.go('/home/browse');
+                    // Check if there's a returnPath query parameter
+                    final uri = GoRouterState.of(context).uri;
+                    final returnPath = uri.queryParameters['returnPath'];
+                    if (returnPath != null && returnPath.isNotEmpty) {
+                      context.go(returnPath);
+                    } else {
+                      // Fallback: if we can't pop and no return path,
+                      // go back to the browse page
+                      context.go('/home/browse');
+                    }
                   }
                 },
                 tooltip: 'Back',
@@ -1138,7 +1159,13 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               Icons.monitor_weight_outlined,
               patient!.weight == null,
             ),
-
+            const SizedBox(height: 12),
+            _buildVitalCard(
+              'Reg No',
+              patient!.registrationNumber ?? 'Not defined',
+              Icons.app_registration_outlined,
+              patient!.registrationNumber == null,
+            ),
             const SizedBox(height: 12),
             _buildVitalCard(
               'Address',

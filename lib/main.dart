@@ -22,6 +22,7 @@ import 'package:saber/data/routes.dart';
 import 'package:saber/data/sentry/sentry_init.dart';
 import 'package:saber/data/supabase/supabase_auth_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
+import 'package:saber/data/services/connectivity_service.dart';
 import 'package:saber/data/tools/stroke_properties.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/editor/editor.dart';
@@ -38,6 +39,9 @@ import 'package:saber/pages/home/dashboard/team_management_page.dart';
 import 'package:saber/pages/home/whiteboard.dart';
 import 'package:saber/pages/home/settings.dart';
 import 'package:saber/pages/home/recent_notes.dart';
+import 'package:saber/pages/home/settings_subpages/ai_settings_page.dart';
+import 'package:saber/pages/home/settings_subpages/app_settings_page.dart';
+import 'package:saber/pages/home/settings_subpages/professional_profile_page.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
 
@@ -95,6 +99,9 @@ Future<void> appRunner(List<String> args) async {
 
   // Initialize Supabase client
   await SupabaseClientConfig.initialize();
+
+  // Initialize connectivity monitoring
+  ConnectivityService.initialize();
 
   await Future.wait([
     stows.customDataDir.waitUntilRead().then((_) => FileManager.init()),
@@ -181,6 +188,8 @@ class App extends StatefulWidget {
   static final log = Logger('App');
   static final GlobalKey<NavigatorState> rootNavigatorKey =
       GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> shellNavigatorKey =
+      GlobalKey<NavigatorState>();
 
   static String getInitialLocation() {
     // Check if user is authenticated
@@ -210,11 +219,15 @@ class App extends StatefulWidget {
         // Note: For existing sessions, role might be empty initially
         // until tryRestoreSession completes, but the router refresh
         // will trigger again once the role is synced.
+
+        // RELAXED: Rely on Login page check. Don't kick out mid-session.
+        /*
         if (role.isNotEmpty && role != 'doctor') {
           // Force logout and redirect if not a doctor
           SupabaseAuthService.signOut();
           return RoutePaths.login;
         }
+        */
 
         // If authenticated and on login page, redirect to home
         if (isLoginRoute) {
@@ -239,10 +252,26 @@ class App extends StatefulWidget {
         },
       ),
       ShellRoute(
+        navigatorKey: App.shellNavigatorKey,
         builder: (context, state, child) {
-          final subpage =
-              state.pathParameters['subpage'] ?? HomePage.dashboardSubpage;
-          return HomePage(subpage: subpage, child: child);
+          var subpage = state.pathParameters['subpage'];
+
+          // Fallback subpage detection for routes without :subpage parameter
+          if (subpage == null) {
+            final uri = state.uri.path;
+            if (uri.contains('/patients')) {
+              subpage = HomePage.browseSubpage;
+            } else {
+              subpage = HomePage.dashboardSubpage;
+            }
+          }
+
+          return HomePage(
+            subpage: subpage,
+            child: child,
+            navigatorKey: App.shellNavigatorKey,
+            currentPath: state.uri.path,
+          );
         },
         routes: [
           GoRoute(
@@ -271,6 +300,12 @@ class App extends StatefulWidget {
                 case HomePage.teamManagementSubpage:
                   child = const TeamManagementPage();
                   break;
+                case HomePage.professionalSubpage:
+                  child = const ProfessionalProfilePage();
+                  break;
+                case HomePage.appSettingsSubpage:
+                  child = const AppSettingsPage();
+                  break;
                 default:
                   child = const RecentPage();
               }
@@ -278,23 +313,41 @@ class App extends StatefulWidget {
               return NoTransitionPage(child: child);
             },
           ),
+          GoRoute(
+            path: RoutePaths.patientDocuments,
+            builder: (context, state) => PatientBrowsePage(
+              patientId: state.pathParameters['patientId'],
+              documentType: state.pathParameters['documentType'],
+            ),
+          ),
+          GoRoute(
+            path: RoutePaths.patientDetail,
+            builder: (context, state) => PatientProfilePage(
+              patientId: state.pathParameters['patientId']!,
+            ),
+          ),
+          GoRoute(
+            path: RoutePaths.patients,
+            builder: (context, state) => const PatientBrowsePage(),
+          ),
+          GoRoute(
+            path: RoutePaths.sessionViewer,
+            builder: (context, state) {
+              final patientId = state.pathParameters['patientId']!;
+              final sessionNumber = int.parse(
+                state.pathParameters['sessionNumber']!,
+              );
+              final extra = state.extra as Map<String, dynamic>;
+              final allSessions = extra['allSessions'] as List<SessionInfo>;
+
+              return SessionViewerPage(
+                patientId: patientId,
+                initialSessionNumber: sessionNumber,
+                allSessions: allSessions,
+              );
+            },
+          ),
         ],
-      ),
-      GoRoute(
-        path: RoutePaths.patientDocuments,
-        builder: (context, state) => PatientBrowsePage(
-          patientId: state.pathParameters['patientId'],
-          documentType: state.pathParameters['documentType'],
-        ),
-      ),
-      GoRoute(
-        path: RoutePaths.patientDetail,
-        builder: (context, state) =>
-            PatientProfilePage(patientId: state.pathParameters['patientId']!),
-      ),
-      GoRoute(
-        path: RoutePaths.patients,
-        builder: (context, state) => const PatientBrowsePage(),
       ),
       GoRoute(
         path: RoutePaths.edit,
@@ -315,23 +368,6 @@ class App extends StatefulWidget {
       GoRoute(
         path: RoutePaths.logs,
         builder: (context, state) => const LogsPage(),
-      ),
-      GoRoute(
-        path: RoutePaths.sessionViewer,
-        builder: (context, state) {
-          final patientId = state.pathParameters['patientId']!;
-          final sessionNumber = int.parse(
-            state.pathParameters['sessionNumber']!,
-          );
-          final extra = state.extra as Map<String, dynamic>;
-          final allSessions = extra['allSessions'] as List<SessionInfo>;
-
-          return SessionViewerPage(
-            patientId: patientId,
-            initialSessionNumber: sessionNumber,
-            allSessions: allSessions,
-          );
-        },
       ),
     ],
   );

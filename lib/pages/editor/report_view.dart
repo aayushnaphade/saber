@@ -3,6 +3,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/utils/report_printer.dart';
+import 'package:saber/data/models/patient.dart';
 
 class ReportView extends StatefulWidget {
   const ReportView({
@@ -10,6 +11,7 @@ class ReportView extends StatefulWidget {
     required this.reportData,
     required this.onVerify,
     this.onRegenerate,
+    this.patient,
     this.readonly = false,
     this.showAppBar = true,
   });
@@ -17,6 +19,7 @@ class ReportView extends StatefulWidget {
   final Map<String, dynamic> reportData;
   final VoidCallback onVerify;
   final VoidCallback? onRegenerate;
+  final Patient? patient;
   final bool readonly;
   final bool showAppBar;
 
@@ -109,7 +112,10 @@ class _ReportViewState extends State<ReportView> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: IconButton.filledTonal(
-                onPressed: () => ReportPrinter.printReport(widget.reportData),
+                onPressed: () => ReportPrinter.printReport(
+                  widget.reportData,
+                  patient: widget.patient,
+                ),
                 icon: const Icon(Icons.print, size: 20),
                 tooltip: 'Print PDF',
               ),
@@ -633,7 +639,8 @@ class _ReportViewState extends State<ReportView> {
   }
 
   Widget _buildProfessionalHeader(BuildContext context, bool isDark) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final clinicName = stows.clinicName.value;
     final clinicAddress = stows.clinicAddress.value;
     final clinicPhone = stows.clinicPhone.value;
@@ -735,7 +742,7 @@ class _ReportViewState extends State<ReportView> {
             children: [
               Text(
                 'CLINICAL ASSESSMENT REPORT',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                style: theme.textTheme.labelLarge?.copyWith(
                   letterSpacing: 2,
                   fontWeight: FontWeight.bold,
                   color: colorScheme.secondary,
@@ -743,10 +750,68 @@ class _ReportViewState extends State<ReportView> {
               ),
               Text(
                 DateFormat('dd MMM yyyy').format(DateTime.now()),
-                style: Theme.of(context).textTheme.bodySmall,
+                style: theme.textTheme.bodySmall,
               ),
             ],
           ),
+          if (widget.patient != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: colorScheme.outlineVariant.withOpacity(0.5),
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.person_outline,
+                    size: 20,
+                    color: colorScheme.secondary,
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.patient!.fullName,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (widget.patient!.age != null ||
+                          widget.patient!.gender != null)
+                        Text(
+                          '${widget.patient!.gender ?? ''}${widget.patient!.gender != null && widget.patient!.age != null ? ', ' : ''}${widget.patient!.age != null ? '${widget.patient!.age} yrs' : ''}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (widget.patient!.phoneNumber != null)
+                        Text(
+                          widget.patient!.phoneNumber!,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      Text(
+                        'Reg No: ${widget.patient!.registrationNumber ?? 'Not defined'}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

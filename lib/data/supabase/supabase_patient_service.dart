@@ -13,7 +13,7 @@ class SupabasePatientService {
 
       final response = await supabase
           .from('patients')
-          .select()
+          .select('*, psychiatric_intakes(registration_number)')
           .order('created_at', ascending: false);
 
       final patients = (response as List)
@@ -35,7 +35,7 @@ class SupabasePatientService {
 
       final response = await supabase
           .from('patients')
-          .select()
+          .select('*, psychiatric_intakes(registration_number)')
           .eq('is_active', true)
           .order('created_at', ascending: false);
 
@@ -82,7 +82,7 @@ class SupabasePatientService {
 
       final response = await supabase
           .from('patients')
-          .select()
+          .select('*, psychiatric_intakes(registration_number)')
           .eq('id', patientId)
           .maybeSingle();
 
@@ -107,7 +107,7 @@ class SupabasePatientService {
 
       final response = await supabase
           .from('patients')
-          .select()
+          .select('*, psychiatric_intakes(registration_number)')
           .ilike('full_name', '%$query%')
           .order('created_at', ascending: false);
 

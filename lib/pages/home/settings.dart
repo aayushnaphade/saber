@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saber/components/settings/settings_button.dart';
 import 'package:saber/components/settings/settings_dropdown.dart';
-import 'package:saber/components/settings/settings_switch.dart';
 import 'package:saber/components/settings/update_manager.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
 import 'package:saber/components/theming/adaptive_toggle_buttons.dart';
@@ -14,8 +13,6 @@ import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_auth_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/i18n/strings.g.dart';
-import 'package:saber/pages/home/settings_subpages/app_settings_page.dart';
-import 'package:saber/pages/home/settings_subpages/professional_profile_page.dart';
 import 'package:stow/stow.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:animated_theme_switcher/animated_theme_switcher.dart';
@@ -681,29 +678,31 @@ class _SettingsPageState extends State<SettingsPage> {
                         Positioned(
                           bottom: 0,
                           right: 0,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: colorScheme.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              onPressed: _isUploadingImage
+                          child: Material(
+                            color: colorScheme.primary,
+                            shape: const CircleBorder(),
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: _isUploadingImage
                                   ? null
                                   : _pickAndUploadImage,
-                              icon: _isUploadingImage
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
+                              child: Padding(
+                                padding: const EdgeInsets.all(4),
+                                child: _isUploadingImage
+                                    ? const SizedBox(
+                                        width: 12,
+                                        height: 12,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 1.5,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.camera_alt,
+                                        size: 12,
+                                        color: colorScheme.onPrimary,
                                       ),
-                                    )
-                                  : const Icon(Icons.camera_alt, size: 16),
-                              iconSize: 16,
-                              padding: const EdgeInsets.all(6),
-                              constraints: const BoxConstraints(),
-                              color: colorScheme.onPrimary,
+                              ),
                             ),
                           ),
                         ),
@@ -1080,9 +1079,7 @@ class _SettingsPageState extends State<SettingsPage> {
         subtitle: 'Editor, Writing, Performance & More',
         icon: Icons.settings_applications,
         onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const AppSettingsPage()),
-          );
+          context.push('/home/app_settings');
         },
       ),
     );
@@ -1097,13 +1094,7 @@ class _SettingsPageState extends State<SettingsPage> {
         subtitle: 'Personalize your reports and app header',
         icon: Icons.verified_user_outlined,
         onPressed: () {
-          Navigator.of(context)
-              .push(
-                MaterialPageRoute(
-                  builder: (context) => const ProfessionalProfilePage(),
-                ),
-              )
-              .then((_) => _fetchProfile());
+          context.push('/home/professional').then((_) => _fetchProfile());
         },
       ),
     );

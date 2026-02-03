@@ -5,8 +5,10 @@ import 'package:logging/logging.dart';
 import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/models/previous_session_note.dart';
 import 'package:saber/data/supabase/supabase_consultation_service.dart';
+import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/data/utils/report_printer.dart';
+import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/pages/editor/report_view.dart';
 // import 'package:saber/data/models/patient.dart'; // SessionInfo already imported
 
@@ -32,6 +34,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
   late int _currentSessionNumber;
   ClinicalReport? _currentReport;
   PreviousSessionNote? _currentNote;
+  Patient? _patient;
   bool _isLoading = true;
   String? _error;
 
@@ -71,10 +74,14 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
         _currentSessionNumber,
       );
 
+      // 3. Fetch Patient Info
+      final patient = await SupabasePatientService.getPatient(widget.patientId);
+
       if (mounted) {
         setState(() {
           _currentReport = report;
           _currentNote = note;
+          _patient = patient;
           _isLoading = false;
         });
       }
@@ -82,7 +89,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
       log.severe('Error loading session data', e);
       if (mounted) {
         setState(() {
-          _error = 'Failed to load session documents: $e';
+          _error = ErrorHandler.getFriendlyErrorMessage(e);
           _isLoading = false;
         });
       }
@@ -173,6 +180,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
                 onPressed: () => ReportPrinter.printReport(
                   _currentReport!.structuredData,
                   generatedAt: _currentReport!.createdAt,
+                  patient: _patient,
                 ),
                 tooltip: 'Print PDF',
               ),
@@ -379,6 +387,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
             onVerify: () {},
             readonly: true,
             showAppBar: false,
+            patient: _patient,
           ),
         ),
       ],

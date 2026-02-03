@@ -26,6 +26,9 @@ class SupabaseClientConfig {
       authOptions: const FlutterAuthClientOptions(
         authFlowType: AuthFlowType.pkce,
       ),
+      realtimeClientOptions: const RealtimeClientOptions(
+        timeout: Duration(seconds: 20),
+      ),
     );
     _instance = Supabase.instance.client;
   }

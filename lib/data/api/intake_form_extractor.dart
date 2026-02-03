@@ -37,6 +37,7 @@ Return a single valid JSON object with the following structure. Do NOT include m
 
 **JSON Schema:**
 {
+  "registration_number": "string or null",
   "residence": "string or null",
   "duration_of_illness": "string or null",
   "referred_by": "string or null",
@@ -59,7 +60,8 @@ Return a single valid JSON object with the following structure. Do NOT include m
   "somatic_other": "string or null",
   
   "substance_use": "use/abuse/dependence or null",
-  "alcohol_drugs_tobacco": boolean,
+  "alcohol_drugs": boolean,
+  "tobacco_smoking": boolean,
   
   "decreased_libido": boolean,
   "increased_libido": boolean,

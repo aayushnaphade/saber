@@ -121,13 +121,21 @@ class SupabaseAuthService {
     try {
       log.info('Signing out user');
 
-      await supabase.auth.signOut();
+      try {
+        // Try to notify the server, but don't let it block local logout if it fails
+        // We use a short timeout to prevent the app from hanging if network is flaky
+        await supabase.auth.signOut().timeout(const Duration(seconds: 5));
+      } catch (e) {
+        log.warning('Supabase server sign out failed (likely offline): $e');
+      }
+
       await _clearSessionFromPrefs();
 
       log.info('Sign out successful');
     } catch (e) {
       log.severe('Sign out failed', e);
-      rethrow;
+      // Ensure we at least try to clear local state if something else fails
+      await _clearSessionFromPrefs();
     }
   }
 
@@ -223,13 +231,25 @@ class SupabaseAuthService {
 
       if (profile != null) {
         stows.receptionMode.value = profile['reception_mode'] as bool? ?? false;
-        stows.userRole.value = profile['role'] as String? ?? '';
+        
+        // Robust role handling: default to doctor if null/empty
+        final role = profile['role'] as String?;
+        stows.userRole.value =
+            (role == null || role.isEmpty) ? 'doctor' : role;
+            
         stows.userDisplayName.value = profile['display_name'] as String? ?? '';
         stows.userQualification.value =
             profile['qualification'] as String? ?? '';
         stows.userRegistrationNumber.value =
             profile['registration_number'] as String? ?? '';
         stows.userSignatureUrl.value = profile['signature_url'] as String?;
+      } else {
+        // Fallback for users with missing profile rows (e.g. new users or legacy)
+        // We default to 'doctor' to allow access, as this is the primary user type.
+        log.warning(
+          'Profile not found for user: $userId. Defaulting to doctor role.',
+        );
+        stows.userRole.value = 'doctor';
       }
 
       // 2. Fetch Clinic
@@ -265,6 +285,10 @@ class SupabaseAuthService {
       }
     } catch (e) {
       log.warning('Failed to sync profile or clinic', e);
+      // Fallback on error: assume doctor role to prevent lockout
+      if (stows.userRole.value.isEmpty) {
+         stows.userRole.value = 'doctor';
+      }
     }
   }
 

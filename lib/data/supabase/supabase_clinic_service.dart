@@ -49,7 +49,7 @@ class SupabaseClinicService {
 
       final response = await supabase
           .from('clinics')
-          .upsert(dataToSave)
+          .upsert(dataToSave, onConflict: 'doctor_id')
           .select()
           .single();
 

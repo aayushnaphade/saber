@@ -5,12 +5,14 @@ import 'package:saber/data/prefs.dart';
 import 'package:intl/intl.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'package:flutter/material.dart' as m;
+import 'package:saber/data/models/patient.dart';
 
 class ReportPrinter {
   static Future<void> printReport(
     Map<String, dynamic> reportData, {
     DateTime? generatedAt,
     Map<String, String?>? brandingData,
+    Patient? patient,
   }) async {
     final pdf = pw.Document();
 
@@ -206,7 +208,80 @@ class ReportPrinter {
                 ),
               ),
             ),
-            pw.SizedBox(height: 20),
+            pw.SizedBox(height: 10),
+
+            // PATIENT INFORMATION SECTION
+            if (patient != null) ...[
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 15,
+                ),
+                decoration: const pw.BoxDecoration(
+                  border: pw.Border(
+                    bottom: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+                  ),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.RichText(
+                          text: pw.TextSpan(
+                            children: [
+                              pw.TextSpan(
+                                text: 'Patient Name: ',
+                                style: pw.TextStyle(
+                                  fontWeight: pw.FontWeight.bold,
+                                  fontSize: 10,
+                                ),
+                              ),
+                              pw.TextSpan(
+                                text: patient.fullName,
+                                style: const pw.TextStyle(fontSize: 10),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (patient.age != null || patient.gender != null)
+                          pw.Text(
+                            '${patient.gender ?? ''}${patient.gender != null && patient.age != null ? ', ' : ''}${patient.age != null ? '${patient.age} yrs' : ''}',
+                            style: const pw.TextStyle(fontSize: 9),
+                          ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        if (patient.phoneNumber != null)
+                          pw.Text(
+                            'Phone: ${patient.phoneNumber}',
+                            style: const pw.TextStyle(fontSize: 9),
+                          ),
+                        pw.Text(
+                          (patient.registrationNumber != null &&
+                                  patient.registrationNumber!.isNotEmpty)
+                              ? 'Reg No: ${patient.registrationNumber}'
+                              : (reportData['registration_number'] != null &&
+                                      reportData['registration_number']
+                                          .toString()
+                                          .isNotEmpty)
+                                  ? 'Reg No: ${reportData['registration_number']}'
+                                  : 'Reg No: Not defined',
+                          style: pw.TextStyle(
+                            fontSize: 8,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 20),
+            ],
 
             // DYNAMIC SECTIONS (using spread operator to allow splitting across pages)
             ..._buildSection(
@@ -227,7 +302,7 @@ class ReportPrinter {
               ),
 
             ..._buildSection(
-              'PAST HISTORY',
+              'PAST MEDICAL & PSYCHIATRIC HISTORY',
               reportData['past_history'],
               primaryColor,
             ),
@@ -343,7 +418,22 @@ class ReportPrinter {
       ],
     };
 
-    return printReport(dummyData, brandingData: brandingData);
+    final mockPatient = Patient(
+      id: 'demo-patient-123',
+      createdAt: DateTime.now(),
+      fullName: 'John Doe',
+      age: 45,
+      gender: 'Male',
+      status: PatientStatus.active,
+      doctorId: 'demo-doctor',
+      phoneNumber: '+91 98765 43210',
+    );
+
+    return printReport(
+      dummyData,
+      brandingData: brandingData,
+      patient: mockPatient,
+    );
   }
 
   static List<pw.Widget> _buildSection(

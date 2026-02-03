@@ -304,4 +304,32 @@ class SupabaseIntakeService {
       rethrow;
     }
   }
+
+  /// Upload a single handwriting image to storage
+  static Future<String> uploadHandwritingImage({
+    required String patientId,
+    required String sectionName,
+    required Uint8List imageBytes,
+  }) async {
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final path = 'handwriting/$patientId/${sectionName}_$timestamp.png';
+
+      await supabase.storage
+          .from('intake-form-photos')
+          .uploadBinary(
+            path,
+            imageBytes,
+            fileOptions: const FileOptions(
+              contentType: 'image/png',
+              upsert: true,
+            ),
+          );
+
+      return supabase.storage.from('intake-form-photos').getPublicUrl(path);
+    } catch (e) {
+      log.severe('Failed to upload handwriting image', e);
+      rethrow;
+    }
+  }
 }

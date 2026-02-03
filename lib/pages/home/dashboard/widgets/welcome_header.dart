@@ -15,48 +15,23 @@ class WelcomeHeader extends StatefulWidget {
 }
 
 class _WelcomeHeaderState extends State<WelcomeHeader> {
-  bool _isOnline = true;
-  Timer? _connectivityTimer;
-
   @override
   void initState() {
     super.initState();
-    _checkConnectivity();
-    // Check connectivity every 10 seconds
-    _connectivityTimer = Timer.periodic(
-      const Duration(seconds: 10),
-      (_) => _checkConnectivity(),
-    );
+    stows.isOnline.addListener(_onConnectivityChanged);
+  }
+
+  void _onConnectivityChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _connectivityTimer?.cancel();
+    stows.isOnline.removeListener(_onConnectivityChanged);
     super.dispose();
   }
 
-  Future<void> _checkConnectivity() async {
-    try {
-      // Try to ping Supabase to check connectivity
-      final response = await supabase
-          .from('profiles')
-          .select('id')
-          .limit(1)
-          .timeout(const Duration(seconds: 5));
-
-      if (mounted) {
-        setState(() {
-          _isOnline = true;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isOnline = false;
-        });
-      }
-    }
-  }
+  bool get _isOnline => stows.isOnline.value;
 
   @override
   Widget build(BuildContext context) {

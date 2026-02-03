@@ -95,8 +95,9 @@ You must output a single valid JSON object containing exactly these six keys. Do
 ''';
 
   static Future<Map<String, dynamic>> generateReport(
-    List<Uint8List> imageBytesList,
-  ) async {
+    List<Uint8List> imageBytesList, {
+    String? registrationNumber,
+  }) async {
     try {
       if (imageBytesList.isEmpty) {
         throw Exception('ReportGenerator: Captured image bytes are empty');
@@ -253,7 +254,11 @@ You must output a single valid JSON object containing exactly these six keys. Do
 
           log.info('Received response from Vertex AI');
           try {
-            return jsonDecode(responseText) as Map<String, dynamic>;
+            final data = jsonDecode(responseText) as Map<String, dynamic>;
+            if (registrationNumber != null) {
+              data['registration_number'] = registrationNumber;
+            }
+            return data;
           } catch (e) {
             log.severe('Failed to parse JSON response: $responseText');
             throw Exception('Failed to parse AI response');

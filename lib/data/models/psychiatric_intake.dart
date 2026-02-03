@@ -10,6 +10,7 @@ class PsychiatricIntake {
 
   // Header Information
   final String? caseNumber;
+  final String? registrationNumber;
   final DateTime? dateOfExamination;
   final String? education;
   final String? occupation;
@@ -39,7 +40,8 @@ class PsychiatricIntake {
 
   // Substance Use
   final String? substanceUse; // use/abuse/dependence
-  final bool alcoholDrugsTobacco;
+  final bool alcoholDrugs;
+  final bool tobaccoSmoking;
 
   // Sexual Dysfunction
   final bool decreasedLibido;
@@ -115,6 +117,15 @@ class PsychiatricIntake {
   final String? clinicalNotes;
   final String? provisionalDiagnosis;
 
+  // Handwriting Image URLs
+  final String? medicalIllnessesHandwriting;
+  final String? stressesHandwriting;
+  final String? ongoingTreatmentHandwriting;
+  final String? otherSymptomsHandwriting;
+  final String? clinicalNotesHandwriting;
+  final String? provisionalDiagnosisHandwriting;
+  final String? somaticOtherHandwriting;
+
   // Import Metadata (for photo capture imports)
   final bool importedFromPhoto;
   final DateTime? importedAt;
@@ -126,6 +137,7 @@ class PsychiatricIntake {
     required this.createdAt,
     this.updatedAt,
     this.caseNumber,
+    this.registrationNumber,
     this.dateOfExamination,
     this.education,
     this.occupation,
@@ -149,7 +161,8 @@ class PsychiatricIntake {
     this.somaticAbdominal = false,
     this.somaticOther,
     this.substanceUse,
-    this.alcoholDrugsTobacco = false,
+    this.alcoholDrugs = false,
+    this.tobaccoSmoking = false,
     this.decreasedLibido = false,
     this.increasedLibido = false,
     this.erectileDysfunction = false,
@@ -210,6 +223,13 @@ class PsychiatricIntake {
     this.otherSymptoms,
     this.clinicalNotes,
     this.provisionalDiagnosis,
+    this.medicalIllnessesHandwriting,
+    this.stressesHandwriting,
+    this.ongoingTreatmentHandwriting,
+    this.otherSymptomsHandwriting,
+    this.clinicalNotesHandwriting,
+    this.provisionalDiagnosisHandwriting,
+    this.somaticOtherHandwriting,
     this.importedFromPhoto = false,
     this.importedAt,
     this.importedBy,
@@ -227,6 +247,7 @@ class PsychiatricIntake {
           ? DateTime.parse(json['updated_at'].toString())
           : null,
       caseNumber: json['case_number']?.toString(),
+      registrationNumber: json['registration_number']?.toString(),
       dateOfExamination: json['date_of_examination'] != null
           ? DateTime.parse(json['date_of_examination'].toString())
           : null,
@@ -252,7 +273,10 @@ class PsychiatricIntake {
       somaticAbdominal: json['somatic_abdominal'] as bool? ?? false,
       somaticOther: json['somatic_other']?.toString(),
       substanceUse: json['substance_use']?.toString(),
-      alcoholDrugsTobacco: json['alcohol_drugs_tobacco'] as bool? ?? false,
+      alcoholDrugs: json['alcohol_drugs'] as bool? ??
+          json['alcohol_drugs_tobacco'] as bool? ??
+          false,
+      tobaccoSmoking: json['tobacco_smoking'] as bool? ?? false,
       decreasedLibido: json['decreased_libido'] as bool? ?? false,
       increasedLibido: json['increased_libido'] as bool? ?? false,
       erectileDysfunction: json['erectile_dysfunction'] as bool? ?? false,
@@ -314,6 +338,16 @@ class PsychiatricIntake {
       otherSymptoms: json['other_symptoms']?.toString(),
       clinicalNotes: json['clinical_notes']?.toString(),
       provisionalDiagnosis: json['provisional_diagnosis']?.toString(),
+      medicalIllnessesHandwriting: json['medical_illnesses_handwriting']
+          ?.toString(),
+      stressesHandwriting: json['stresses_handwriting']?.toString(),
+      ongoingTreatmentHandwriting: json['ongoing_treatment_handwriting']
+          ?.toString(),
+      otherSymptomsHandwriting: json['other_symptoms_handwriting']?.toString(),
+      clinicalNotesHandwriting: json['clinical_notes_handwriting']?.toString(),
+      provisionalDiagnosisHandwriting: json['provisional_diagnosis_handwriting']
+          ?.toString(),
+      somaticOtherHandwriting: json['somatic_other_handwriting']?.toString(),
       importedFromPhoto: json['imported_from_photo'] as bool? ?? false,
       importedAt: json['imported_at'] != null
           ? DateTime.parse(json['imported_at'].toString())
@@ -330,6 +364,7 @@ class PsychiatricIntake {
       'created_at': createdAt.toUtc().toIso8601String(),
       if (updatedAt != null) 'updated_at': updatedAt!.toUtc().toIso8601String(),
       if (caseNumber != null) 'case_number': caseNumber,
+      if (registrationNumber != null) 'registration_number': registrationNumber,
       if (dateOfExamination != null)
         'date_of_examination': dateOfExamination!.toUtc().toIso8601String(),
       if (education != null) 'education': education,
@@ -355,7 +390,8 @@ class PsychiatricIntake {
       'somatic_abdominal': somaticAbdominal,
       if (somaticOther != null) 'somatic_other': somaticOther,
       if (substanceUse != null) 'substance_use': substanceUse,
-      'alcohol_drugs_tobacco': alcoholDrugsTobacco,
+      'alcohol_drugs': alcoholDrugs,
+      'tobacco_smoking': tobaccoSmoking,
       'decreased_libido': decreasedLibido,
       'increased_libido': increasedLibido,
       'erectile_dysfunction': erectileDysfunction,
@@ -418,6 +454,20 @@ class PsychiatricIntake {
       if (clinicalNotes != null) 'clinical_notes': clinicalNotes,
       if (provisionalDiagnosis != null)
         'provisional_diagnosis': provisionalDiagnosis,
+      if (medicalIllnessesHandwriting != null)
+        'medical_illnesses_handwriting': medicalIllnessesHandwriting,
+      if (stressesHandwriting != null)
+        'stresses_handwriting': stressesHandwriting,
+      if (ongoingTreatmentHandwriting != null)
+        'ongoing_treatment_handwriting': ongoingTreatmentHandwriting,
+      if (otherSymptomsHandwriting != null)
+        'other_symptoms_handwriting': otherSymptomsHandwriting,
+      if (clinicalNotesHandwriting != null)
+        'clinical_notes_handwriting': clinicalNotesHandwriting,
+      if (provisionalDiagnosisHandwriting != null)
+        'provisional_diagnosis_handwriting': provisionalDiagnosisHandwriting,
+      if (somaticOtherHandwriting != null)
+        'somatic_other_handwriting': somaticOtherHandwriting,
       'imported_from_photo': importedFromPhoto,
       if (importedAt != null)
         'imported_at': importedAt!.toUtc().toIso8601String(),
@@ -471,7 +521,8 @@ class PsychiatricIntake {
     if (emotionalLability) symptoms.add('Emotional Lability');
 
     // Substance
-    if (alcoholDrugsTobacco) symptoms.add('Substance Use');
+    if (alcoholDrugs) symptoms.add('Alcohol/Drugs');
+    if (tobaccoSmoking) symptoms.add('Tobacco/Smoking');
 
     return symptoms;
   }
@@ -533,6 +584,7 @@ class PsychiatricIntake {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? caseNumber,
+    String? registrationNumber,
     DateTime? dateOfExamination,
     String? education,
     String? occupation,
@@ -556,7 +608,8 @@ class PsychiatricIntake {
     bool? somaticAbdominal,
     String? somaticOther,
     String? substanceUse,
-    bool? alcoholDrugsTobacco,
+    bool? alcoholDrugs,
+    bool? tobaccoSmoking,
     bool? decreasedLibido,
     bool? increasedLibido,
     bool? erectileDysfunction,
@@ -617,6 +670,13 @@ class PsychiatricIntake {
     String? otherSymptoms,
     String? clinicalNotes,
     String? provisionalDiagnosis,
+    String? medicalIllnessesHandwriting,
+    String? stressesHandwriting,
+    String? ongoingTreatmentHandwriting,
+    String? otherSymptomsHandwriting,
+    String? clinicalNotesHandwriting,
+    String? provisionalDiagnosisHandwriting,
+    String? somaticOtherHandwriting,
     bool? importedFromPhoto,
     DateTime? importedAt,
     String? importedBy,
@@ -627,6 +687,7 @@ class PsychiatricIntake {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       caseNumber: caseNumber ?? this.caseNumber,
+      registrationNumber: registrationNumber ?? this.registrationNumber,
       dateOfExamination: dateOfExamination ?? this.dateOfExamination,
       education: education ?? this.education,
       occupation: occupation ?? this.occupation,
@@ -650,7 +711,8 @@ class PsychiatricIntake {
       somaticAbdominal: somaticAbdominal ?? this.somaticAbdominal,
       somaticOther: somaticOther ?? this.somaticOther,
       substanceUse: substanceUse ?? this.substanceUse,
-      alcoholDrugsTobacco: alcoholDrugsTobacco ?? this.alcoholDrugsTobacco,
+      alcoholDrugs: alcoholDrugs ?? this.alcoholDrugs,
+      tobaccoSmoking: tobaccoSmoking ?? this.tobaccoSmoking,
       decreasedLibido: decreasedLibido ?? this.decreasedLibido,
       increasedLibido: increasedLibido ?? this.increasedLibido,
       erectileDysfunction: erectileDysfunction ?? this.erectileDysfunction,
@@ -716,6 +778,20 @@ class PsychiatricIntake {
       otherSymptoms: otherSymptoms ?? this.otherSymptoms,
       clinicalNotes: clinicalNotes ?? this.clinicalNotes,
       provisionalDiagnosis: provisionalDiagnosis ?? this.provisionalDiagnosis,
+      medicalIllnessesHandwriting:
+          medicalIllnessesHandwriting ?? this.medicalIllnessesHandwriting,
+      stressesHandwriting: stressesHandwriting ?? this.stressesHandwriting,
+      ongoingTreatmentHandwriting:
+          ongoingTreatmentHandwriting ?? this.ongoingTreatmentHandwriting,
+      otherSymptomsHandwriting:
+          otherSymptomsHandwriting ?? this.otherSymptomsHandwriting,
+      clinicalNotesHandwriting:
+          clinicalNotesHandwriting ?? this.clinicalNotesHandwriting,
+      provisionalDiagnosisHandwriting:
+          provisionalDiagnosisHandwriting ??
+          this.provisionalDiagnosisHandwriting,
+      somaticOtherHandwriting:
+          somaticOtherHandwriting ?? this.somaticOtherHandwriting,
       importedFromPhoto: importedFromPhoto ?? this.importedFromPhoto,
       importedAt: importedAt ?? this.importedAt,
       importedBy: importedBy ?? this.importedBy,
