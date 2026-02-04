@@ -5,13 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logging/logging.dart';
 import 'package:saber/components/home/export_note_button.dart';
-import 'package:saber/components/home/masonry_files.dart';
 import 'package:saber/components/home/move_note_button.dart';
-import 'package:saber/components/home/new_note_button.dart';
 import 'package:saber/components/home/rename_note_button.dart';
 import 'package:saber/components/home/syncing_button.dart';
-import 'package:saber/components/home/welcome.dart';
-import 'package:saber/components/theming/saber_theme.dart';
+import 'package:saber/components/navbar/responsive_navbar.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
@@ -112,8 +109,6 @@ class _RecentPageState extends State<RecentPage> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = ColorScheme.of(context);
-    final platform = Theme.of(context).platform;
-    final crossAxisCount = MediaQuery.sizeOf(context).width ~/ 300 + 1;
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: () => Future.wait([
@@ -122,21 +117,28 @@ class _RecentPageState extends State<RecentPage> {
         ]),
         child: CustomScrollView(
           slivers: [
-            SliverPadding(
-              padding: const .only(bottom: 8),
-              sliver: SliverAppBar(
-                floating: true,
-                pinned: true,
-                snap: true,
-                centerTitle: false,
-                title: Text(
-                  'Calendar',
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontWeight: FontWeight.bold,
-                  ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  top: ResponsiveNavbar.isLargeScreen ? 24 : 12,
+                  left: 24,
+                  right: 24,
+                  bottom: 16,
                 ),
-                actions: const [SyncingButton()],
+                child: Row(
+                  children: [
+                    Text(
+                      'Calendar',
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                          ),
+                    ),
+                    const Spacer(),
+                    const SyncingButton(),
+                  ],
+                ),
               ),
             ),
             const SliverToBoxAdapter(

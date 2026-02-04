@@ -19,7 +19,7 @@ void main() {
     print('Total Medications: ${mockHistory.lifespans.length}');
     print('\nMedication Details:\n');
 
-    for (var lifespan in mockHistory.lifespans) {
+    for (final lifespan in mockHistory.lifespans) {
       print('📋 ${lifespan.name}');
       print('   Start Date: ${lifespan.startDate.toString().split(' ')[0]}');
       print('   Status: ${lifespan.isActive ? "✅ Active" : "❌ Stopped"}');
@@ -28,7 +28,7 @@ void main() {
       }
       print('   Total Events: ${lifespan.events.length}');
 
-      for (var event in lifespan.events) {
+      for (final event in lifespan.events) {
         final icon = _getEventIcon(event.type);
         print(
           '      $icon ${event.date.toString().split(' ')[0]} - ${event.typeLabel}',

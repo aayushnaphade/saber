@@ -22,10 +22,10 @@ class AiSettingsPage extends StatelessWidget {
             title: 'Generation Quality',
             subtitle: 'Choose between speed and quality',
             icon: Icons.speed,
-            options: [
+            options: const [
               ToggleButtonsOption(
                 ReportGenerationModel.flash,
-                const Column(
+                Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -53,7 +53,7 @@ class AiSettingsPage extends StatelessWidget {
               ),
               ToggleButtonsOption(
                 ReportGenerationModel.pro,
-                const Column(
+                Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:animated_theme_switcher/animated_theme_switcher.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -7,18 +8,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:go_router/go_router.dart';
+import 'package:saber/components/connectivity/network_error_banner.dart';
 import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/components/theming/yaru_builder.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/services/shell_aware_back_dispatcher.dart';
 import 'package:saber/i18n/extensions/redirecting_localization_delegate.dart';
 import 'package:saber/i18n/strings.g.dart';
-import 'package:saber/components/session/minimized_session_overlay.dart';
-import 'package:saber/components/connectivity/network_error_banner.dart';
-import 'package:saber/data/session_manager.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:animated_theme_switcher/animated_theme_switcher.dart';
-
 import 'package:yaru/yaru.dart';
 
 class DynamicMaterialApp extends StatefulWidget {
@@ -236,17 +233,23 @@ class _ExplicitlyThemedAppState extends State<ExplicitlyThemedApp> {
   @override
   void initState() {
     super.initState();
-    _backButtonDispatcher = ShellAwareBackButtonDispatcher(router: widget.router);
+    _backButtonDispatcher = ShellAwareBackButtonDispatcher(
+      router: widget.router,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final highContrastTheme =
         widget.highContrastTheme ??
-        widget.theme.copyWith(colorScheme: widget.theme.colorScheme.withHighContrast());
+        widget.theme.copyWith(
+          colorScheme: widget.theme.colorScheme.withHighContrast(),
+        );
     final highContrastDarkTheme =
         widget.highContrastDarkTheme ??
-        widget.darkTheme.copyWith(colorScheme: widget.theme.colorScheme.withHighContrast());
+        widget.darkTheme.copyWith(
+          colorScheme: widget.theme.colorScheme.withHighContrast(),
+        );
 
     return MaterialApp.router(
       key: ExplicitlyThemedApp._materialAppKey,
@@ -278,7 +281,7 @@ class _ExplicitlyThemedAppState extends State<ExplicitlyThemedApp> {
       highContrastDarkTheme: highContrastDarkTheme,
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
-        Widget app = (Platform.isWindows || Platform.isLinux)
+        final Widget app = (Platform.isWindows || Platform.isLinux)
             ? _BorderedWindow(child: child)
             : child ?? const SizedBox();
 
@@ -290,49 +293,6 @@ class _ExplicitlyThemedAppState extends State<ExplicitlyThemedApp> {
               left: 0,
               right: 0,
               child: NetworkErrorBanner(),
-            ),
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 24,
-              child: ListenableBuilder(
-                listenable: SessionManager(),
-                builder: (context, _) {
-                  final sessionManager = SessionManager();
-                  final bool isVisible =
-                      sessionManager.hasActiveSession &&
-                      sessionManager.isMinimized;
-
-                  return AnimatedSwitcher(
-                    duration: const Duration(
-                      milliseconds: 300,
-                    ), // Faster entrance
-                    reverseDuration: const Duration(
-                      milliseconds: 200,
-                    ), // Very fast exit
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    transitionBuilder: (child, animation) {
-                      return FadeTransition(
-                        opacity: animation,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.3),
-                            end: Offset.zero,
-                          ).animate(animation),
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: isVisible
-                        ? MinimizedSessionOverlay(
-                            key: const ValueKey('session_bar'),
-                            router: widget.router,
-                          )
-                        : const SizedBox.shrink(key: ValueKey('empty_bar')),
-                  );
-                },
-              ),
             ),
           ],
         );

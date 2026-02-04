@@ -17,31 +17,30 @@ import 'package:saber/components/canvas/pencil_shader.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/flavor_config.dart';
+import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/sentry/sentry_init.dart';
+import 'package:saber/data/services/connectivity_service.dart';
 import 'package:saber/data/supabase/supabase_auth_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
-import 'package:saber/data/services/connectivity_service.dart';
 import 'package:saber/data/tools/stroke_properties.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/editor/editor.dart';
+import 'package:saber/pages/home/dashboard/consultation_history_page.dart';
+import 'package:saber/pages/home/dashboard/dashboard_page.dart';
+import 'package:saber/pages/home/dashboard/team_management_page.dart';
 import 'package:saber/pages/home/home.dart';
 import 'package:saber/pages/home/patient_browse.dart';
 import 'package:saber/pages/home/patient_profile.dart';
+import 'package:saber/pages/home/recent_notes.dart';
+import 'package:saber/pages/home/settings.dart';
+import 'package:saber/pages/home/settings_subpages/app_settings_page.dart';
+import 'package:saber/pages/home/settings_subpages/professional_profile_page.dart';
+import 'package:saber/pages/home/whiteboard.dart';
 import 'package:saber/pages/home/widgets/session_viewer.dart';
 import 'package:saber/pages/logs.dart';
 import 'package:saber/pages/user/supabase_login.dart';
-import 'package:saber/data/models/patient.dart';
-import 'package:saber/pages/home/dashboard/dashboard_page.dart';
-import 'package:saber/pages/home/dashboard/consultation_history_page.dart';
-import 'package:saber/pages/home/dashboard/team_management_page.dart';
-import 'package:saber/pages/home/whiteboard.dart';
-import 'package:saber/pages/home/settings.dart';
-import 'package:saber/pages/home/recent_notes.dart';
-import 'package:saber/pages/home/settings_subpages/ai_settings_page.dart';
-import 'package:saber/pages/home/settings_subpages/app_settings_page.dart';
-import 'package:saber/pages/home/settings_subpages/professional_profile_page.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
 
@@ -186,9 +185,9 @@ class App extends StatefulWidget {
   const App({super.key});
 
   static final log = Logger('App');
-  static final GlobalKey<NavigatorState> rootNavigatorKey =
+  static final rootNavigatorKey =
       GlobalKey<NavigatorState>();
-  static final GlobalKey<NavigatorState> shellNavigatorKey =
+  static final shellNavigatorKey =
       GlobalKey<NavigatorState>();
 
   static String getInitialLocation() {
@@ -268,9 +267,9 @@ class App extends StatefulWidget {
 
           return HomePage(
             subpage: subpage,
-            child: child,
             navigatorKey: App.shellNavigatorKey,
             currentPath: state.uri.path,
+            child: child,
           );
         },
         routes: [
@@ -284,28 +283,20 @@ class App extends StatefulWidget {
               switch (subpage) {
                 case HomePage.dashboardSubpage:
                   child = const DashboardPage();
-                  break;
                 case HomePage.browseSubpage:
                   child = const PatientBrowsePage();
-                  break;
                 case HomePage.whiteboardSubpage:
                   child = const Whiteboard();
-                  break;
                 case HomePage.settingsSubpage:
                   child = const SettingsPage();
-                  break;
                 case HomePage.historySubpage:
                   child = const ConsultationHistoryPage();
-                  break;
                 case HomePage.teamManagementSubpage:
                   child = const TeamManagementPage();
-                  break;
                 case HomePage.professionalSubpage:
                   child = const ProfessionalProfilePage();
-                  break;
                 case HomePage.appSettingsSubpage:
                   child = const AppSettingsPage();
-                  break;
                 default:
                   child = const RecentPage();
               }
@@ -351,13 +342,21 @@ class App extends StatefulWidget {
       ),
       GoRoute(
         path: RoutePaths.edit,
-        builder: (context, state) => Editor(
-          path: state.uri.queryParameters['path'],
-          pdfPath: state.uri.queryParameters['pdfPath'],
-          consultationId: state.uri.queryParameters['consultation_id'],
-          patientName: state.uri.queryParameters['patient_name'],
-          patientId: state.uri.queryParameters['patient_id'],
-          readOnly: state.uri.queryParameters['readOnly'] == 'true',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: Editor(
+            path: state.uri.queryParameters['path'],
+            pdfPath: state.uri.queryParameters['pdfPath'],
+            consultationId: state.uri.queryParameters['consultation_id'],
+            patientName: state.uri.queryParameters['patient_name'],
+            patientId: state.uri.queryParameters['patient_id'],
+            readOnly: state.uri.queryParameters['readOnly'] == 'true',
+          ),
+          transitionDuration: const Duration(milliseconds: 900),
+          reverseTransitionDuration: const Duration(milliseconds: 800),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
         ),
       ),
       GoRoute(

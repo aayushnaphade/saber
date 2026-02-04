@@ -235,7 +235,7 @@ void main() {
     });
 
     test('should handle empty events list', () {
-      final lifespan = MedicationLifespan(name: 'Sertraline', events: []);
+      const lifespan = MedicationLifespan(name: 'Sertraline', events: []);
       expect(lifespan.startDate.year, DateTime.now().year);
       expect(lifespan.endDate, null);
       expect(lifespan.isActive, true);
@@ -309,7 +309,7 @@ void main() {
     });
 
     test('should handle empty lifespans', () {
-      final history = PatientMedicationHistory(
+      const history = PatientMedicationHistory(
         patientId: 'patient-123',
         lifespans: [],
       );

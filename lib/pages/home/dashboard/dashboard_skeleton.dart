@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:saber/components/loading/skeleton_loader.dart';
-import 'package:saber/design_system/spacing.dart';
 import 'package:saber/design_system/radius.dart';
+import 'package:saber/design_system/spacing.dart';
 
 class DashboardSkeleton extends StatelessWidget {
   const DashboardSkeleton({super.key});

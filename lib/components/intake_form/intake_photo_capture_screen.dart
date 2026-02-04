@@ -1,10 +1,11 @@
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
-import 'package:saber/design_system/colors.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:logging/logging.dart';
+import 'package:saber/design_system/colors.dart';
 
 /// Screen for capturing intake form photos (front and back)
 class IntakePhotoCaptureScreen extends StatefulWidget {
@@ -18,11 +19,11 @@ class IntakePhotoCaptureScreen extends StatefulWidget {
 class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
   static final log = Logger('IntakePhotoCaptureScreen');
 
-  final ImagePicker _picker = ImagePicker();
+  final _picker = ImagePicker();
 
   XFile? _frontPhoto;
   XFile? _backPhoto;
-  bool _isProcessing = false;
+  var _isProcessing = false;
   String? _errorMessage;
 
   /// Validate image quality (check for blur and brightness)
@@ -189,7 +190,7 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
               color: MedicalColors.infoBg,
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: MedicalColors.info),
+                  const Icon(Icons.info_outline, color: MedicalColors.info),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -211,7 +212,7 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
                 color: MedicalColors.criticalBg,
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline, color: MedicalColors.critical),
+                    const Icon(Icons.error_outline, color: MedicalColors.critical),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -309,7 +310,7 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(color: colorScheme.outline.withOpacity(0.3)),
         borderRadius: BorderRadius.circular(12),

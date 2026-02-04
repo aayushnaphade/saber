@@ -1,12 +1,11 @@
-import 'dart:ui';
-import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:saber/data/session_manager.dart';
+import 'package:path/path.dart' as p;
+import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/routes.dart';
+import 'package:saber/data/session_manager.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/main.dart';
-import 'package:path/path.dart' as p;
 
 class MinimizedSessionOverlay extends StatelessWidget {
   const MinimizedSessionOverlay({super.key, required this.router});
@@ -20,104 +19,100 @@ class MinimizedSessionOverlay extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      height: 84,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          decoration: BoxDecoration(
+    return Hero(
+      tag: 'active_session',
+      child: Container(
+        height: 84,
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
             color: isDark
-                ? const Color(0xFF1A1A1A).withOpacity(0.95)
-                : const Color(0xFFF8F9FF).withOpacity(0.98),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: isDark
-                  ? Colors.white.withOpacity(0.1)
-                  : Colors.blue.withOpacity(0.15),
-              width: 1.5,
-            ),
-            gradient: LinearGradient(
-              colors: [
-                (isDark ? Colors.blue.shade900 : Colors.blue.shade50)
-                    .withOpacity(0.3),
-                (isDark ? Colors.purple.shade900 : Colors.purple.shade50)
-                    .withOpacity(0.1),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+                ? Colors.white.withOpacity(0.12)
+                : colorScheme.primary.withOpacity(0.15),
+            width: 1.5,
           ),
-          child: Row(
-            children: [
-              _buildStatusIndicator(colorScheme),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'ACTIVE SESSION',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.4 : 0.12),
+              blurRadius: 30,
+              offset: const Offset(0, 15),
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Material(
+              color: Colors.transparent,
+              child: Row(
+                children: [
+                  _buildStatusIndicator(colorScheme),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'ACTIVE SESSION',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          sessionManager.patientName ?? 'Unknown Patient',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      sessionManager.patientName ?? 'Unknown Patient',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              _buildActionButton(
-                context,
-                'Restore',
-                Icons.open_in_full_rounded,
-                colorScheme.primary,
-                () {
-                  debugPrint('Saber: Minimized Restore clicked');
-                  final path = sessionManager.activeSession!.filePath;
-                  final consultationId = sessionManager.consultationId;
+                  ),
+                  const SizedBox(width: 16),
+                  _buildActionButton(
+                    context,
+                    'Restore',
+                    Icons.open_in_full_rounded,
+                    colorScheme.primary,
+                    () {
+                      debugPrint('Saber: Minimized Restore clicked');
+                      final path = sessionManager.activeSession!.filePath;
+                      final consultationId = sessionManager.consultationId;
 
-                  router.push(
-                    RoutePaths.editFilePath(
-                      path,
-                      consultationId: consultationId,
-                    ),
-                  );
-                  sessionManager.restore();
-                },
+                      router.push(
+                        RoutePaths.editFilePath(
+                          path,
+                          consultationId: consultationId,
+                        ),
+                      );
+                      sessionManager.restore();
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  _buildActionButton(
+                    context,
+                    'End',
+                    Icons.close_rounded,
+                    colorScheme.error,
+                    () {
+                      debugPrint('Saber: Minimized End clicked');
+                      _showTerminateDialog(context);
+                    },
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              _buildActionButton(
-                context,
-                'End',
-                Icons.close_rounded,
-                colorScheme.error,
-                () {
-                  debugPrint('Saber: Minimized End clicked');
-                  _showTerminateDialog(context);
-                },
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -173,9 +168,9 @@ class MinimizedSessionOverlay extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.08),
+            color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.15)),
+            border: Border.all(color: color.withOpacity(0.2)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

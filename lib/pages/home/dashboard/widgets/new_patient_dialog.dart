@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:saber/data/models/patient.dart';
-import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/api/error_handler.dart';
+import 'package:saber/data/supabase/supabase_patient_service.dart';
 
 class NewPatientDialog extends StatefulWidget {
   const NewPatientDialog({super.key});

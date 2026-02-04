@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/routes.dart';
-import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/design_system/spacing.dart';
 
@@ -20,7 +20,7 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
   var _filter = _HistoryFilter.today;
   List<Appointment> _allConsultations = [];
   List<Appointment> _filteredConsultations = [];
-  final TextEditingController _searchController = TextEditingController();
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -49,13 +49,10 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
       switch (_filter) {
         case _HistoryFilter.today:
           start = DateTime(now.year, now.month, now.day);
-          break;
         case _HistoryFilter.lastWeek:
           start = now.subtract(const Duration(days: 7));
-          break;
         case _HistoryFilter.lastMonth:
           start = now.subtract(const Duration(days: 30));
-          break;
       }
 
       final results = await SupabaseDashboardService.getConsultationHistory(
@@ -205,7 +202,7 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
   Widget _buildGroupedList() {
     // Group items by date
     final Map<String, List<Appointment>> grouped = {};
-    for (var consultation in _filteredConsultations) {
+    for (final consultation in _filteredConsultations) {
       final dateKey = _getDateKey(consultation.time);
       if (!grouped.containsKey(dateKey)) {
         grouped[dateKey] = [];
@@ -467,16 +464,12 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
     switch (status) {
       case AppointmentStatus.completed:
         color = const Color(0xFF10B981); // Vibrant green
-        break;
       case AppointmentStatus.cancelled:
         color = const Color(0xFFEF4444); // Vibrant red
-        break;
       case AppointmentStatus.upcoming:
         color = const Color(0xFF3B82F6); // Vibrant blue
-        break;
       case AppointmentStatus.inProgress:
         color = const Color(0xFFF59E0B); // Vibrant amber/orange
-        break;
     }
 
     return Container(

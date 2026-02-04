@@ -1,7 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:logging/logging.dart';
 import 'package:saber/data/models/psychiatric_intake.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
-import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service for managing psychiatric intake data in Supabase
@@ -24,9 +25,7 @@ class SupabaseIntakeService {
         return null;
       }
 
-      final intake = PsychiatricIntake.fromJson(
-        response as Map<String, dynamic>,
-      );
+      final intake = PsychiatricIntake.fromJson(response);
       log.info('Fetched intake for patient: $patientId');
       return intake;
     } catch (e) {
@@ -68,9 +67,7 @@ class SupabaseIntakeService {
           .select()
           .single();
 
-      final savedIntake = PsychiatricIntake.fromJson(
-        response as Map<String, dynamic>,
-      );
+      final savedIntake = PsychiatricIntake.fromJson(response);
       log.info('Saved intake for patient: ${intake.patientId}');
       return savedIntake;
     } catch (e) {
@@ -94,9 +91,7 @@ class SupabaseIntakeService {
           .select()
           .single();
 
-      final savedIntake = PsychiatricIntake.fromJson(
-        response as Map<String, dynamic>,
-      );
+      final savedIntake = PsychiatricIntake.fromJson(response);
       log.info('Created intake for patient: ${intake.patientId}');
       return savedIntake;
     } catch (e) {
@@ -121,9 +116,7 @@ class SupabaseIntakeService {
           .select()
           .single();
 
-      final savedIntake = PsychiatricIntake.fromJson(
-        response as Map<String, dynamic>,
-      );
+      final savedIntake = PsychiatricIntake.fromJson(response);
       log.info('Updated intake for patient: ${intake.patientId}');
       return savedIntake;
     } catch (e) {
@@ -313,7 +306,8 @@ class SupabaseIntakeService {
   }) async {
     try {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final path = 'handwriting/$patientId/${sectionName}_$timestamp.png';
+      final path =
+          'intake-forms/$patientId/handwriting/${sectionName}_$timestamp.png';
 
       await supabase.storage
           .from('intake-form-photos')

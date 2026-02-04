@@ -1,11 +1,11 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_auth_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
-import 'package:saber/data/api/error_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseProfile extends StatefulWidget {
@@ -457,7 +457,7 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        user?.email ?? '',
+                        user.email ?? '',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),

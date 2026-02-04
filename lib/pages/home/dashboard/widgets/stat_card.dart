@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:saber/design_system/spacing.dart';
-import 'package:saber/design_system/radius.dart';
-import 'package:saber/design_system/colors.dart';
-import 'package:saber/design_system/typography.dart';
 import 'package:saber/design_system/animations.dart';
+import 'package:saber/design_system/colors.dart';
+import 'package:saber/design_system/radius.dart';
+import 'package:saber/design_system/spacing.dart';
+import 'package:saber/design_system/typography.dart';
 
 class StatCard extends StatefulWidget {
   final String label;
@@ -30,7 +30,7 @@ class StatCard extends StatefulWidget {
 }
 
 class _StatCardState extends State<StatCard> {
-  bool _isPressed = false;
+  var _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +97,7 @@ class _StatCardState extends State<StatCard> {
                   ),
 
                   Padding(
-                    padding: EdgeInsets.all(AppSpacing.cardPadding),
+                    padding: const EdgeInsets.all(AppSpacing.cardPadding),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -107,7 +107,7 @@ class _StatCardState extends State<StatCard> {
                           children: [
                             // Icon Container
                             Container(
-                              padding: EdgeInsets.all(AppSpacing.iconPadding),
+                              padding: const EdgeInsets.all(AppSpacing.iconPadding),
                               decoration: BoxDecoration(
                                 color: baseColor.withOpacity(0.1),
                                 borderRadius: AppRadius.mdRadius,
@@ -123,7 +123,7 @@ class _StatCardState extends State<StatCard> {
                             if (widget.trend != null)
                               Flexible(
                                 child: Container(
-                                  padding: EdgeInsets.symmetric(
+                                  padding: const EdgeInsets.symmetric(
                                     horizontal: AppSpacing.sm,
                                     vertical: AppSpacing.xs,
                                   ),
@@ -181,7 +181,7 @@ class _StatCardState extends State<StatCard> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        SizedBox(height: AppSpacing.xs + 2),
+                        const SizedBox(height: AppSpacing.xs + 2),
                         Text(
                           widget.label,
                           style: AppTypography.bodyMedium(context).copyWith(

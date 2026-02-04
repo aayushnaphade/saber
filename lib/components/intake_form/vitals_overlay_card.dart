@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:saber/data/models/vitals.dart';
-import 'package:saber/design_system/colors.dart';
 
 class VitalsOverlayCard extends StatefulWidget {
   final List<Vitals> vitalsHistory;
@@ -27,7 +26,7 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _expandAnimation;
-  bool _isExpanded = false;
+  var _isExpanded = false;
 
   @override
   void initState() {

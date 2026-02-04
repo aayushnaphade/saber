@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:googleapis_auth/auth_io.dart';
 import 'package:googleapis/aiplatform/v1.dart';
+import 'package:googleapis_auth/auth_io.dart';
 import 'package:logging/logging.dart';
 import 'package:saber/data/prefs.dart';
 
@@ -50,7 +51,8 @@ You must output a single valid JSON object containing exactly these six keys. Do
 5.  `mental_status_examination`: (Object) Break this down into sub-fields based on the notes (e.g., "appearance", "mood", "affect", "thought", "perception", "insight").
 6.  `provided_diagnosis`: (String) The diagnosis or impression (Imp/∆) written by the doctor.
 7.  `medications`: (Array of Objects) List of prescribed medicines found in the notes (Rx/Adv). Each object must have:
-    - `name` (String): Name of the medicine + dosage.
+    - `name` (String): Only the generic or brand name of the medicine (e.g., "Sertraline", "Clonazepam"). Do NOT include the dosage here.
+    - `dosage` (String): The strength or concentration (e.g., "50mg", "0.5mg", "10ml").
     - `frequency` (String): Frequency (e.g., "BD", "1-0-1").
     - `duration` (String): Duration if mentioned (e.g., "5 days", "1 month").
     - `remarks` (String): Any special instructions or administration notes (e.g., "after food", "empty stomach", "at night"). Look for text written below or next to the medication.
@@ -79,13 +81,15 @@ You must output a single valid JSON object containing exactly these six keys. Do
   "provided_diagnosis": "Not mentioned",
   "medications": [
     {
-      "name": "T. Sertraline 50mg",
+      "name": "T. Sertraline",
+      "dosage": "50mg",
       "frequency": "HS",
       "duration": "Not mentioned",
       "remarks": "Not mentioned"
     },
     {
-      "name": "T. Clonazepam 0.5mg",
+      "name": "T. Clonazepam",
+      "dosage": "0.5mg",
       "frequency": "SOS",
       "duration": "5 days",
       "remarks": "ensure good sleep"
@@ -129,7 +133,7 @@ You must output a single valid JSON object containing exactly these six keys. Do
 
       log.info('Sending request to Vertex AI ($parent)...');
 
-      final systemPrompt = _defaultSystemPrompt;
+      const systemPrompt = _defaultSystemPrompt;
 
       // Create parts for all pages
       final parts = <GoogleCloudAiplatformV1Part>[

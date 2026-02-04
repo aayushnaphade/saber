@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:saber/data/supabase/supabase_vitals_service.dart';
 import 'package:saber/data/api/error_handler.dart';
+import 'package:saber/data/supabase/supabase_vitals_service.dart';
 
 class VitalsDialog extends StatefulWidget {
   final String patientId;

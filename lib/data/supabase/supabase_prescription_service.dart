@@ -1,5 +1,5 @@
-import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:logging/logging.dart';
+import 'package:saber/data/supabase/supabase_client.dart';
 
 class SupabasePrescriptionService {
   static final _log = Logger('SupabasePrescriptionService');

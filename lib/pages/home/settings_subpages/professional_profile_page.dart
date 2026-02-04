@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:saber/data/api/error_handler.dart';
@@ -6,9 +7,8 @@ import 'package:saber/data/prefs.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_clinic_service.dart';
 import 'package:saber/data/utils/report_printer.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'package:signature/signature.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfessionalProfilePage extends StatefulWidget {
   const ProfessionalProfilePage({super.key});
@@ -31,9 +31,9 @@ class _ProfessionalProfilePageState extends State<ProfessionalProfilePage> {
   late final TextEditingController _clinicPhoneController;
   late final TextEditingController _clinicWebsiteController;
 
-  bool _isSaving = false;
-  bool _isUploadingLogo = false;
-  bool _isUploadingSignature = false;
+  var _isSaving = false;
+  var _isUploadingLogo = false;
+  var _isUploadingSignature = false;
 
   String? _logoUrl;
   String? _signatureUrl;
@@ -211,7 +211,7 @@ class _ProfessionalProfilePageState extends State<ProfessionalProfilePage> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
-              Container(
+              DecoratedBox(
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300),
                   borderRadius: BorderRadius.circular(8),

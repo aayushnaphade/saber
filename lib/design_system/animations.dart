@@ -9,23 +9,23 @@ class AppAnimations {
 
   /// Very fast animation - 100ms
   /// Use for: micro-interactions, button feedback
-  static const Duration veryFast = Duration(milliseconds: 100);
+  static const veryFast = Duration(milliseconds: 100);
 
   /// Fast animation - 200ms
   /// Use for: quick transitions, hover effects
-  static const Duration fast = Duration(milliseconds: 200);
+  static const fast = Duration(milliseconds: 200);
 
   /// Normal animation - 300ms
   /// Use for: standard transitions, card animations
-  static const Duration normal = Duration(milliseconds: 300);
+  static const normal = Duration(milliseconds: 300);
 
   /// Slow animation - 500ms
   /// Use for: complex transitions, page changes
-  static const Duration slow = Duration(milliseconds: 500);
+  static const slow = Duration(milliseconds: 500);
 
   /// Very slow animation - 700ms
   /// Use for: dramatic effects, major state changes
-  static const Duration verySlow = Duration(milliseconds: 700);
+  static const verySlow = Duration(milliseconds: 700);
 
   // Curve constants
 
@@ -58,7 +58,7 @@ class AppAnimations {
   /// Button press animation
   static const Duration buttonPress = veryFast;
   static const Curve buttonPressCurve = standard;
-  static const double buttonPressScale = 0.95;
+  static const buttonPressScale = 0.95;
 
   /// Card appearance animation
   static const Duration cardAppear = normal;

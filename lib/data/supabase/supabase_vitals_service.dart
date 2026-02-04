@@ -2,7 +2,7 @@ import 'package:saber/data/models/vitals.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 
 class SupabaseVitalsService {
-  static const String _tableName = 'vitals';
+  static const _tableName = 'vitals';
 
   static Future<void> saveVitals({
     required String patientId,

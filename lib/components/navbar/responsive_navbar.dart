@@ -21,7 +21,7 @@ class ResponsiveNavbar extends StatefulWidget {
 class _ResponsiveNavbarState extends State<ResponsiveNavbar> {
   DateTime? _lastTapTime;
   static const _tapDebounceMs = 300;
-  bool _isNavigating = false;
+  var _isNavigating = false;
 
   List<NavigationRailDestination>? _railDestinations;
   List<NavigationDestination>? _barDestinations;

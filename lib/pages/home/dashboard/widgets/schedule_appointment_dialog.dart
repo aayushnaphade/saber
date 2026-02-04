@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
-import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/pages/home/dashboard/widgets/vitals_dialog.dart';
 
 class ScheduleAppointmentDialog extends StatefulWidget {

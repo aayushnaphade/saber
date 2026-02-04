@@ -101,7 +101,7 @@ class _LiveQueueCardState extends State<LiveQueueCard>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        return Container(
+        return DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: AppRadius.xlRadius,
             boxShadow: [

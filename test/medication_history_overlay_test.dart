@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saber/components/overlays/medication_history_overlay.dart';
-import 'package:saber/data/models/medication_history_models.dart';
 
 void main() {
   group('MedicationHistoryOverlay Widget Tests', () {
@@ -9,7 +8,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
@@ -24,7 +23,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
@@ -42,7 +41,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
@@ -90,7 +89,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
@@ -112,7 +111,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
@@ -142,7 +141,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
@@ -161,7 +160,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
@@ -182,7 +181,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
@@ -205,7 +204,7 @@ void main() {
     ) async {
       // This test would require mocking the service to throw an error
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
@@ -224,7 +223,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
@@ -242,7 +241,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
@@ -263,7 +262,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData.light(),
-          home: Scaffold(
+          home: const Scaffold(
             body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),
         ),
@@ -288,7 +287,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: MedicationHistoryOverlay(patientId: 'patient-123'),
           ),

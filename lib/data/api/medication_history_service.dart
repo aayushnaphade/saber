@@ -1,11 +1,11 @@
 import 'dart:convert';
-import 'package:logging/logging.dart';
-import 'package:saber/data/supabase/supabase_client.dart';
-import 'package:saber/data/api/report_generator.dart';
-import 'package:saber/data/models/medication_history_models.dart';
-import 'package:googleapis_auth/auth_io.dart';
-import 'package:googleapis/aiplatform/v1.dart';
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:googleapis/aiplatform/v1.dart';
+import 'package:googleapis_auth/auth_io.dart';
+import 'package:logging/logging.dart';
+import 'package:saber/data/models/medication_history_models.dart';
+import 'package:saber/data/supabase/supabase_client.dart';
 
 class MedicationHistoryService {
   static final _log = Logger('MedicationHistoryService');
@@ -24,7 +24,7 @@ class MedicationHistoryService {
           .order('created_at', ascending: false)
           .limit(50);
 
-      if (response == null || (response as List).isEmpty) {
+      if ((response as List).isEmpty) {
         return PatientMedicationHistory(patientId: patientId, lifespans: []);
       }
 
@@ -207,7 +207,7 @@ Output ONLY the JSON list.
       const location = 'asia-south1';
       const modelId =
           'gemini-3-flash-preview'; // Flash is fast and good for this
-      final parent =
+      const parent =
           'projects/$projectId/locations/$location/publishers/google/models/$modelId';
 
       final request = GoogleCloudAiplatformV1GenerateContentRequest(

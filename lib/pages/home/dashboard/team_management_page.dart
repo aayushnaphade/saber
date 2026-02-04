@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:saber/data/supabase/supabase_team_service.dart';
 import 'package:saber/data/api/error_handler.dart';
-import 'package:saber/design_system/spacing.dart';
+import 'package:saber/data/supabase/supabase_team_service.dart';
 import 'package:saber/design_system/radius.dart';
+import 'package:saber/design_system/spacing.dart';
 
 class TeamManagementPage extends StatefulWidget {
   const TeamManagementPage({super.key});
@@ -14,7 +14,7 @@ class TeamManagementPage extends StatefulWidget {
 
 class _TeamManagementPageState extends State<TeamManagementPage> {
   List<StaffMember> _team = [];
-  bool _isLoading = true;
+  var _isLoading = true;
 
   @override
   void initState() {
@@ -240,7 +240,7 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
                               ),
                               const SizedBox(height: AppSpacing.lg),
                               DropdownButtonFormField<String>(
-                                value: selectedRole,
+                                initialValue: selectedRole,
                                 decoration: InputDecoration(
                                   labelText: 'Team Role',
                                   prefixIcon: const Icon(Icons.badge_outlined),
@@ -262,7 +262,7 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
                                   fillColor: isDark
                                       ? colorScheme.surfaceContainerHighest
                                             .withOpacity(0.3)
-                                      : colorScheme.surfaceVariant.withOpacity(
+                                      : colorScheme.surfaceContainerHighest.withOpacity(
                                           0.1,
                                         ),
                                 ),
@@ -441,7 +441,7 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
         filled: true,
         fillColor: isDark
             ? colorScheme.surfaceContainerHighest.withOpacity(0.3)
-            : colorScheme.surfaceVariant.withOpacity(0.1),
+            : colorScheme.surfaceContainerHighest.withOpacity(0.1),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
           borderSide: BorderSide.none,
@@ -584,7 +584,7 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
       },
     );
 
-    if (confirm == true && mounted) {
+    if ((confirm ?? false) && mounted) {
       setState(() => _isLoading = true);
       try {
         await SupabaseTeamService.revokeStaffMember(member.id);
@@ -611,7 +611,7 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: Container(
+      body: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,

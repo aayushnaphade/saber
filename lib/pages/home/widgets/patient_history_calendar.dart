@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:path_to_regexp/path_to_regexp.dart';
+import 'package:saber/components/loading/skeleton_loader.dart';
 import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_auth_service.dart';
 import 'package:saber/data/supabase/supabase_consultation_service.dart';
-import 'package:saber/components/loading/skeleton_loader.dart';
 import 'package:saber/design_system/spacing.dart';
 
 class PatientHistoryCalendar extends StatefulWidget {
@@ -271,7 +271,7 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
         return InkWell(
           onTap: () => _onDaySelected(date, _focusedDay),
           borderRadius: BorderRadius.circular(12),
-          child: Container(
+          child: DecoratedBox(
             decoration: BoxDecoration(
               color: isSelected
                   ? theme.colorScheme.primary
@@ -498,19 +498,15 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
       case AppointmentStatus.upcoming:
         color = Colors.blue;
         label = 'Upcoming';
-        break;
       case AppointmentStatus.completed:
         color = Colors.green;
         label = 'Completed';
-        break;
       case AppointmentStatus.cancelled:
         color = Colors.red;
         label = 'Cancelled';
-        break;
       case AppointmentStatus.inProgress:
         color = Colors.orange;
         label = 'In Progress';
-        break;
     }
 
     return Container(

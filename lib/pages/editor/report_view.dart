@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
+import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/utils/report_printer.dart';
-import 'package:saber/data/models/patient.dart';
 
 class ReportView extends StatefulWidget {
   const ReportView({
@@ -77,6 +77,7 @@ class _ReportViewState extends State<ReportView> {
         if (m is Map) {
           _medications.add({
             'name': m['name']?.toString() ?? '',
+            'dosage': m['dosage']?.toString() ?? '',
             'frequency': m['frequency']?.toString() ?? '',
             'duration': m['duration']?.toString() ?? '',
             'remarks': m['remarks']?.toString() ?? '',
@@ -154,7 +155,7 @@ class _ReportViewState extends State<ReportView> {
           const SizedBox(width: 8),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-            child: Container(
+            child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [Colors.blue.shade500, Colors.blue.shade700],
@@ -464,12 +465,16 @@ class _ReportViewState extends State<ReportView> {
       children: [
         ..._medications.map((med) {
           final summary = StringBuffer(med['name'] ?? '');
-          if (med['frequency']?.isNotEmpty == true)
+          if (med['dosage']?.isNotEmpty == true &&
+              med['dosage'] != 'Not mentioned')
+            summary.write(' ${med['dosage']}');
+          if (med['frequency']?.isNotEmpty == true &&
+              med['frequency'] != 'Not mentioned')
             summary.write(' (${med['frequency']})');
           if (med['duration']?.isNotEmpty == true &&
               med['duration'] != 'Not mentioned')
             summary.write(' - ${med['duration']}');
-          if (med['remarks']?.isNotEmpty == true &&
+          if ((med['remarks']?.isNotEmpty ?? false) &&
               med['remarks'] != 'Not mentioned')
             summary.write(' (${med['remarks']})');
           return InputChip(
@@ -514,6 +519,7 @@ class _ReportViewState extends State<ReportView> {
 
   Future<void> _editMedication(Map<String, String> med) async {
     final nameController = TextEditingController(text: med['name']);
+    final dosageController = TextEditingController(text: med['dosage']);
     final freqController = TextEditingController(text: med['frequency']);
     final durationController = TextEditingController(text: med['duration']);
     final remarksController = TextEditingController(text: med['remarks']);
@@ -529,6 +535,12 @@ class _ReportViewState extends State<ReportView> {
               TextField(
                 controller: nameController,
                 decoration: const InputDecoration(labelText: 'Medication Name'),
+              ),
+              TextField(
+                controller: dosageController,
+                decoration: const InputDecoration(
+                  labelText: 'Dosage / Strength (e.g. 500mg, 10ml)',
+                ),
               ),
               TextField(
                 controller: freqController,
@@ -560,6 +572,7 @@ class _ReportViewState extends State<ReportView> {
             onPressed: () {
               setState(() {
                 med['name'] = nameController.text;
+                med['dosage'] = dosageController.text;
                 med['frequency'] = freqController.text;
                 med['duration'] = durationController.text;
                 med['remarks'] = remarksController.text;
@@ -575,6 +588,7 @@ class _ReportViewState extends State<ReportView> {
 
   Future<void> _addNewMedication() async {
     final nameController = TextEditingController();
+    final dosageController = TextEditingController();
     final freqController = TextEditingController();
     final durationController = TextEditingController();
     final remarksController = TextEditingController();
@@ -590,6 +604,12 @@ class _ReportViewState extends State<ReportView> {
               TextField(
                 controller: nameController,
                 decoration: const InputDecoration(labelText: 'Medication Name'),
+              ),
+              TextField(
+                controller: dosageController,
+                decoration: const InputDecoration(
+                  labelText: 'Dosage / Strength (e.g. 500mg, 10ml)',
+                ),
               ),
               TextField(
                 controller: freqController,
@@ -623,6 +643,7 @@ class _ReportViewState extends State<ReportView> {
                 setState(() {
                   _medications.add({
                     'name': nameController.text,
+                    'dosage': dosageController.text,
                     'frequency': freqController.text,
                     'duration': durationController.text,
                     'remarks': remarksController.text,
@@ -906,7 +927,7 @@ class _BentoCard extends StatelessWidget {
             Text(
               (content != null && content!.isNotEmpty)
                   ? content!
-                  : (controller?.text.isNotEmpty == true
+                  : (controller?.text.isNotEmpty ?? false
                         ? controller!.text
                         : 'Not mentioned'),
               style: theme.textTheme.bodyMedium?.copyWith(

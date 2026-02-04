@@ -1,26 +1,26 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
-import 'package:saber/data/file_manager/file_manager.dart';
-import 'package:saber/data/models/patient.dart';
-import 'package:saber/data/prefs.dart';
-import 'package:saber/data/models/psychiatric_intake.dart';
-import 'package:saber/data/routes.dart';
-import 'package:saber/data/supabase/document_sync_service.dart';
-import 'package:saber/data/supabase/supabase_patient_service.dart';
-import 'package:saber/data/supabase/supabase_intake_service.dart';
-import 'package:saber/data/supabase/supabase_client.dart';
-import 'package:saber/design_system/colors.dart';
-import 'package:saber/design_system/radius.dart';
-import 'package:saber/design_system/spacing.dart';
-import 'package:saber/data/api/error_handler.dart';
-import 'package:saber/components/loading/skeleton_loader.dart';
 import 'package:saber/components/empty_state/empty_state.dart';
 import 'package:saber/components/intake_form/psychiatric_intake_form.dart';
+import 'package:saber/components/loading/skeleton_loader.dart';
+import 'package:saber/data/api/error_handler.dart';
+import 'package:saber/data/file_manager/file_manager.dart';
+import 'package:saber/data/models/patient.dart';
+import 'package:saber/data/models/psychiatric_intake.dart';
+import 'package:saber/data/prefs.dart';
+import 'package:saber/data/routes.dart';
+import 'package:saber/data/supabase/document_sync_service.dart';
+import 'package:saber/data/supabase/supabase_client.dart';
+import 'package:saber/data/supabase/supabase_intake_service.dart';
+import 'package:saber/data/supabase/supabase_patient_service.dart';
+import 'package:saber/design_system/colors.dart';
+import 'package:saber/design_system/radius.dart';
+import 'package:saber/components/theming/premium_confirmation_dialog.dart';
+import 'package:saber/design_system/spacing.dart';
 
 /// Patient profile page with demographics, session management, and history
 class PatientProfilePage extends StatefulWidget {
@@ -42,7 +42,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
 
   // Psychiatric intake state
   PsychiatricIntake? _patientIntake;
-  bool _hasCheckedIntake = false;
+  var _hasCheckedIntake = false;
   String? _doctorName;
 
   // Selection mode state
@@ -351,26 +351,18 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Start New Session'),
-        content: Text(
-          'Are you sure you want to start a new session for ${patient!.fullName}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Start Session'),
-          ),
-        ],
+      builder: (context) => PremiumConfirmationDialog(
+        title: 'Start New Session',
+        content:
+            'Are you sure you want to start a new session for ${patient!.fullName}?',
+        confirmLabel: 'Start Session',
+        icon: Icons.medical_services_outlined,
+        iconColor: Theme.of(context).colorScheme.primary,
       ),
     );
 
     // If confirmed, proceed with starting the session
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       await _startNewSession();
     }
   }
@@ -757,13 +749,13 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
 
   Widget _buildLoadingSkeleton() {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         children: [
           // Header skeleton
           Card(
             child: Padding(
-              padding: EdgeInsets.all(AppSpacing.lg),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 children: [
                   Row(
@@ -773,8 +765,8 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                         height: 64,
                         shape: BoxShape.circle,
                       ),
-                      SizedBox(width: AppSpacing.md),
-                      Expanded(
+                      const SizedBox(width: AppSpacing.md),
+                      const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -791,9 +783,9 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                       ),
                     ],
                   ),
-                  SizedBox(height: AppSpacing.md),
-                  Divider(),
-                  SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.md),
+                  const Divider(),
+                  const SizedBox(height: AppSpacing.md),
                   Row(
                     children: [
                       SkeletonLoader(
@@ -801,13 +793,13 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                         height: 24,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      SizedBox(width: AppSpacing.sm),
+                      const SizedBox(width: AppSpacing.sm),
                       SkeletonLoader(
                         width: 80,
                         height: 24,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      SizedBox(width: AppSpacing.sm),
+                      const SizedBox(width: AppSpacing.sm),
                       SkeletonLoader(
                         width: 120,
                         height: 24,
@@ -819,28 +811,28 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               ),
             ),
           ),
-          SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.xl),
           // Demographics skeleton
           Card(
             child: Padding(
-              padding: EdgeInsets.all(AppSpacing.lg),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SkeletonLoader(width: 180, height: 20),
-                  SizedBox(height: AppSpacing.lg),
+                  const SkeletonLoader(width: 180, height: 20),
+                  const SizedBox(height: AppSpacing.lg),
                   SkeletonLoader(
                     width: double.infinity,
                     height: 60,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.sm),
                   SkeletonLoader(
                     width: double.infinity,
                     height: 60,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.sm),
                   SkeletonLoader(
                     width: double.infinity,
                     height: 60,
@@ -857,18 +849,18 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
 
   Widget _buildPortraitLayout() {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildPatientHeader(),
-          SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.xl),
           _buildDemographicsCard(),
-          SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.lg),
           _buildIntakeStatusCard(),
-          SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.xl),
           _buildPreviousSessionsSection(),
-          SizedBox(height: AppSpacing.xxl * 2), // Space for FAB
+          const SizedBox(height: AppSpacing.xxl * 2), // Space for FAB
         ],
       ),
     );
@@ -882,14 +874,14 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         Expanded(
           flex: 2,
           child: SingleChildScrollView(
-            padding: EdgeInsets.all(AppSpacing.lg),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildPatientHeader(),
-                SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.xl),
                 _buildDemographicsCard(),
-                SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.lg),
                 _buildIntakeStatusCard(),
               ],
             ),
@@ -905,12 +897,12 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               ),
             ),
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(AppSpacing.lg),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildPreviousSessionsSection(),
-                  SizedBox(height: AppSpacing.xxl * 2), // Space for FAB
+                  const SizedBox(height: AppSpacing.xxl * 2), // Space for FAB
                 ],
               ),
             ),
@@ -930,7 +922,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Padding(
-        padding: EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           children: [
             Row(
@@ -956,7 +948,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                     ),
                   ),
                 ),
-                SizedBox(width: AppSpacing.md),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -971,9 +963,9 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                 ),
               ],
             ),
-            SizedBox(height: AppSpacing.md),
-            Divider(),
-            SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.md),
+            const Divider(),
+            const SizedBox(height: AppSpacing.md),
             // Quick info chips
             Wrap(
               spacing: AppSpacing.sm,
@@ -1020,7 +1012,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     Color? contentColor,
   }) {
     return Container(
-      padding: EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xs,
       ),
@@ -1037,7 +1029,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
             color:
                 contentColor ?? Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          SizedBox(width: AppSpacing.xs),
+          const SizedBox(width: AppSpacing.xs),
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -1187,7 +1179,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     bool isEmpty,
   ) {
     return Container(
-      padding: EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: isEmpty
             ? Theme.of(
@@ -1204,7 +1196,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(AppSpacing.sm),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
               color: isEmpty
                   ? Theme.of(context).colorScheme.surface
@@ -1219,7 +1211,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                   : MedicalColors.medicalPrimary,
             ),
           ),
-          SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1231,7 +1223,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                SizedBox(height: AppSpacing.xxs),
+                const SizedBox(height: AppSpacing.xxs),
                 Text(
                   value,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -1385,14 +1377,14 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
             context,
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
-        SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           'Detailed logs and AI reports for each session',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
-        SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.md),
         if (sessions.isEmpty)
           EmptyState(
             icon: Icons.history,
@@ -1403,7 +1395,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
           )
         else
           _buildSessionsList(),
-        SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.xl),
       ],
     );
   }
@@ -1802,7 +1794,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                           const SizedBox(width: 16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: selectedGender,
+                              initialValue: selectedGender,
                               decoration: InputDecoration(
                                 labelText: 'Gender',
                                 prefixIcon: const Icon(Icons.wc),

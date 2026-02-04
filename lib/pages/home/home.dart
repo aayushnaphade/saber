@@ -1,11 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/components/navbar/responsive_navbar.dart';
+import 'package:saber/components/session/minimized_session_overlay.dart';
 import 'package:saber/components/settings/update_manager.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/data/services/back_navigation_service.dart';
+import 'package:saber/data/session_manager.dart';
+import 'package:saber/i18n/strings.g.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -65,7 +67,7 @@ class _HomePageState extends State<HomePage> {
   void didUpdateWidget(covariant HomePage oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Reset exit timer when navigating to a different subpage
-    if (oldWidget.subpage != widget.subpage || 
+    if (oldWidget.subpage != widget.subpage ||
         oldWidget.currentPath != widget.currentPath) {
       BackNavigationService.resetExitTimer();
     }
@@ -75,7 +77,8 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final index = HomePage.subpages.indexOf(widget.subpage);
 
-    final child = (widget.subpage == HomePage.whiteboardSubpage &&
+    final child =
+        (widget.subpage == HomePage.whiteboardSubpage &&
             DynamicMaterialApp.isFullscreen)
         ? widget.child
         : ResponsiveNavbar(
@@ -102,7 +105,50 @@ class _HomePageState extends State<HomePage> {
           t.common.backAgainToExit,
         );
       },
-      child: child,
+      child: Stack(
+        children: [
+          child,
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 24,
+            child: ListenableBuilder(
+              listenable: SessionManager(),
+              builder: (context, _) {
+                final sessionManager = SessionManager();
+                final bool isVisible =
+                    sessionManager.hasActiveSession &&
+                    sessionManager.isMinimized;
+
+                return AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 900),
+                  reverseDuration: const Duration(milliseconds: 700),
+                  switchInCurve: Curves.easeInOutExpo,
+                  switchOutCurve: Curves.easeInOutExpo,
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.3),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: isVisible
+                      ? MinimizedSessionOverlay(
+                          key: const ValueKey('session_bar'),
+                          router: GoRouter.of(context),
+                        )
+                      : const SizedBox.shrink(key: ValueKey('empty_bar')),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 

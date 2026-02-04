@@ -8,89 +8,89 @@ class MedicalColors {
   // Patient Status Colors
 
   /// Patient is waiting for consultation
-  static const Color waiting = Color(0xFFFF9800); // Orange
+  static const waiting = Color(0xFFFF9800); // Orange
 
   /// Patient is currently being consulted
-  static const Color active = Color(0xFF2196F3); // Blue
+  static const active = Color(0xFF2196F3); // Blue
 
   /// Patient consultation is completed
-  static const Color completed = Color(0xFF4CAF50); // Green
+  static const completed = Color(0xFF4CAF50); // Green
 
   /// Patient consultation was cancelled
-  static const Color cancelled = Color(0xFFF44336); // Red
+  static const cancelled = Color(0xFFF44336); // Red
 
   /// Patient is discharged
-  static const Color discharged = Color(0xFF9E9E9E); // Grey
+  static const discharged = Color(0xFF9E9E9E); // Grey
 
   /// Patient is archived
-  static const Color archived = Color(0xFF757575); // Dark Grey
+  static const archived = Color(0xFF757575); // Dark Grey
 
   // Medical Context Colors
 
   /// Critical/Alert conditions (allergies, warnings)
-  static const Color critical = Color(0xFFD32F2F);
-  static const Color criticalBg = Color(0xFFFEEBEE);
-  static const Color criticalBorder = Color(0xFFEF9A9A);
+  static const critical = Color(0xFFD32F2F);
+  static const criticalBg = Color(0xFFFEEBEE);
+  static const criticalBorder = Color(0xFFEF9A9A);
 
   /// Normal/Healthy indicators
-  static const Color healthy = Color(0xFF388E3C);
-  static const Color healthyBg = Color(0xFFE8F5E9);
-  static const Color healthyBorder = Color(0xFFA5D6A7);
+  static const healthy = Color(0xFF388E3C);
+  static const healthyBg = Color(0xFFE8F5E9);
+  static const healthyBorder = Color(0xFFA5D6A7);
 
   /// Warning/Caution indicators
-  static const Color warning = Color(0xFFF57C00);
-  static const Color warningBg = Color(0xFFFFF3E0);
-  static const Color warningBorder = Color(0xFFFFCC80);
+  static const warning = Color(0xFFF57C00);
+  static const warningBg = Color(0xFFFFF3E0);
+  static const warningBorder = Color(0xFFFFCC80);
 
   /// Information/Neutral
-  static const Color info = Color(0xFF1976D2);
-  static const Color infoBg = Color(0xFFE3F2FD);
-  static const Color infoBorder = Color(0xFF90CAF9);
+  static const info = Color(0xFF1976D2);
+  static const infoBg = Color(0xFFE3F2FD);
+  static const infoBorder = Color(0xFF90CAF9);
 
   // Data Visualization Colors
 
   /// Positive metrics (improvement, increase)
-  static const Color positiveMetric = Color(0xFF4CAF50);
+  static const positiveMetric = Color(0xFF4CAF50);
 
   /// Negative metrics (decline, decrease)
-  static const Color negativeMetric = Color(0xFFF44336);
+  static const negativeMetric = Color(0xFFF44336);
 
   /// Neutral/Stable metrics
-  static const Color neutralMetric = Color(0xFF9E9E9E);
+  static const neutralMetric = Color(0xFF9E9E9E);
 
   // Specialty-specific Colors
 
   /// Cardiology
-  static const Color cardiology = Color(0xFFE91E63);
+  static const cardiology = Color(0xFFE91E63);
 
   /// Neurology
-  static const Color neurology = Color(0xFF9C27B0);
+  static const neurology = Color(0xFF9C27B0);
 
   /// Orthopedics
-  static const Color orthopedics = Color(0xFF795548);
+  static const orthopedics = Color(0xFF795548);
 
   /// Pediatrics
-  static const Color pediatrics = Color(0xFFFF9800);
+  static const pediatrics = Color(0xFFFF9800);
 
   /// General Medicine
-  static const Color generalMedicine = Color(0xFF2196F3);
+  static const generalMedicine = Color(0xFF2196F3);
 
   // Additional Medical UI Colors
 
   /// Primary medical theme color
-  static const Color medicalPrimary = Color(0xFF1976D2);
+  static const medicalPrimary = Color(0xFF1976D2);
 
   /// Accent color 1 - for categories/types
-  static const Color medicalAccent1 = Color(0xFF2196F3); // Blue
+  static const medicalAccent1 = Color(0xFF2196F3); // Blue
 
   /// Accent color 2 - for categories/types
-  static const Color medicalAccent2 = Color(0xFF4CAF50); // Green
+  static const medicalAccent2 = Color(0xFF4CAF50); // Green
 
   /// Warning color for medical contexts
-  static const Color medicalWarning = Color(0xFFFF9800); // Orange
+  static const medicalWarning = Color(0xFFFF9800); // Orange
 
   /// Error color for critical medical contexts
-  static const Color statusError = Color(0xFFD32F2F); // Red
+  static const statusError = Color(0xFFD32F2F); // Red
 
   // Status Badge Helpers
 

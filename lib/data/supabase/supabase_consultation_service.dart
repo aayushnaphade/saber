@@ -266,7 +266,7 @@ class SupabaseConsultationService {
               final signedUrl = await supabase.storage
                   .from('medical_notes')
                   .createSignedUrl(
-                    '$sessionPath/${previewFile!.name}',
+                    '$sessionPath/${previewFile.name}',
                     60 * 60,
                   );
 

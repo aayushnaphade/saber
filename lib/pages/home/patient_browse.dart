@@ -5,13 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
+import 'package:saber/components/navbar/responsive_navbar.dart';
+import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
-import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/pages/home/dashboard/widgets/vitals_dialog.dart';
+import 'package:saber/components/intake_form/patient_registration_wizard.dart';
 
 /// Patient-centric browse page showing patients and their documents
 class PatientBrowsePage extends StatefulWidget {
@@ -26,7 +28,7 @@ class PatientBrowsePage extends StatefulWidget {
 
 class _PatientBrowsePageState extends State<PatientBrowsePage> {
   // Patient list view mode (only applies when viewing the patients list)
-  _PatientsViewMode _patientsViewMode = _PatientsViewMode.list;
+  _PatientsViewMode _patientsViewMode = _PatientsViewMode.grid;
 
   List<Patient>? patients;
   List<Patient>? filteredPatients;
@@ -38,7 +40,6 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
 
   // Search state
   final _searchController = TextEditingController();
-  var _isSearching = false;
   var _retryCount = 0;
 
   // Selection state
@@ -76,7 +77,7 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
       } else {
         filteredPatients = patients!.where((p) {
           return p.fullName.toLowerCase().contains(query) ||
-              p.id.toLowerCase().contains(query);
+              (p.registrationNumber?.toLowerCase().contains(query) ?? false);
         }).toList();
       }
     });
@@ -306,124 +307,23 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
   }
 
   Future<void> _createNewPatient() async {
-    final formKey = GlobalKey<FormState>();
-    String? fullName;
-    int? age;
-    String? gender;
-    String? phoneNumber;
-
-    final result = await showDialog<bool>(
+    final patient = await showDialog<Patient>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('New Patient'),
-        content: Form(
-          key: formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name *',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter patient name';
-                    }
-                    return null;
-                  },
-                  onSaved: (value) => fullName = value?.trim(),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  decoration: const InputDecoration(
-                    labelText: 'Age',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                  onSaved: (value) =>
-                      age = value != null ? int.tryParse(value) : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  decoration: const InputDecoration(
-                    labelText: 'Gender',
-                    border: OutlineInputBorder(),
-                  ),
-                  onSaved: (value) => gender = value?.trim(),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  decoration: const InputDecoration(
-                    labelText: 'Phone Number',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.phone,
-                  onSaved: (value) => phoneNumber = value?.trim(),
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                formKey.currentState!.save();
-                Navigator.pop(context, true);
-              }
-            },
-            child: const Text('Create'),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (context) => const DoctorPatientRegistrationWizard(),
     );
 
-    if ((result ?? false) && fullName != null) {
-      try {
-        setState(() => isLoading = true);
-        final patient = await SupabasePatientService.createPatient(
-          fullName: fullName!,
-          age: age,
-          gender: gender,
-          phoneNumber: phoneNumber,
+    if (patient != null && mounted) {
+      // Create folder structure for new patient locally
+      await _ensurePatientFolderStructure(patient);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Patient "${patient.fullName}" registered')),
         );
 
-        // Create folder structure for new patient
-        await _ensurePatientFolderStructure(patient);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Patient "${patient.fullName}" created')),
-          );
-
-          // Show Vitals Dialog
-          await showDialog(
-            context: context,
-            builder: (context) => VitalsDialog(
-              patientId: patient.id,
-              patientName: patient.fullName,
-              isNewPatient: true,
-            ),
-          );
-        }
-
-        _loadData();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
-        }
-        setState(() => isLoading = false);
+        // Navigate to the new patient's profile directly
+        _openPatient(patient);
       }
     }
   }
@@ -508,7 +408,9 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           color: isSelected
-              ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+              ? Theme.of(
+                  context,
+                ).colorScheme.primaryContainer.withValues(alpha: 0.3)
               : null,
           child: InkWell(
             onLongPress: () {
@@ -580,7 +482,9 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
 
         return Card(
           color: isSelected
-              ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+              ? Theme.of(
+                  context,
+                ).colorScheme.primaryContainer.withValues(alpha: 0.3)
               : null,
           child: InkWell(
             onLongPress: () {
@@ -942,113 +846,183 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: _isSelectionMode
-          ? AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: _toggleSelectionMode,
-              ),
-              title: Text('${_selectedPatientIds.length} selected'),
-              backgroundColor: Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: _deleteSelectedPatients,
-                  tooltip: 'Delete selected',
-                ),
-              ],
-            )
-          : AppBar(
-              leading: selectedPatient != null
-                  ? IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () =>
-                          context.go('/home/patients/${selectedPatient!.id}'),
-                    )
-                  : null,
-              centerTitle: false,
-              title: _isSearching
-                  ? TextField(
-                      controller: _searchController,
-                      autofocus: true,
-                      decoration: const InputDecoration(
-                        hintText: 'Search patients...',
-                        border: InputBorder.none,
+      body: SafeArea(
+        child: Column(
+          children: [
+            if (_isSelectionMode)
+              _buildSelectionHeader()
+            else
+              _buildCustomHeader(),
+            Expanded(
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : error != null
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, size: 48),
+                          const SizedBox(height: 16),
+                          Text('Error: $error'),
+                          const SizedBox(height: 16),
+                          FilledButton(
+                            onPressed: _loadData,
+                            child: const Text('Retry'),
+                          ),
+                        ],
                       ),
                     )
-                  : Text(
-                      selectedPatient != null
-                          ? selectedPatient!.fullName
-                          : 'Patients',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-              actions: [
-                if (selectedPatient == null)
-                  PopupMenuButton<_PatientsViewMode>(
-                    tooltip: 'View mode',
-                    initialValue: _patientsViewMode,
-                    onSelected: (mode) {
-                      setState(() {
-                        _patientsViewMode = mode;
-                      });
-                    },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                        value: _PatientsViewMode.list,
-                        child: Text('List'),
-                      ),
-                      PopupMenuItem(
-                        value: _PatientsViewMode.grid,
-                        child: Text('Grid'),
-                      ),
-                      PopupMenuItem(
-                        value: _PatientsViewMode.table,
-                        child: Text('Table'),
-                      ),
-                    ],
-                    icon: Icon(switch (_patientsViewMode) {
-                      _PatientsViewMode.list => Icons.view_list,
-                      _PatientsViewMode.grid => Icons.grid_view,
-                      _PatientsViewMode.table => Icons.table_rows,
-                    }),
-                  ),
-                if (selectedPatient == null)
-                  IconButton(
-                    icon: Icon(_isSearching ? Icons.close : Icons.search),
-                    onPressed: () {
-                      setState(() {
-                        _isSearching = !_isSearching;
-                        if (!_isSearching) {
-                          _searchController.clear();
-                        }
-                      });
-                    },
-                  ),
-              ],
+                  : selectedPatient != null
+                  ? _buildPatientView()
+                  : _buildPatientsView(),
             ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : error != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: _toggleSelectionMode,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${_selectedPatientIds.length} selected',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: _deleteSelectedPatients,
+            tooltip: 'Delete selected',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomHeader() {
+    final theme = Theme.of(context);
+    final isDesktop = ResponsiveNavbar.isLargeScreen;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        top: isDesktop ? 24 : 12,
+        left: 24,
+        right: 24,
+        bottom: 16,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (selectedPatient != null)
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                  onPressed: () => context.go('/home/patients'),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              if (selectedPatient != null) const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.error_outline, size: 48),
-                  const SizedBox(height: 16),
-                  Text('Error: $error'),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: _loadData,
-                    child: const Text('Retry'),
+                  Text(
+                    selectedPatient != null
+                        ? selectedPatient!.fullName
+                        : 'Patients',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSurface,
+                    ),
                   ),
+                  if (selectedPatient == null && patients != null)
+                    Text(
+                      '${patients!.length} total',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                 ],
               ),
-            )
-          : selectedPatient != null
-          ? _buildPatientView()
-          : _buildPatientsView(),
+              const Spacer(),
+              if (selectedPatient == null)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(switch (_patientsViewMode) {
+                        _PatientsViewMode.list => Icons.view_list,
+                        _PatientsViewMode.grid => Icons.grid_view,
+                        _PatientsViewMode.table => Icons.table_rows,
+                      }),
+                      onPressed: () {
+                        // Toggle through modes
+                        setState(() {
+                          _patientsViewMode =
+                              _PatientsViewMode
+                                  .values[(_patientsViewMode.index + 1) %
+                                  _PatientsViewMode.values.length];
+                        });
+                      },
+                      tooltip: 'Toggle view mode',
+                    ),
+                    const SizedBox(width: 8),
+                    FloatingActionButton.small(
+                      onPressed: _createNewPatient,
+                      child: const Icon(Icons.add),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          if (selectedPatient == null) ...[
+            const SizedBox(height: 16),
+            _buildSearchBar(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    final theme = Theme.of(context);
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search patients by name or Reg No...',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () {
+                    _searchController.clear();
+                    _onSearchChanged();
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+      ),
     );
   }
 }

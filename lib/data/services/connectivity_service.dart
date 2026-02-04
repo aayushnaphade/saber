@@ -1,8 +1,9 @@
 import 'dart:async';
+
 import 'package:logging/logging.dart';
 import 'package:saber/data/prefs.dart';
-import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_auth_service.dart';
+import 'package:saber/data/supabase/supabase_client.dart';
 
 class ConnectivityService {
   static final log = Logger('ConnectivityService');

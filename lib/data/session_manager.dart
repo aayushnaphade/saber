@@ -1,10 +1,10 @@
-import 'package:logging/logging.dart';
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 
 class SessionManager extends ChangeNotifier {
   static final _log = Logger('SessionManager');
-  static final SessionManager _instance = SessionManager._internal();
+  static final _instance = SessionManager._internal();
   factory SessionManager() => _instance;
   SessionManager._internal();
 
@@ -12,7 +12,7 @@ class SessionManager extends ChangeNotifier {
   String? _patientName;
   String? _patientId;
   String? _consultationId;
-  bool _isMinimized = false;
+  var _isMinimized = false;
 
   EditorCoreInfo? get activeSession => _activeSession;
   String? get patientName => _patientName;

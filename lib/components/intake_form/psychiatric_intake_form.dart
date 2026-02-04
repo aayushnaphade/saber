@@ -1,17 +1,18 @@
-import 'package:flutter/material.dart';
-import 'package:saber/data/models/psychiatric_intake.dart';
-import 'package:saber/data/models/patient.dart';
-import 'package:saber/design_system/colors.dart';
-import 'package:uuid/uuid.dart';
-import 'package:intl/intl.dart';
-import 'package:saber/components/intake_form/intake_photo_capture_screen.dart';
-import 'package:saber/components/intake_form/handwriting_field.dart';
-import 'package:signature/signature.dart';
-import 'package:saber/data/supabase/supabase_intake_service.dart';
-import 'package:saber/data/api/intake_form_extractor.dart';
-import 'package:saber/data/supabase/supabase_client.dart';
-import 'package:saber/data/api/error_handler.dart';
 import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:saber/components/intake_form/handwriting_field.dart';
+import 'package:saber/components/intake_form/intake_photo_capture_screen.dart';
+import 'package:saber/data/api/error_handler.dart';
+import 'package:saber/data/api/intake_form_extractor.dart';
+import 'package:saber/data/models/patient.dart';
+import 'package:saber/data/models/psychiatric_intake.dart';
+import 'package:saber/data/supabase/supabase_client.dart';
+import 'package:saber/data/supabase/supabase_intake_service.dart';
+import 'package:saber/design_system/colors.dart';
+import 'package:signature/signature.dart';
+import 'package:uuid/uuid.dart';
 
 /// Psychiatric Intake Form Widget
 /// Matches Dr. Monisha Dass's clinical intake form layout
@@ -42,107 +43,107 @@ class PsychiatricIntakeForm extends StatefulWidget {
 
 class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
   late final ScrollController _scrollController;
-  bool _isSaving = false;
-  bool _isImporting = false;
-  bool _wasImportedFromPhoto = false;
+  var _isSaving = false;
+  var _isImporting = false;
+  var _wasImportedFromPhoto = false;
   late bool _isEditing;
 
   // Header Fields
   DateTime? _dateOfExamination = DateTime.now();
-  final TextEditingController _residenceController = TextEditingController();
-  final TextEditingController _durationOfIllnessController =
+  final _residenceController = TextEditingController();
+  final _durationOfIllnessController =
       TextEditingController();
-  final TextEditingController _referredByController = TextEditingController();
-  final TextEditingController _precipitatingFactorController =
+  final _referredByController = TextEditingController();
+  final _precipitatingFactorController =
       TextEditingController();
-  final TextEditingController _registrationNumberController =
+  final _registrationNumberController =
       TextEditingController();
 
   // Anxiety & Related Symptoms
-  bool _anxietyWorry = false;
-  bool _panic = false;
-  bool _restless = false;
-  bool _palpitationsTremors = false;
-  bool _phobia = false;
-  bool _obsessions = false;
-  bool _compulsions = false;
-  bool _hypochondriacal = false;
-  bool _fitsHystEpileptic = false;
-  bool _possessionState = false;
+  var _anxietyWorry = false;
+  var _panic = false;
+  var _restless = false;
+  var _palpitationsTremors = false;
+  var _phobia = false;
+  var _obsessions = false;
+  var _compulsions = false;
+  var _hypochondriacal = false;
+  var _fitsHystEpileptic = false;
+  var _possessionState = false;
 
   // Somatic Symptoms
-  bool _somaticHeadache = false;
-  bool _somaticBodyache = false;
-  bool _somaticAbdominal = false;
+  var _somaticHeadache = false;
+  var _somaticBodyache = false;
+  var _somaticAbdominal = false;
 
   // Substance Use
-  bool _alcoholDrugs = false;
-  bool _tobaccoSmoking = false;
+  var _alcoholDrugs = false;
+  var _tobaccoSmoking = false;
   String? _substanceUse;
 
   // Sexual Dysfunction
-  bool _decreasedLibido = false;
-  bool _increasedLibido = false;
-  bool _erectileDysfunction = false;
-  bool _prematureEjaculation = false;
-  bool _retardedEjaculation = false;
-  bool _worryMasturbationNE = false;
+  var _decreasedLibido = false;
+  var _increasedLibido = false;
+  var _erectileDysfunction = false;
+  var _prematureEjaculation = false;
+  var _retardedEjaculation = false;
+  var _worryMasturbationNE = false;
   final _sexualDysfunctionOtherController = TextEditingController();
 
   // Psychotic Symptoms
-  bool _ideasDelPersecution = false;
-  bool _ideasDelReference = false;
-  bool _otherDelusions = false;
-  bool _firstRankSymptoms = false;
-  bool _hallucinationsAuditory = false;
-  bool _hallucinationsVisual = false;
-  bool _incoherence = false;
-  bool _mutteringToSelf = false;
-  bool _inappropriateSmiling = false;
-  bool _inappropriateWeeping = false;
-  bool _abusing = false;
-  bool _violence = false;
-  bool _withdrawalInertia = false;
+  var _ideasDelPersecution = false;
+  var _ideasDelReference = false;
+  var _otherDelusions = false;
+  var _firstRankSymptoms = false;
+  var _hallucinationsAuditory = false;
+  var _hallucinationsVisual = false;
+  var _incoherence = false;
+  var _mutteringToSelf = false;
+  var _inappropriateSmiling = false;
+  var _inappropriateWeeping = false;
+  var _abusing = false;
+  var _violence = false;
+  var _withdrawalInertia = false;
 
   // Manic Symptoms
-  bool _irritableElated = false;
-  bool _grandiose = false;
-  bool _overtalkative = false;
-  bool _flightOfIdeas = false;
-  bool _overactivePMA = false;
-  bool _extravagant = false;
+  var _irritableElated = false;
+  var _grandiose = false;
+  var _overtalkative = false;
+  var _flightOfIdeas = false;
+  var _overactivePMA = false;
+  var _extravagant = false;
 
   // Depressive Symptoms
-  bool _sadIntermittent = false;
-  bool _sadPersistent = false;
-  bool _anhedoniaInertia = false;
-  bool _diurnalChange = false;
-  bool _weightLoss = false;
-  bool _weightGain = false;
+  var _sadIntermittent = false;
+  var _sadPersistent = false;
+  var _anhedoniaInertia = false;
+  var _diurnalChange = false;
+  var _weightLoss = false;
+  var _weightGain = false;
   String? _insomniaType;
-  bool _hypersomnia = false;
-  bool _pmrPma = false;
-  bool _fatigue = false;
-  bool _worthlessnessGuilt = false;
-  bool _decreasedThinkingConcentration = false;
-  bool _indecisive = false;
-  bool _suicidalThoughts = false;
-  bool _suicidalPlans = false;
-  bool _suicidalAttempts = false;
+  var _hypersomnia = false;
+  var _pmrPma = false;
+  var _fatigue = false;
+  var _worthlessnessGuilt = false;
+  var _decreasedThinkingConcentration = false;
+  var _indecisive = false;
+  var _suicidalThoughts = false;
+  var _suicidalPlans = false;
+  var _suicidalAttempts = false;
 
   // Cognitive Symptoms
-  bool _disorientationTime = false;
-  bool _disorientationPlace = false;
-  bool _disorientationPerson = false;
+  var _disorientationTime = false;
+  var _disorientationPlace = false;
+  var _disorientationPerson = false;
   String? _forgetfulness;
-  bool _aphasiaApraxiaAgnosia = false;
-  bool _decreasedIntelligence = false;
-  bool _perseveration = false;
-  bool _losingPath = false;
-  bool _disinhibition = false;
-  bool _incontinenceUrine = false;
-  bool _incontinenceStools = false;
-  bool _emotionalLability = false;
+  var _aphasiaApraxiaAgnosia = false;
+  var _decreasedIntelligence = false;
+  var _perseveration = false;
+  var _losingPath = false;
+  var _disinhibition = false;
+  var _incontinenceUrine = false;
+  var _incontinenceStools = false;
+  var _emotionalLability = false;
 
   // Additional Information
   final _medicalIllnessesController = TextEditingController();
@@ -672,8 +673,8 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
 
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
+          const SnackBar(
+            content: Row(
               children: [
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 12),
@@ -685,7 +686,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
               ],
             ),
             backgroundColor: MedicalColors.healthy,
-            duration: const Duration(seconds: 5),
+            duration: Duration(seconds: 5),
           ),
         );
       }

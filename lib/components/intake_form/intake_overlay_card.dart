@@ -31,7 +31,7 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _expandAnimation;
-  bool _isExpanded = false;
+  var _isExpanded = false;
 
   @override
   void initState() {
@@ -140,7 +140,7 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
       ),
       child: Row(
         children: [
-          Icon(Icons.assignment_outlined, size: 16, color: MedicalColors.info),
+          const Icon(Icons.assignment_outlined, size: 16, color: MedicalColors.info),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -170,8 +170,8 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
               child: InkWell(
                 onTap: widget.onEdit,
                 borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
                   child: Icon(
                     Icons.edit_outlined,
                     size: 16,
@@ -271,7 +271,7 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.warning_amber_rounded,
                     size: 12,
                     color: MedicalColors.critical,
@@ -450,7 +450,7 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
                 ),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.warning_amber_rounded,
                       size: 20,
                       color: MedicalColors.critical,

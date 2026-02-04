@@ -3,19 +3,20 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
+import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
+import 'package:saber/data/session_manager.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
+import 'package:saber/components/theming/premium_confirmation_dialog.dart';
+import 'package:saber/pages/home/dashboard/dashboard_skeleton.dart';
 import 'package:saber/pages/home/dashboard/widgets/live_queue_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/live_queue_list.dart';
 import 'package:saber/pages/home/dashboard/widgets/stat_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/welcome_header.dart';
-import 'package:saber/pages/home/dashboard/dashboard_skeleton.dart';
-import 'package:saber/data/api/error_handler.dart';
-import 'package:saber/data/session_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -26,8 +27,8 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  var _doctorName = '';
-  String? _avatarUrl;
+  var _doctorName = stows.userDisplayName.value;
+  String? _avatarUrl = stows.userAvatarUrl.value;
   RealtimeChannel? _consultationsSubscription;
 
   // Dashboard Data
@@ -142,7 +143,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
       final data = await supabase
           .from('profiles')
-          .select('full_name, avatar_url')
+          .select('full_name, avatar_url, role')
           .eq('id', user.id)
           .maybeSingle();
 
@@ -150,6 +151,13 @@ class _DashboardPageState extends State<DashboardPage> {
         setState(() {
           _doctorName = data['full_name'] as String? ?? '';
           _avatarUrl = data['avatar_url'] as String?;
+
+          // Cache to stows for offline persistence
+          stows.userDisplayName.value = _doctorName;
+          stows.userAvatarUrl.value = _avatarUrl;
+          if (data['role'] != null) {
+            stows.userRole.value = data['role'] as String;
+          }
         });
       }
     } catch (e) {
@@ -186,7 +194,7 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           );
 
-          if (restore == true) {
+          if (restore ?? false) {
             SessionManager().restore();
             // Navigate to the existing session
             if (mounted) {
@@ -217,7 +225,7 @@ class _DashboardPageState extends State<DashboardPage> {
       } else {
         if (mounted) {
           // If name is missing but we have an ID, try to look it up from the queue or appointments locally
-          String displayPatientName = activePatientName ?? "another patient";
+          String displayPatientName = activePatientName ?? 'another patient';
           if (activePatientName == null && activePatientId != null) {
             // Try to find in queue
             final inQueue = _queue
@@ -307,19 +315,12 @@ class _DashboardPageState extends State<DashboardPage> {
     // 0.5. Confirmation Dialog
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Start Session'),
-        content: Text('Start consultation for ${item.patientName}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Start'),
-          ),
-        ],
+      builder: (context) => PremiumConfirmationDialog(
+        title: 'Start Session',
+        content: 'Start consultation for ${item.patientName}?',
+        confirmLabel: 'Start',
+        icon: Icons.medical_services_outlined,
+        iconColor: Theme.of(context).colorScheme.primary,
       ),
     );
 
@@ -356,7 +357,7 @@ class _DashboardPageState extends State<DashboardPage> {
       try {
         final existing = sessionNotesDir.listSync();
         var maxNum = 0;
-        for (var entity in existing) {
+        for (final entity in existing) {
           if (entity is Directory) {
             final name = p.basename(entity.path);
             if (name.startsWith('session_')) {

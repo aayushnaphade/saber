@@ -60,7 +60,7 @@ class LiveQueueList extends StatelessWidget {
         else if (queue.isEmpty)
           _buildEmptyState(context)
         else
-          Container(
+          DecoratedBox(
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
@@ -157,10 +157,8 @@ class LiveQueueList extends StatelessWidget {
       case 'in consultation':
       case 'in_progress':
         statusColor = Colors.green;
-        break;
       case 'in vitals':
         statusColor = Colors.orange;
-        break;
       default:
         statusColor = Colors.blue;
     }

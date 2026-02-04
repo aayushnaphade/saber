@@ -1,11 +1,11 @@
+import 'package:flutter/material.dart' as m;
+import 'package:intl/intl.dart';
+import 'package:palette_generator/palette_generator.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:saber/data/prefs.dart';
-import 'package:intl/intl.dart';
-import 'package:palette_generator/palette_generator.dart';
-import 'package:flutter/material.dart' as m;
 import 'package:saber/data/models/patient.dart';
+import 'package:saber/data/prefs.dart';
 
 class ReportPrinter {
   static Future<void> printReport(
@@ -270,7 +270,7 @@ class ReportPrinter {
                                           .isNotEmpty)
                                   ? 'Reg No: ${reportData['registration_number']}'
                                   : 'Reg No: Not defined',
-                          style: pw.TextStyle(
+                          style: const pw.TextStyle(
                             fontSize: 8,
                             color: PdfColors.grey600,
                           ),

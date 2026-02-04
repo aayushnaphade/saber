@@ -113,7 +113,7 @@ class EmptyState extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: EdgeInsets.all(AppSpacing.xxl),
+        padding: const EdgeInsets.all(AppSpacing.xxl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -131,7 +131,7 @@ class EmptyState extends StatelessWidget {
                 child: Icon(icon, size: 64, color: effectiveIconColor),
               ),
 
-            SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.lg),
 
             // Title
             Text(
@@ -140,7 +140,7 @@ class EmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
 
-            SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.sm),
 
             // Message
             Text(
@@ -153,13 +153,13 @@ class EmptyState extends StatelessWidget {
 
             // Action button
             if (actionLabel != null && onAction != null) ...[
-              SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.lg),
               FilledButton.icon(
                 onPressed: onAction,
                 icon: const Icon(Icons.add_rounded),
                 label: Text(actionLabel!),
                 style: FilledButton.styleFrom(
-                  padding: EdgeInsets.symmetric(
+                  padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
@@ -190,12 +190,12 @@ class CompactEmptyState extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 48, color: theme.colorScheme.onSurfaceVariant),
-            SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               message,
               style: AppTypography.bodyMedium(

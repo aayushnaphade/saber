@@ -1,8 +1,9 @@
+import 'dart:async';
+
+import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'dart:async';
 import 'package:saber/data/prefs.dart';
-import 'package:saber/data/supabase/supabase_client.dart';
 
 class WelcomeHeader extends StatefulWidget {
   final String doctorName;
@@ -15,10 +16,40 @@ class WelcomeHeader extends StatefulWidget {
 }
 
 class _WelcomeHeaderState extends State<WelcomeHeader> {
+  final _battery = Battery();
+  var _batteryLevel = 100;
+  BatteryState _batteryState = BatteryState.unknown;
+  StreamSubscription<BatteryState>? _batterySubscription;
+  Timer? _timer;
+
   @override
   void initState() {
     super.initState();
+    _updateBattery();
+    _batterySubscription = _battery.onBatteryStateChanged.listen((state) {
+      if (mounted) {
+        setState(() => _batteryState = state);
+        _updateBattery();
+      }
+    });
+
+    // Update time every minute
+    _timer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      if (mounted) setState(() {});
+    });
+
     stows.isOnline.addListener(_onConnectivityChanged);
+  }
+
+  Future<void> _updateBattery() async {
+    try {
+      final level = await _battery.batteryLevel;
+      if (mounted) {
+        setState(() => _batteryLevel = level);
+      }
+    } catch (e) {
+      debugPrint('Error getting battery level: $e');
+    }
   }
 
   void _onConnectivityChanged() {
@@ -27,6 +58,8 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
 
   @override
   void dispose() {
+    _batterySubscription?.cancel();
+    _timer?.cancel();
     stows.isOnline.removeListener(_onConnectivityChanged);
     super.dispose();
   }
@@ -38,8 +71,10 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
     final now = DateTime.now();
     final greeting = _getGreeting(now.hour);
     final dateStr = DateFormat('EEEE, MMMM d').format(now);
+    final timeStr = DateFormat('h:mm a').format(now);
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // 1. Always show user avatar on the left
         if (widget.avatarUrl != null)
@@ -63,11 +98,10 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                stows.clinicName.value.isNotEmpty
-                    ? stows.clinicName.value.toUpperCase()
-                    : dateStr.toUpperCase(),
+                dateStr.toUpperCase(),
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                   letterSpacing: 1.5,
@@ -85,7 +119,8 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
               ),
               Text(
                 widget.doctorName.isNotEmpty
-                    ? (stows.userRole.value == 'doctor'
+                    ? (stows.userRole.value == 'doctor' &&
+                              !widget.doctorName.toLowerCase().startsWith('dr.')
                           ? 'Dr. ${widget.doctorName}'
                           : widget.doctorName)
                     : (stows.userRole.value == 'doctor' ? 'Doctor' : 'User'),
@@ -101,9 +136,78 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
 
         const SizedBox(width: 16),
 
-        // 3. Right side: Online Status + Clinic Logo
-        // 3. Right side: Online Status
-        _buildAIPulse(context),
+        // 3. Right side: Status, Time, and Battery
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildAIPulse(context),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  timeStr,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(
+                    '•',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+                _buildBatteryIndicator(),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBatteryIndicator() {
+    IconData iconData;
+    if (_batteryState == BatteryState.charging) {
+      iconData = Icons.battery_charging_full;
+    } else {
+      if (_batteryLevel > 90) {
+        iconData = Icons.battery_full;
+      } else if (_batteryLevel > 70) {
+        iconData = Icons.battery_6_bar;
+      } else if (_batteryLevel > 50) {
+        iconData = Icons.battery_4_bar;
+      } else if (_batteryLevel > 30) {
+        iconData = Icons.battery_2_bar;
+      } else {
+        iconData = Icons.battery_alert;
+      }
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          iconData,
+          size: 14,
+          color: _batteryLevel < 20
+              ? Theme.of(context).colorScheme.error
+              : Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$_batteryLevel%',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }

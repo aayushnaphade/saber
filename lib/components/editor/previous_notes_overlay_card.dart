@@ -20,7 +20,7 @@ class PreviousNotesOverlayCard extends StatefulWidget {
 
 class _PreviousNotesOverlayCardState extends State<PreviousNotesOverlayCard> {
   // Index of the currently viewed note (0 = most recent)
-  int _currentIndex = 0;
+  var _currentIndex = 0;
 
   void _showNewerNote() {
     if (_currentIndex > 0) {
@@ -220,7 +220,7 @@ class _PreviousNotesOverlayCardState extends State<PreviousNotesOverlayCard> {
                         borderRadius: BorderRadius.circular(3),
                       ),
                     );
-                  }).reversed.toList(),
+                  }).reversed,
                 ],
               ),
             ),

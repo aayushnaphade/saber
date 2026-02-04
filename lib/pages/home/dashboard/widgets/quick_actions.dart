@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:saber/data/prefs.dart';
 import 'package:saber/data/models/patient.dart';
-import 'package:saber/pages/home/dashboard/widgets/new_patient_dialog.dart';
-import 'package:saber/pages/home/dashboard/widgets/schedule_appointment_dialog.dart';
-import 'package:saber/pages/home/dashboard/widgets/vitals_dialog.dart';
-import 'package:saber/design_system/spacing.dart';
-import 'package:saber/design_system/radius.dart';
+import 'package:saber/data/prefs.dart';
 import 'package:saber/design_system/animations.dart';
+import 'package:saber/design_system/radius.dart';
+import 'package:saber/design_system/spacing.dart';
+import 'package:saber/pages/home/dashboard/widgets/new_patient_dialog.dart';
+import 'package:saber/pages/home/dashboard/widgets/vitals_dialog.dart';
 
 class QuickActions extends StatelessWidget {
   const QuickActions({super.key});
@@ -62,6 +61,7 @@ class QuickActions extends StatelessWidget {
         color: Colors.orange,
         onTap: () {
           context.go('/home/team');
+          return null;
         },
       ));
     }
@@ -133,7 +133,7 @@ class _QuickActionButton extends StatefulWidget {
 }
 
 class _QuickActionButtonState extends State<_QuickActionButton> {
-  bool _isPressed = false;
+  var _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -157,7 +157,7 @@ class _QuickActionButtonState extends State<_QuickActionButton> {
             onTapUp: (_) => setState(() => _isPressed = false),
             onTapCancel: () => setState(() => _isPressed = false),
             child: Container(
-              padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
               decoration: BoxDecoration(
                 border: Border.all(
                   color: theme.colorScheme.outlineVariant.withOpacity(0.5),
@@ -168,14 +168,14 @@ class _QuickActionButtonState extends State<_QuickActionButton> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    padding: EdgeInsets.all(AppSpacing.sm + 2),
+                    padding: const EdgeInsets.all(AppSpacing.sm + 2),
                     decoration: BoxDecoration(
                       color: widget.color.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(widget.icon, color: widget.color, size: 24),
                   ),
-                  SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.md),
                   Text(
                     widget.label,
                     style: theme.textTheme.labelMedium?.copyWith(

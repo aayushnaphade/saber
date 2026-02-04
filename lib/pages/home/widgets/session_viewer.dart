@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
+import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/models/previous_session_note.dart';
 import 'package:saber/data/supabase/supabase_consultation_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/data/utils/report_printer.dart';
-import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/pages/editor/report_view.dart';
 // import 'package:saber/data/models/patient.dart'; // SessionInfo already imported
 
@@ -35,7 +35,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
   ClinicalReport? _currentReport;
   PreviousSessionNote? _currentNote;
   Patient? _patient;
-  bool _isLoading = true;
+  var _isLoading = true;
   String? _error;
 
   @override
@@ -187,7 +187,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
             const SizedBox(width: 8),
           ],
         ),
-        body: Container(
+        body: DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -331,7 +331,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
   }
 
   Widget _buildNoteContainer() {
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:saber/data/models/medication_history_models.dart';
 import 'package:saber/data/api/medication_history_service.dart';
+import 'package:saber/data/models/medication_history_models.dart';
 
 class MedicationHistoryOverlay extends StatefulWidget {
   final String patientId;
@@ -20,8 +20,8 @@ class MedicationHistoryOverlay extends StatefulWidget {
 
 class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
   PatientMedicationHistory? _history;
-  bool _isLoading = true;
-  String _timeFilter = '6m'; // '3m', '6m', '1y', 'all'
+  var _isLoading = true;
+  var _timeFilter = '6m'; // '3m', '6m', '1y', 'all'
 
   @override
   void initState() {

@@ -8,6 +8,7 @@
 /// ```dart
 /// import 'package:saber/components/intake_form/intake_form.dart';
 /// ```
+library;
 
-export 'psychiatric_intake_form.dart';
 export 'intake_overlay_card.dart';
+export 'psychiatric_intake_form.dart';
