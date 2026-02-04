@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:typed_data';
-
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:googleapis/aiplatform/v1.dart';
 import 'package:googleapis_auth/auth_io.dart';
+import 'package:googleapis/aiplatform/v1.dart';
 import 'package:logging/logging.dart';
+import 'package:saber/data/models/psychiatric_intake.dart';
 
 /// Service for extracting psychiatric intake form data from photos using Gemini Vision API
 class IntakeFormExtractor {

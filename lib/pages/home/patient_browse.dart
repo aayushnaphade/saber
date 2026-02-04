@@ -12,7 +12,7 @@ import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
-import 'package:saber/pages/home/dashboard/widgets/vitals_dialog.dart';
+import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/components/intake_form/patient_registration_wizard.dart';
 
 /// Patient-centric browse page showing patients and their documents
@@ -110,25 +110,13 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Patients'),
-        content: Text(
-          'Are you sure you want to delete ${_selectedPatientIds.length} patients? '
-          'This will permanently delete all their records and documents.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
+      builder: (context) => PremiumConfirmationDialog(
+        title: 'Delete Patients',
+        content: 'Are you sure you want to delete ${_selectedPatientIds.length} patients? '
+            'This will permanently delete all their records and documents.',
+        confirmLabel: 'Delete',
+        isDestructive: true,
+        icon: Icons.delete_forever_rounded,
       ),
     );
 
@@ -323,17 +311,25 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
         );
 
         // Navigate to the new patient's profile directly
-        _openPatient(patient);
+        _openPatient(patient, autoStartSession: true);
       }
     }
   }
 
-  void _openPatient(Patient patient) {
-    context.go('/home/patients/${patient.id}');
+  void _openPatient(Patient patient, {bool autoStartSession = false}) {
+    if (context.mounted) {
+      var path = '/home/patients/${patient.id}';
+      if (autoStartSession) {
+        path += '?autoStartSession=true';
+      }
+      context.go(path);
+    }
   }
 
   void _openDocumentType(Patient patient, DocumentType type) {
-    context.go('/home/patients/${patient.id}/${type.folderName}');
+    if (context.mounted) {
+      context.go('/home/patients/${patient.id}/${type.folderName}');
+    }
   }
 
   Widget? _buildPatientsEmptyState(List<Patient>? displayList) {
@@ -726,7 +722,9 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
       }
     } else {
       // Open other files (Saber notes) in the editor
-      context.push(RoutePaths.editFilePath(relativePath));
+      if (context.mounted) {
+        context.push(RoutePaths.editFilePath(relativePath));
+      }
     }
   }
 
@@ -927,7 +925,11 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
               if (selectedPatient != null)
                 IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                  onPressed: () => context.go('/home/patients'),
+                  onPressed: () {
+                    if (context.mounted) {
+                      context.go('/home/patients');
+                    }
+                  },
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),

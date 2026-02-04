@@ -5,8 +5,8 @@ import 'package:saber/data/prefs.dart';
 import 'package:saber/design_system/animations.dart';
 import 'package:saber/design_system/radius.dart';
 import 'package:saber/design_system/spacing.dart';
-import 'package:saber/pages/home/dashboard/widgets/new_patient_dialog.dart';
-import 'package:saber/pages/home/dashboard/widgets/vitals_dialog.dart';
+import 'package:saber/components/intake_form/patient_registration_wizard.dart';
+import 'package:saber/data/routes.dart';
 
 class QuickActions extends StatelessWidget {
   const QuickActions({super.key});
@@ -21,17 +21,14 @@ class QuickActions extends StatelessWidget {
         onTap: () async {
           final patient = await showDialog<Patient>(
             context: context,
-            builder: (context) => const NewPatientDialog(),
+            barrierDismissible: false,
+            builder: (context) => const DoctorPatientRegistrationWizard(),
           );
 
           if (patient != null && context.mounted) {
-            await showDialog(
-              context: context,
-              builder: (context) => VitalsDialog(
-                patientId: patient.id,
-                patientName: patient.fullName,
-                isNewPatient: true,
-              ),
+            context.push(
+              RoutePaths.patientDetail.replaceFirst(':patientId', patient.id) +
+                  '?autoStartSession=true',
             );
           }
         },

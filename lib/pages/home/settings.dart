@@ -1,4 +1,3 @@
-import 'package:animated_theme_switcher/animated_theme_switcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -7,9 +6,8 @@ import 'package:saber/components/settings/settings_button.dart';
 import 'package:saber/components/settings/settings_dropdown.dart';
 import 'package:saber/components/settings/update_manager.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
-import 'package:saber/components/theming/adaptive_toggle_buttons.dart';
 import 'package:saber/components/theming/premium_confirmation_dialog.dart';
-import 'package:saber/components/theming/dynamic_material_app.dart';
+import 'package:saber/components/theming/adaptive_toggle_buttons.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
@@ -18,6 +16,8 @@ import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:stow/stow.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:animated_theme_switcher/animated_theme_switcher.dart';
+import 'package:saber/components/theming/dynamic_material_app.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -61,6 +61,7 @@ class _SettingsPageState extends State<SettingsPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
 
   var _isLoggingOut = false;
   var _isUpdatingPassword = false;
@@ -69,9 +70,9 @@ class _SettingsPageState extends State<SettingsPage> {
   var _isUploadingImage = false;
   String? _avatarUrl;
 
-  var _profileExpanded = false;
-  var _aiReportsExpanded = false;
-  var _isEditingProfile = false;
+  bool _profileExpanded = false;
+  bool _aiReportsExpanded = false;
+  bool _isEditingProfile = false;
 
   @override
   void initState() {
@@ -85,6 +86,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void _loadFromCache() {
     _nameController.text = stows.userDisplayName.value;
     _phoneController.text = stows.userPhone.value;
+    _emailController.text = stows.supabaseUserEmail.value;
     _avatarUrl = stows.userAvatarUrl.value;
 
     if (_nameController.text.isNotEmpty || _avatarUrl != null) {
@@ -96,6 +98,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     stows.locale.removeListener(onChanged);
     UpdateManager.status.removeListener(onChanged);
     super.dispose();
@@ -124,14 +127,16 @@ class _SettingsPageState extends State<SettingsPage> {
         stows.userPhone.value = phoneNumber;
         stows.userAvatarUrl.value = avatarUrl;
 
-        setState(() {
-          _nameController.text = fullName;
-          _phoneController.text = phoneNumber;
-          _avatarUrl = avatarUrl;
-        });
+        if (mounted) {
+          setState(() {
+            _nameController.text = fullName;
+            _phoneController.text = phoneNumber;
+            _avatarUrl = avatarUrl;
+          });
+        }
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
@@ -149,11 +154,45 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final newEmail = _emailController.text.trim();
+    if (newEmail != user.email) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AdaptiveAlertDialog(
+          title: const Text('Change Email Address?'),
+          content: Text(
+            'A confirmation link will be sent to $newEmail. '
+            'The change will only take effect after you click the link in your inbox. '
+            'Until then, you can continue using the app with your current email.',
+          ),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Send Link'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+    }
+
     setState(() => _isSavingProfile = true);
 
     try {
-      final user = supabase.auth.currentUser;
-      if (user == null) return;
+      // Update email if changed
+      if (newEmail != user.email) {
+        await supabase.auth.updateUser(UserAttributes(email: newEmail));
+        stows.supabaseUserEmail.value = newEmail;
+      }
 
       await supabase.from('profiles').upsert({
         'id': user.id,
@@ -167,13 +206,17 @@ class _SettingsPageState extends State<SettingsPage> {
       stows.userPhone.value = _phoneController.text.trim();
       stows.userAvatarUrl.value = _avatarUrl;
 
-      if (mounted) {
+      if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
+          const SnackBar(
+            content: Text(
+              'Profile updated successfully. If you changed your email, please check your inbox for confirmation.',
+            ),
+          ),
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
@@ -249,27 +292,32 @@ class _SettingsPageState extends State<SettingsPage> {
         title: 'Sign Out',
         content: 'Are you sure you want to sign out?',
         confirmLabel: 'Sign Out',
-        icon: Icons.logout_rounded,
         isDestructive: true,
+        icon: Icons.logout_rounded,
       ),
     );
 
     if ((confirm ?? false) && mounted) {
-      setState(() => _isLoggingOut = true);
+      if (mounted) {
+        setState(() => _isLoggingOut = true);
+      }
 
       try {
         await SupabaseAuthService.signOut();
-        if (mounted) {
+        if (mounted && context.mounted) {
           context.go(RoutePaths.login);
         }
       } catch (e) {
-        if (mounted) {
+        if (mounted && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
+        }
+      } finally {
+        if (mounted) {
           setState(() => _isLoggingOut = false);
         }
       }
@@ -367,7 +415,9 @@ class _SettingsPageState extends State<SettingsPage> {
     );
 
     if ((confirm ?? false) && mounted) {
-      setState(() => _isUpdatingPassword = true);
+      if (mounted) {
+        setState(() => _isUpdatingPassword = true);
+      }
 
       try {
         // First verify current password by attempting to sign in
@@ -385,13 +435,13 @@ class _SettingsPageState extends State<SettingsPage> {
         // If verification successful, update to new password
         await SupabaseAuthService.updatePassword(passwordController.text);
 
-        if (mounted) {
+        if (mounted && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Password updated successfully')),
           );
         }
       } catch (e) {
-        if (mounted) {
+        if (mounted && context.mounted) {
           String errorMessage = ErrorHandler.getFriendlyErrorMessage(e);
 
           // Check if it's an authentication error (wrong current password)
@@ -425,7 +475,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: DecoratedBox(
+      body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -713,10 +763,26 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          user.email ?? '',
+                          _emailController.text.isNotEmpty
+                              ? _emailController.text
+                              : (user?.email ?? ''),
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
+                        if (_emailController.text.isNotEmpty &&
+                            user?.email != null &&
+                            _emailController.text.trim() != user.email)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              'Confirmation link sent to your inbox',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -754,6 +820,15 @@ class _SettingsPageState extends State<SettingsPage> {
                       label: 'Contact Number',
                       value: _phoneController.text.isNotEmpty
                           ? _phoneController.text
+                          : 'Not set',
+                      colorScheme: colorScheme,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildReadOnlyField(
+                      icon: Icons.email_outlined,
+                      label: 'Email',
+                      value: _emailController.text.isNotEmpty
+                          ? _emailController.text
                           : 'Not set',
                       colorScheme: colorScheme,
                     ),
@@ -848,6 +923,33 @@ class _SettingsPageState extends State<SettingsPage> {
                               fillColor: colorScheme.surfaceContainerHighest
                                   .withOpacity(0.3),
                             ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: InputDecoration(
+                              labelText: 'Email',
+                              hintText: 'doctor@example.com',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              prefixIcon: const Icon(Icons.email_outlined),
+                              filled: true,
+                              fillColor: colorScheme.surfaceContainerHighest
+                                  .withOpacity(0.3),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your email';
+                              }
+                              if (!RegExp(
+                                r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                              ).hasMatch(value)) {
+                                return 'Please enter a valid email';
+                              }
+                              return null;
+                            },
                           ),
                           const SizedBox(height: 24),
                           Row(
@@ -1111,7 +1213,7 @@ class _SettingsPageState extends State<SettingsPage> {
     required bool isDark,
     required Widget child,
   }) {
-    return DecoratedBox(
+    return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(

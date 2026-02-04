@@ -86,8 +86,6 @@ class CanvasBackgroundPainter extends CustomPainter {
     switch (pattern) {
       case .none:
         return;
-      case .collegeLtr:
-      case .collegeRtl:
       case .lined:
         // horizontal lines
         for (double y = lineHeight * 2; y < size.height; y += lineHeight) {
@@ -97,277 +95,11 @@ class CanvasBackgroundPainter extends CustomPainter {
             isLine: true,
           );
         }
-
-        // vertical line
-        if (pattern == .collegeLtr) {
-          yield PatternElement(
-            Offset(lineHeight * 2, 0),
-            Offset(lineHeight * 2, size.height),
-            isLine: true,
-            secondaryColor: true,
-          );
-        } else if (pattern == .collegeRtl) {
-          yield PatternElement(
-            Offset(size.width - lineHeight * 2, 0),
-            Offset(size.width - lineHeight * 2, size.height),
-            isLine: true,
-            secondaryColor: true,
-          );
-        }
-      case .grid:
-        for (double y = lineHeight * 2; y < size.height; y += lineHeight) {
-          yield PatternElement(
-            Offset(0, y),
-            Offset(size.width, y),
-            isLine: true,
-          );
-        }
-        for (double x = 0; x < size.width; x += lineHeight) {
-          yield PatternElement(
-            Offset(x, lineHeight * 2),
-            Offset(x, size.height),
-            isLine: true,
-          );
-        }
       case .dots:
         for (double y = lineHeight * 2; y <= size.height; y += lineHeight) {
           for (double x = 0; x <= size.width; x += lineHeight) {
             yield PatternElement(Offset(x, y), Offset(x, y), isLine: false);
           }
-        }
-      case .staffs:
-      case .tablature:
-        final staffSpaces = pattern == .staffs ? 4 : 5;
-        final staffHeight = lineHeight * staffSpaces;
-        final staffSpacing = lineHeight * 3;
-
-        for (
-          double topOfStaff = staffSpacing.toDouble() - lineHeight;
-          topOfStaff + staffHeight < size.height;
-          topOfStaff += staffHeight + staffSpacing
-        ) {
-          // horizontal lines
-          for (int line = 0; line < staffSpaces + 1; line++) {
-            yield PatternElement(
-              Offset(lineHeight.toDouble(), topOfStaff + lineHeight * line),
-              Offset(size.width - lineHeight, topOfStaff + lineHeight * line),
-              isLine: true,
-            );
-          }
-
-          // vertical lines on either side
-          yield PatternElement(
-            Offset(lineHeight.toDouble(), topOfStaff),
-            Offset(lineHeight.toDouble(), topOfStaff + staffHeight),
-            isLine: true,
-          );
-          yield PatternElement(
-            Offset(size.width - lineHeight, topOfStaff),
-            Offset(size.width - lineHeight, topOfStaff + staffHeight),
-            isLine: true,
-          );
-        }
-      case .cornell:
-        // half-width line for name field
-        yield PatternElement(
-          Offset(lineHeight.toDouble(), lineHeight * 2),
-          Offset(size.width / 2 - lineHeight / 2, lineHeight * 2),
-          isLine: true,
-        );
-        // half-width line for date field
-        yield PatternElement(
-          Offset(size.width / 2 + lineHeight / 2, lineHeight * 2),
-          Offset(size.width - lineHeight, lineHeight * 2),
-          isLine: true,
-        );
-        // full-width line for title field
-        yield PatternElement(
-          Offset(lineHeight.toDouble(), lineHeight * 3),
-          Offset(size.width - lineHeight, lineHeight * 3),
-          isLine: true,
-        );
-
-        // lines for main notes
-        final left = size.width * 0.35; // 35% width reserved for cues column
-        final bottom = size.height * 0.7; // 30% height reserved for summary
-        for (double y = lineHeight * 5; y < bottom; y += lineHeight) {
-          yield PatternElement(
-            Offset(left, y),
-            Offset(size.width - lineHeight, y),
-            isLine: true,
-          );
-        }
-      case .psychiatric:
-        // Psychiatric session notes template
-        // Based on SOAP-like structure optimized for psychiatric assessments
-
-        final margin = lineHeight * 1.5;
-        final sectionPadding = lineHeight * 0.5;
-
-        // === HEADER SECTION ===
-        // Patient name line (left half)
-        yield PatternElement(
-          Offset(margin, lineHeight * 1.5),
-          Offset(size.width * 0.45, lineHeight * 1.5),
-          isLine: true,
-        );
-        // Date line (right half)
-        yield PatternElement(
-          Offset(size.width * 0.55, lineHeight * 1.5),
-          Offset(size.width - margin, lineHeight * 1.5),
-          isLine: true,
-        );
-
-        // Session number / Visit type line
-        yield PatternElement(
-          Offset(margin, lineHeight * 2.5),
-          Offset(size.width * 0.5, lineHeight * 2.5),
-          isLine: true,
-        );
-
-        // Header separator
-        yield PatternElement(
-          Offset(margin, lineHeight * 3.5),
-          Offset(size.width - margin, lineHeight * 3.5),
-          isLine: true,
-          secondaryColor: true,
-        );
-
-        // === CHIEF COMPLAINT / HPI SECTION ===
-        // Section label marker (small line on left)
-        yield PatternElement(
-          Offset(margin * 0.5, lineHeight * 4.5),
-          Offset(margin, lineHeight * 4.5),
-          isLine: true,
-          secondaryColor: true,
-        );
-
-        // Content lines for Chief Complaint (3 lines)
-        for (int i = 0; i < 3; i++) {
-          yield PatternElement(
-            Offset(margin, lineHeight * (5.5 + i)),
-            Offset(size.width - margin, lineHeight * (5.5 + i)),
-            isLine: true,
-          );
-        }
-
-        // === MENTAL STATUS EXAM SECTION ===
-        final mseTop = lineHeight * 9.0;
-
-        // Section marker
-        yield PatternElement(
-          Offset(margin * 0.5, mseTop),
-          Offset(margin, mseTop),
-          isLine: true,
-          secondaryColor: true,
-        );
-
-        // MSE section divider
-        yield PatternElement(
-          Offset(margin, mseTop + sectionPadding),
-          Offset(size.width - margin, mseTop + sectionPadding),
-          isLine: true,
-          secondaryColor: true,
-        );
-
-        // Two-column layout for MSE checkboxes area
-        final mseContentTop = mseTop + lineHeight.toDouble();
-        final centerX = size.width / 2;
-
-        // Left column lines (Appearance, Behavior, Speech, Mood)
-        for (int i = 0; i < 5; i++) {
-          yield PatternElement(
-            Offset(margin, mseContentTop + lineHeight * i.toDouble()),
-            Offset(
-              centerX - sectionPadding,
-              mseContentTop + lineHeight * i.toDouble(),
-            ),
-            isLine: true,
-          );
-        }
-
-        // Right column lines (Affect, Thought Process, Thought Content, Perceptions)
-        for (int i = 0; i < 5; i++) {
-          yield PatternElement(
-            Offset(
-              centerX + sectionPadding,
-              mseContentTop + lineHeight * i.toDouble(),
-            ),
-            Offset(
-              size.width - margin,
-              mseContentTop + lineHeight * i.toDouble(),
-            ),
-            isLine: true,
-          );
-        }
-
-        // Vertical divider for MSE columns
-        yield PatternElement(
-          Offset(centerX, mseContentTop),
-          Offset(centerX, mseContentTop + lineHeight * 4.0),
-          isLine: true,
-          secondaryColor: true,
-        );
-
-        // === ASSESSMENT SECTION ===
-        final assessmentTop = mseContentTop + lineHeight * 6.0;
-
-        // Section marker
-        yield PatternElement(
-          Offset(margin * 0.5, assessmentTop),
-          Offset(margin, assessmentTop),
-          isLine: true,
-          secondaryColor: true,
-        );
-
-        // Section divider
-        yield PatternElement(
-          Offset(margin, assessmentTop + sectionPadding),
-          Offset(size.width - margin, assessmentTop + sectionPadding),
-          isLine: true,
-          secondaryColor: true,
-        );
-
-        // Assessment content lines (4 lines for diagnoses)
-        for (int i = 0; i < 4; i++) {
-          yield PatternElement(
-            Offset(margin, assessmentTop + lineHeight * (1.0 + i)),
-            Offset(size.width - margin, assessmentTop + lineHeight * (1.0 + i)),
-            isLine: true,
-          );
-        }
-
-        // === PLAN SECTION ===
-        final planTop = assessmentTop + lineHeight * 6.0;
-
-        // Section marker
-        yield PatternElement(
-          Offset(margin * 0.5, planTop),
-          Offset(margin, planTop),
-          isLine: true,
-          secondaryColor: true,
-        );
-
-        // Section divider
-        yield PatternElement(
-          Offset(margin, planTop + sectionPadding),
-          Offset(size.width - margin, planTop + sectionPadding),
-          isLine: true,
-          secondaryColor: true,
-        );
-
-        // Plan content lines (remaining space)
-        final planContentTop = planTop + lineHeight.toDouble();
-        for (
-          double y = planContentTop;
-          y < size.height - lineHeight;
-          y += lineHeight
-        ) {
-          yield PatternElement(
-            Offset(margin, y),
-            Offset(size.width - margin, y),
-            isLine: true,
-          );
         }
     }
   }
@@ -394,39 +126,13 @@ enum CanvasBackgroundPattern {
   /// No background pattern
   none(''),
 
-  /// College ruled paper (ltr): horizontal lines with one
-  /// vertical line along the left margin
-  collegeLtr('college'),
-
-  /// College ruled paper (rtl): horizontal lines with one
-  /// vertical line along the right margin
-  collegeRtl('college-rtl'),
-
   /// Horizontal lines. This is the same as college ruled paper
   /// but without the vertical line
   lined('lined'),
 
-  /// A grid of squares
-  grid('grid', requiresClipping: true),
-
   /// A grid of dots. This is the same as "grid" except it has dots on the
   /// corners instead of the whole square border.
-  dots('dots', requiresClipping: true),
-
-  /// Music staffs
-  staffs('staffs'),
-
-  /// Music tablature
-  ///
-  /// Like staffs but with 6 lines instead of 5 (and 5 spaces instead of 4).
-  tablature('tablature'),
-
-  /// Cornell notes
-  cornell('cornell'),
-
-  /// Psychiatric session notes template
-  /// Sections: Patient Info, Chief Complaint, Mental Status, Assessment, Plan
-  psychiatric('psychiatric');
+  dots('dots', requiresClipping: true);
 
   const CanvasBackgroundPattern(this.name, {this.requiresClipping = false});
 
@@ -442,24 +148,10 @@ enum CanvasBackgroundPattern {
     switch (pattern) {
       case .none:
         return t.editor.menu.bgPatterns.none;
-      case .collegeLtr:
-        return t.editor.menu.bgPatterns.college;
-      case .collegeRtl:
-        return t.editor.menu.bgPatterns.collegeRtl;
       case .lined:
         return t.editor.menu.bgPatterns.lined;
-      case .grid:
-        return t.editor.menu.bgPatterns.grid;
       case .dots:
         return t.editor.menu.bgPatterns.dots;
-      case .staffs:
-        return t.editor.menu.bgPatterns.staffs;
-      case .tablature:
-        return t.editor.menu.bgPatterns.tablature;
-      case .cornell:
-        return t.editor.menu.bgPatterns.cornell;
-      case .psychiatric:
-        return t.editor.menu.bgPatterns.psychiatric;
     }
   }
 

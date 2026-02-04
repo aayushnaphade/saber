@@ -84,10 +84,11 @@ class _NewNoteButtonState extends State<NewNoteButton> {
               allowMultiple: false,
               withData: false,
             );
-            if (result == null) return;
+            if (result == null || result.files.isEmpty) return;
 
-            final filePath = result.files.single.path;
-            final fileName = result.files.single.name;
+            final file = result.files.first;
+            final filePath = file.path;
+            final fileName = file.name;
             if (filePath == null) return;
 
             if (filePath.toLowerCase().endsWith('.sbn') ||

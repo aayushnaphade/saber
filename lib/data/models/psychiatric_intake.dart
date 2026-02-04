@@ -1,7 +1,6 @@
 /// Psychiatric Intake Form Model
 /// Based on Dr. Monisha Dass's clinical intake form format
 /// This captures comprehensive psychiatric evaluation data
-library;
 
 class PsychiatricIntake {
   final String id;

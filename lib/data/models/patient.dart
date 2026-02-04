@@ -156,6 +156,7 @@ class Patient {
     String? allergies,
     String? address,
     String? referencedBy,
+    String? registrationNumber,
   }) {
     return Patient(
       id: id ?? this.id,
@@ -174,6 +175,7 @@ class Patient {
       allergies: allergies ?? this.allergies,
       address: address ?? this.address,
       referencedBy: referencedBy ?? this.referencedBy,
+      registrationNumber: registrationNumber ?? this.registrationNumber,
     );
   }
 

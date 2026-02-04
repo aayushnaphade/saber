@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 import 'package:saber/data/api/error_handler.dart';
@@ -30,6 +33,9 @@ class _DashboardPageState extends State<DashboardPage> {
   var _doctorName = stows.userDisplayName.value;
   String? _avatarUrl = stows.userAvatarUrl.value;
   RealtimeChannel? _consultationsSubscription;
+  AudioPlayer? _audioPlayer;
+  bool _wasBusy = false;
+  bool _isFetching = false;
 
   // Dashboard Data
   var _isLoading = true;
@@ -46,9 +52,32 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
+    _initAudioPlayer();
     _loadDashboardData();
     _setupRealtimeSubscription();
     stows.isOnline.addListener(_onConnectivityChanged);
+  }
+
+  void _initAudioPlayer() {
+    // audioplayers 6.x initializes asynchronously in the constructor.
+    // We use runZonedGuarded to catch the MissingPluginException that may be thrown
+    // from an unawaited future inside the AudioPlayer constructor.
+    runZonedGuarded(() {
+      try {
+        final player = AudioPlayer();
+        _audioPlayer = player;
+      } catch (e) {
+        debugPrint('Dashboard: Synchronous AudioPlayer creation failed: $e');
+      }
+    }, (error, stack) {
+      if (error.toString().contains('audioplayers') ||
+          error is MissingPluginException) {
+        debugPrint('Dashboard: AudioPlayer plugin is not available: $error');
+        _audioPlayer = null; // Ensure we don't try to use a broken player
+      } else {
+        debugPrint('Dashboard: Unexpected AudioPlayer error: $error');
+      }
+    });
   }
 
   void _onConnectivityChanged() {
@@ -61,6 +90,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   void dispose() {
+    _audioPlayer?.dispose();
     stows.isOnline.removeListener(_onConnectivityChanged);
     if (_consultationsSubscription != null) {
       supabase.removeChannel(_consultationsSubscription!);
@@ -107,6 +137,9 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _fetchDashboardData() async {
+    if (_isFetching) return;
+    _isFetching = true;
+
     debugPrint('Dashboard: Fetching data from Supabase...');
     try {
       // Clean up past pending sessions first
@@ -121,6 +154,18 @@ class _DashboardPageState extends State<DashboardPage> {
 
       if (!mounted) return;
 
+      final currentActive = results[3] as QueueItem?;
+      final isNowBusy = currentActive != null;
+
+      // Play SFX if transitioning from Busy to Available in Reception Mode
+      if (_wasBusy && !isNowBusy && stows.receptionMode.value) {
+        debugPrint('Dashboard: Doctor is now available, playing SFX');
+        _audioPlayer?.play(AssetSource('doc_available_sfx.mp3')).catchError((e) {
+          debugPrint('Dashboard: Failed to play SFX: $e');
+        });
+      }
+      _wasBusy = isNowBusy;
+
       setState(() {
         _stats = results[0] as DashboardStats;
         _queue = results[1] as List<QueueItem>;
@@ -133,6 +178,10 @@ class _DashboardPageState extends State<DashboardPage> {
       );
     } catch (e, stack) {
       debugPrint('Dashboard: Error in _fetchDashboardData: $e\n$stack');
+    } finally {
+      if (mounted) {
+        setState(() => _isFetching = false);
+      }
     }
   }
 
@@ -397,7 +446,9 @@ class _DashboardPageState extends State<DashboardPage> {
           patientName: item.patientName,
           patientId: item.patientId,
         );
-        context.push(route);
+        if (context.mounted) {
+          context.push(route);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -411,7 +462,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Future<void> _handleCancelAppointment(String consultationId) async {
     try {
       await SupabaseDashboardService.cancelAppointment(consultationId);
-      if (mounted) {
+      if (mounted && context.mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Appointment cancelled')));
@@ -419,7 +470,7 @@ class _DashboardPageState extends State<DashboardPage> {
         _fetchDashboardData();
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(ErrorHandler.getFriendlyErrorMessage(e))),
         );
@@ -472,7 +523,13 @@ class _DashboardPageState extends State<DashboardPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 WelcomeHeader(doctorName: _doctorName, avatarUrl: _avatarUrl),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
+
+                // Doctor Status Indicator (for Reception Mode)
+                if (stows.receptionMode.value) ...[
+                  _buildDoctorStatusIndicator(),
+                  const SizedBox(height: 32),
+                ],
 
                 // Main Grid Layout
                 Builder(
@@ -489,6 +546,73 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDoctorStatusIndicator() {
+    final isBusy = _activeConsultation != null;
+    final theme = Theme.of(context);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isBusy
+            ? theme.colorScheme.errorContainer.withOpacity(0.3)
+            : const Color(0xFFD1FAE5).withOpacity(0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isBusy
+              ? theme.colorScheme.error.withOpacity(0.2)
+              : const Color(0xFF10B981).withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: isBusy ? theme.colorScheme.error : const Color(0xFF10B981),
+              shape: BoxShape.circle,
+              boxShadow: isBusy
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: const Color(0xFF10B981).withOpacity(0.5),
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      ),
+                    ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isBusy ? 'In Consultation' : 'Doctor Available',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isBusy
+                      ? theme.colorScheme.onErrorContainer
+                      : const Color(0xFF065F46),
+                ),
+              ),
+              Text(
+                isBusy
+                    ? 'Consultation in progress with ${_activeConsultation?.patientName}'
+                    : 'Ready for next patient',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: isBusy
+                      ? theme.colorScheme.onErrorContainer.withOpacity(0.7)
+                      : const Color(0xFF047857).withOpacity(0.8),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

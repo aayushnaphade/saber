@@ -376,41 +376,23 @@ class _FluidBlobPainter extends CustomPainter {
 
     final t = animation.value * 2 * math.pi;
 
-    // Draw blobs with INCREASED opacity
+    // Draw fewer blobs for better performance on mobile devices (e.g. Xiaomi/MIUI)
     _drawBlob(
       canvas,
-      dx: -250 + 130 * math.cos(t * 0.4),
-      dy: -250 + 130 * math.sin(t * 0.4),
+      dx: -200 + 100 * math.cos(t * 0.4),
+      dy: -200 + 100 * math.sin(t * 0.4),
       color: blob1Color,
-      opacity: isDark ? 0.65 : 0.35, // Increased from 0.5/0.2
-      radius: 350,
-    );
-
-    _drawBlob(
-      canvas,
-      dx: size.width - 100 + 130 * math.sin(t * 0.5),
-      dy: size.height - 100 + 130 * math.cos(t * 0.5),
-      color: blob2Color,
-      opacity: isDark ? 0.55 : 0.4, // Increased from 0.4/0.25
+      opacity: isDark ? 0.4 : 0.2,
       radius: 300,
     );
 
     _drawBlob(
       canvas,
-      dx: size.width - 100 + 100 * math.cos(t * 0.6),
-      dy: -50 + 100 * math.sin(t * 0.6),
-      color: blob3Color,
-      opacity: isDark ? 0.5 : 0.35, // Increased from 0.35/0.22
-      radius: 275,
-    );
-
-    _drawBlob(
-      canvas,
-      dx: -50 + 110 * math.sin(t * 0.3),
-      dy: size.height - 50 + 110 * math.cos(t * 0.3),
+      dx: size.width - 50 + 80 * math.sin(t * 0.5),
+      dy: size.height - 50 + 80 * math.cos(t * 0.5),
       color: blob2Color,
-      opacity: isDark ? 0.45 : 0.3, // Increased from 0.3/0.18
-      radius: 325,
+      opacity: isDark ? 0.3 : 0.2,
+      radius: 250,
     );
   }
 

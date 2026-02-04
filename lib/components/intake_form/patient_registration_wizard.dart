@@ -23,6 +23,8 @@ class _DoctorPatientRegistrationWizardState
   final _ageController = TextEditingController();
   final _genderController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _addressController = TextEditingController();
 
   // Vitals controllers
   final _systolicController = TextEditingController();
@@ -39,6 +41,8 @@ class _DoctorPatientRegistrationWizardState
     _ageController.dispose();
     _genderController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
+    _addressController.dispose();
     _systolicController.dispose();
     _diastolicController.dispose();
     _pulseController.dispose();
@@ -57,6 +61,12 @@ class _DoctorPatientRegistrationWizardState
         age: int.tryParse(_ageController.text.trim()),
         gender: _genderController.text.trim(),
         phoneNumber: _phoneController.text.trim(),
+        email: _emailController.text.trim().isEmpty
+            ? null
+            : _emailController.text.trim(),
+        address: _addressController.text.trim().isEmpty
+            ? null
+            : _addressController.text.trim(),
       );
 
       setState(() {
@@ -262,26 +272,67 @@ class _DoctorPatientRegistrationWizardState
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: TextFormField(
-                  controller: _genderController,
+                child: DropdownButtonFormField<String>(
+                  value: _genderController.text.isEmpty
+                      ? null
+                      : _genderController.text,
                   decoration: const InputDecoration(
                     labelText: 'Gender',
-                    prefixIcon: Icon(Icons.person_outline),
+                    prefixIcon: Icon(Icons.wc_outlined),
                     border: OutlineInputBorder(),
                   ),
+                  items: ['Male', 'Female', 'Other']
+                      .map((label) => DropdownMenuItem(
+                            value: label,
+                            child: Text(label),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _genderController.text = value ?? '';
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _phoneController,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.phone,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 20),
           TextFormField(
-            controller: _phoneController,
+            controller: _addressController,
             decoration: const InputDecoration(
-              labelText: 'Phone Number',
-              prefixIcon: Icon(Icons.phone_outlined),
+              labelText: 'Address',
+              prefixIcon: Icon(Icons.home_outlined),
               border: OutlineInputBorder(),
             ),
-            keyboardType: TextInputType.phone,
+            maxLines: 2,
           ),
         ],
       ),

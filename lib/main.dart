@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:args/args.dart';
+import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -59,6 +60,16 @@ Future<void> main(List<String> args) async {
 
 Future<void> appRunner(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Force loading of Battery class to avoid "Class: Battery which is not loaded yet" crash on some Android devices
+  // We use runZonedGuarded to catch potential MissingPluginException during init
+  runZonedGuarded(() {
+    try {
+      Battery();
+    } catch (_) {}
+  }, (error, stack) {
+    debugPrint('Main: Battery service init skipped: $error');
+  });
 
   final parser = ArgParser()..addFlag('verbose', abbr: 'v', negatable: false);
   final parsedArgs = parser.parse(args);
@@ -315,6 +326,8 @@ class App extends StatefulWidget {
             path: RoutePaths.patientDetail,
             builder: (context, state) => PatientProfilePage(
               patientId: state.pathParameters['patientId']!,
+              autoStartSession:
+                  state.uri.queryParameters['autoStartSession'] == 'true',
             ),
           ),
           GoRoute(

@@ -12,13 +12,13 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' as flutter_quill;
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:keybinder/keybinder.dart';
 import 'package:logging/logging.dart';
+import 'package:go_router/go_router.dart';
+import 'package:saber/components/animations/siri_circular_waveform.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
-import 'package:saber/components/animations/siri_circular_waveform.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/canvas.dart';
@@ -27,16 +27,17 @@ import 'package:saber/components/canvas/canvas_image.dart';
 import 'package:saber/components/canvas/canvas_preview.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
 import 'package:saber/components/canvas/save_indicator.dart';
-import 'package:saber/components/editor/previous_notes_overlay_card.dart';
+import 'package:saber/data/models/vitals.dart';
 import 'package:saber/components/intake_form/intake_overlay_card.dart'
     hide AnimatedBuilder;
 import 'package:saber/components/intake_form/psychiatric_intake_form.dart';
 import 'package:saber/components/intake_form/vitals_overlay_card.dart';
-import 'package:saber/components/navbar/responsive_navbar.dart';
+import 'package:saber/components/editor/previous_notes_overlay_card.dart';
+import 'package:saber/data/models/previous_session_note.dart';
 import 'package:saber/components/overlays/medication_history_overlay.dart';
+import 'package:saber/data/supabase/supabase_consultation_service.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
-import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/components/toolbar/color_bar.dart';
@@ -53,21 +54,19 @@ import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/extensions/change_notifier_extensions.dart';
 import 'package:saber/data/extensions/matrix4_extensions.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
-import 'package:saber/data/models/patient.dart';
-import 'package:saber/data/models/previous_session_note.dart';
 import 'package:saber/data/models/psychiatric_intake.dart';
-import 'package:saber/data/models/vitals.dart';
 import 'package:saber/data/prefs.dart';
-import 'package:saber/data/routes.dart';
-import 'package:saber/data/session_manager.dart';
-import 'package:saber/data/supabase/supabase_client.dart';
-import 'package:saber/data/supabase/supabase_consultation_service.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/data/supabase/supabase_intake_service.dart';
+import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_prescription_service.dart';
-import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/data/supabase/supabase_vitals_service.dart';
+import 'package:saber/data/routes.dart';
+import 'package:saber/data/session_manager.dart';
+import 'package:saber/data/supabase/supabase_report_service.dart';
+import 'package:saber/data/supabase/supabase_client.dart';
+import 'package:saber/main.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
 import 'package:saber/data/tools/highlighter.dart';
@@ -77,7 +76,6 @@ import 'package:saber/data/tools/pencil.dart';
 import 'package:saber/data/tools/select.dart';
 import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/i18n/strings.g.dart';
-import 'package:saber/main.dart';
 import 'package:saber/pages/editor/report_view.dart';
 import 'package:saber/pages/home/whiteboard.dart';
 import 'package:screenshot/screenshot.dart';
@@ -147,7 +145,7 @@ class Editor extends StatefulWidget {
 class EditorState extends State<Editor> {
   final log = Logger('EditorState');
 
-  var _isClearing = false;
+  bool _isClearing = false;
 
   late var coreInfo = EditorCoreInfo(filePath: '');
 
@@ -188,20 +186,19 @@ class EditorState extends State<Editor> {
 
   ValueNotifier<SavingState> savingState = ValueNotifier(SavingState.saved);
   Timer? _delayedSaveTimer;
-  Timer? _watchServerTimer;
 
   // Psychiatric intake overlay state
   PsychiatricIntake? _patientIntake;
-  var _showIntakeOverlay = false;
-  var _hasLoadedIntake = false;
-  var _isIntakeExpanded = false;
+  bool _showIntakeOverlay = false;
+  bool _hasLoadedIntake = false;
+  bool _isIntakeExpanded = false;
   Offset? _intakeOverlayPosition; // null means use default right-side position
 
   // Vitals overlay state
   List<Vitals> _vitalsHistory = [];
-  var _showVitalsOverlay =
+  bool _showVitalsOverlay =
       false; // Only show in minimized form if there are vitals entries
-  var _isVitalsExpanded = false;
+  bool _isVitalsExpanded = false;
   Offset? _vitalsOverlayPosition;
 
   String? _doctorName;
@@ -210,13 +207,13 @@ class EditorState extends State<Editor> {
   Patient? _patient;
 
   // Previous Session Notes overlay state
-  var _showPreviousNotesOverlay = false;
+  bool _showPreviousNotesOverlay = false;
   List<PreviousSessionNote> _previousNotes = [];
-  var _isLoadingPreviousNotes = false;
+  bool _isLoadingPreviousNotes = false;
   Offset? _previousNotesOverlayPosition;
 
   // Medication History overlay state
-  var _showMedicationHistoryOverlay = false;
+  bool _showMedicationHistoryOverlay = false;
   Offset? _medicationHistoryOverlayPosition;
 
   // used to prevent accidentally drawing when pinch zooming
@@ -344,7 +341,7 @@ class EditorState extends State<Editor> {
     try {
       // Extract patient ID from file path
       // Path format: .../patients/{patient_id}/session_notes/session_X/...
-      final String filePath = coreInfo.filePath;
+      String filePath = coreInfo.filePath;
       log.info('Attempting to load intake. Raw FilePath: $filePath');
 
       String? patientId;
@@ -1057,10 +1054,6 @@ class EditorState extends State<Editor> {
 
   // Note refresh removed - will be reimplemented with Supabase sync
   // See SYNAPSEAI_ROADMAP.md Phase 4
-  void _refreshCurrentNote() async {
-    // TODO: Implement Supabase-based sync check
-    return;
-  }
 
   void autosaveAfterDelay() {
     if (history.isCurrentStateSaved) return cancelAutosaveAndMarkSaved();
@@ -1154,6 +1147,19 @@ class EditorState extends State<Editor> {
     }
 
     if (!mounted) return;
+    
+    // Safety check: ensure there are pages before accessing them
+    if (coreInfo.pages.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No pages available for thumbnail generation'),
+          ),
+        );
+      }
+      return;
+    }
+    
     final screenshotter = ScreenshotController();
     final page = coreInfo.pages.first;
     final previewHeight = page.previewHeight(lineHeight: coreInfo.lineHeight);
@@ -1395,9 +1401,10 @@ class EditorState extends State<Editor> {
       allowMultiple: false,
       withData: false,
     );
-    if (result == null) return false;
+    if (result == null || result.files.isEmpty) return false;
 
-    final PlatformFile file = result.files.single;
+    final PlatformFile file = result.files.first; // Use .first with empty check instead of .single
+    if (file.path == null) return false;
     return importPdfFromFilePath(file.path!);
   }
 
@@ -1543,6 +1550,8 @@ class EditorState extends State<Editor> {
       final patient = await SupabasePatientService.getPatient(patientId);
       if (patient == null || !mounted) return;
 
+      if (!context.mounted) return;
+
       final result = await Navigator.of(context).push<PsychiatricIntake>(
         MaterialPageRoute(
           builder: (context) => PsychiatricIntakeForm(
@@ -1556,11 +1565,11 @@ class EditorState extends State<Editor> {
                 final savedIntake = await SupabaseIntakeService.upsertIntake(
                   intake,
                 );
-                if (mounted) {
+                if (mounted && context.mounted) {
                   Navigator.of(context).pop(savedIntake);
                 }
               } catch (e) {
-                if (mounted) {
+                if (mounted && context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
@@ -1570,19 +1579,23 @@ class EditorState extends State<Editor> {
                 }
               }
             },
-            onCancel: () => Navigator.of(context).pop(),
+            onCancel: () {
+              if (context.mounted) {
+                Navigator.of(context).pop();
+              }
+            },
           ),
         ),
       );
 
-      if (result != null && mounted) {
+      if (result != null && mounted && context.mounted) {
         setState(() {
           _patientIntake = result;
         });
       }
     } catch (e) {
       log.warning('Failed to open intake form: $e');
-      if (mounted) {
+      if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(ErrorHandler.getFriendlyErrorMessage(e))),
         );
@@ -1699,7 +1712,6 @@ class EditorState extends State<Editor> {
     }
   }
 
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -1997,7 +2009,7 @@ class EditorState extends State<Editor> {
     // We use a SINGLE LayoutBuilder and Stack here to prevent layout cycles/ANRs
     // caused by nested LayoutBuilders in previous implementations.
 
-    final Widget finalCanvasWithOverlay = LayoutBuilder(
+    Widget finalCanvasWithOverlay = LayoutBuilder(
       builder: (context, constraints) {
         final List<Widget> stackChildren = [canvas];
 
@@ -2059,36 +2071,32 @@ class EditorState extends State<Editor> {
               children: [
                 // 1. Intake
                 if (_patientId != null || _patientIntake != null) ...[
-                  if (_showIntakeOverlay && _intakeOverlayPosition == null)
-                    _buildDraggableIntakeOverlay(constraints)
-                  else
-                    _buildIntakeButton(colorScheme, theme),
+                  _showIntakeOverlay && _intakeOverlayPosition == null
+                      ? _buildDraggableIntakeOverlay(constraints)
+                      : _buildIntakeButton(colorScheme, theme),
                   const SizedBox(height: 16),
                 ],
                 // 2. Vitals
                 if (_patientId != null) ...[
-                  if (_showVitalsOverlay && _vitalsOverlayPosition == null)
-                    _buildDraggableVitalsOverlay(constraints)
-                  else
-                    _buildVitalsButton(colorScheme, theme),
+                  _showVitalsOverlay && _vitalsOverlayPosition == null
+                      ? _buildDraggableVitalsOverlay(constraints)
+                      : _buildVitalsButton(colorScheme, theme),
                   const SizedBox(height: 16),
                 ],
                 // 3. Previous Notes
                 if (_patientId != null) ...[
-                  if (_showPreviousNotesOverlay &&
-                      _previousNotesOverlayPosition == null)
-                    _buildDraggablePreviousNotesOverlay(constraints)
-                  else
-                    _buildPreviousNotesButton(colorScheme, theme),
+                  _showPreviousNotesOverlay &&
+                          _previousNotesOverlayPosition == null
+                      ? _buildDraggablePreviousNotesOverlay(constraints)
+                      : _buildPreviousNotesButton(colorScheme, theme),
                   const SizedBox(height: 16),
                 ],
                 // 4. Medication History
                 if (_patientId != null) ...[
-                  if (_showMedicationHistoryOverlay &&
-                      _medicationHistoryOverlayPosition == null)
-                    _buildDraggableMedicationHistoryOverlay(constraints)
-                  else
-                    _buildMedicationHistoryButton(colorScheme, theme),
+                  _showMedicationHistoryOverlay &&
+                          _medicationHistoryOverlayPosition == null
+                      ? _buildDraggableMedicationHistoryOverlay(constraints)
+                      : _buildMedicationHistoryButton(colorScheme, theme),
                 ],
               ],
             ),
@@ -2103,8 +2111,8 @@ class EditorState extends State<Editor> {
     if (isToolbarVertical) {
       body = Row(
         textDirection: stows.editorToolbarAlignment.value == AxisDirection.left
-            ? ui.TextDirection.ltr
-            : ui.TextDirection.rtl,
+            ? .ltr
+            : .rtl,
         children: [
           toolbar,
           Expanded(
@@ -2118,266 +2126,179 @@ class EditorState extends State<Editor> {
         ],
       );
     } else {
-      body = LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            physics: const NeverScrollableScrollPhysics(),
-            child: SizedBox(
-              height: constraints.maxHeight,
-              child: Column(
-                verticalDirection:
-                    stows.editorToolbarAlignment.value == AxisDirection.up
-                    ? VerticalDirection.up
-                    : VerticalDirection.down,
-                children: [
-                  Expanded(child: finalCanvasWithOverlay),
-                  toolbar,
-                  if (readonlyBanner != null) readonlyBanner,
-                ],
-              ),
-            ),
-          );
-        },
+      body = Column(
+        verticalDirection:
+            stows.editorToolbarAlignment.value == AxisDirection.up
+            ? VerticalDirection.up
+            : VerticalDirection.down,
+        children: [
+          Expanded(child: finalCanvasWithOverlay),
+          toolbar,
+          if (readonlyBanner != null) readonlyBanner,
+        ],
       );
     }
 
-    return Hero(
-      tag: 'active_session',
-      flightShuttleBuilder:
-          (
-            flightContext,
-            animation,
-            flightDirection,
-            fromHeroContext,
-            toHeroContext,
-          ) {
-            final Hero toHero = toHeroContext.widget as Hero;
-            return FadeTransition(
-              opacity: animation.drive(
-                CurveTween(
-                  curve: flightDirection == HeroFlightDirection.push
-                      ? Curves.easeInOutExpo
-                      : Curves.easeInOutExpo,
-                ),
-              ),
-              child: toHero.child,
-            );
-          },
-      child: ValueListenableBuilder(
-        valueListenable: savingState,
-        builder: (context, savingState, child) {
-          // handle session minimization on back navigation
-          return PopScope(
-            canPop: savingState != SavingState.saving,
-            onPopInvokedWithResult: (didPop, _) {
-              if (!didPop) {
-                snackBarNeedsToSaveBeforeExiting();
-                return;
-              }
+    return ValueListenableBuilder(
+      valueListenable: savingState,
+      builder: (context, savingState, child) {
+        // handle session minimization on back navigation
+        return PopScope(
+          canPop: savingState != SavingState.saving,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) {
+              snackBarNeedsToSaveBeforeExiting();
+              return;
+            }
 
-              // The pop happened. Use a post-frame callback to trigger minimization
-              // to avoid state changes during the transition/pop processing.
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!widget.readOnly &&
-                    SessionManager().hasActiveSession &&
-                    SessionManager().isMinimized == false) {
-                  SessionManager().minimize();
-                }
-              });
-            },
-            child: child!,
-          );
-        },
-        child: Scaffold(
-          appBar: DynamicMaterialApp.isFullscreen
-              ? null
-              : PreferredSize(
-                  preferredSize: Size.fromHeight(
-                    ResponsiveNavbar.isLargeScreen ? 104 : kToolbarHeight,
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      top: ResponsiveNavbar.isLargeScreen ? 24 : 0,
-                    ),
-                    child: AppBar(
-                      centerTitle: false,
-                      toolbarHeight: kToolbarHeight,
-                      title: widget.customTitle != null
-                          ? Text(
-                              widget.customTitle!,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          : _patientName != null
-                          ? Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _patientName!,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  coreInfo.fileName,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.normal,
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Form(
-                              key: _filenameFormKey,
-                              autovalidateMode:
-                                  AutovalidateMode.onUserInteraction,
-                              child: TextFormField(
-                                decoration: const InputDecoration(
-                                  border: InputBorder.none,
-                                ),
-                                controller: filenameTextEditingController,
-                                onChanged: renameFile,
-                                autofocus: needsNaming,
-                                validator: _validateFilenameTextField,
-                              ),
+            // The pop happened. Use a post-frame callback to trigger minimization
+            // to avoid state changes during the transition/pop processing.
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!widget.readOnly &&
+                  SessionManager().hasActiveSession &&
+                  SessionManager().isMinimized == false) {
+                SessionManager().minimize();
+              }
+            });
+          },
+          child: child!,
+        );
+      },
+      child: Scaffold(
+        appBar: DynamicMaterialApp.isFullscreen
+            ? null
+            : AppBar(
+                centerTitle: false,
+                toolbarHeight: kToolbarHeight,
+                title: widget.customTitle != null
+                    ? Text(
+                        widget.customTitle!,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      )
+                    : _patientName != null
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _patientName!,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
-                      leading: IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                        onPressed: () {
-                          debugPrint('Editor: Back button pressed');
-                          if (savingState.value == SavingState.saving) {
-                            snackBarNeedsToSaveBeforeExiting();
-                          } else {
-                            if (Navigator.of(context).canPop()) {
-                              if (!widget.readOnly &&
-                                  SessionManager().hasActiveSession) {
-                                SessionManager().minimize();
-                              }
-                              context.pop();
-                            } else {
-                              if (!widget.readOnly &&
-                                  SessionManager().hasActiveSession) {
-                                SessionManager().minimize();
-                              }
-                              context.go(HomeRoutes.getRoute(0));
-                            }
-                          }
-                        },
-                      ),
-                      actions: [
-                        if (!coreInfo.readOnly && !widget.isWhiteboard)
-                          SaveIndicator(
-                            savingState: savingState,
-                            triggerSave: saveToFile,
                           ),
-                        if (widget.isWhiteboard)
-                          _buildClearWhiteboardButton(context),
-                        if (!coreInfo.readOnly && !widget.isWhiteboard)
-                          const SizedBox(width: 16),
-                        if (!coreInfo.readOnly && !widget.isWhiteboard)
-                          _buildTerminateButton(context),
-                        if (!coreInfo.readOnly && !widget.isWhiteboard)
-                          const SizedBox(width: 20),
-                        if (!coreInfo.readOnly && !widget.isWhiteboard)
-                          Container(
-                            margin: const EdgeInsets.symmetric(vertical: 8),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.blue.shade500,
-                                  Colors.blue.shade700,
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.blue.withValues(alpha: 0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
+                          Text(
+                            coreInfo.fileName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.normal,
                             ),
-                            child: TextButton.icon(
-                              icon: const Icon(
-                                Icons.auto_awesome,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                              label: const Text(
-                                'Finish Session',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              onPressed: () async {
-                                // Check if report already exists for this session
+                          ),
+                        ],
+                      )
+                    : Form(
+                        key: _filenameFormKey,
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                        child: TextFormField(
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                          ),
+                          controller: filenameTextEditingController,
+                          onChanged: renameFile,
+                          autofocus: needsNaming,
+                          validator: _validateFilenameTextField,
+                        ),
+                      ),
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                  onPressed: () {
+                    debugPrint('Editor: Back button pressed');
+                    if (!context.mounted) return;
+                    
+                    if (savingState.value == SavingState.saving) {
+                      snackBarNeedsToSaveBeforeExiting();
+                    } else {
+                      // Safety fallback: if there is no stack to pop (can happen with go_router),
+                      // navigate to the dashboard explicitly instead of popping to black.
+                      if (Navigator.of(context).canPop() && context.mounted) {
+                        context.pop();
+                      } else if (context.mounted) {
+                        // If no session terminated, minimize first before moving
+                        if (!widget.readOnly &&
+                            SessionManager().hasActiveSession) {
+                          SessionManager().minimize();
+                        }
+                        if (context.mounted) {
+                          context.go(HomeRoutes.getRoute(0));
+                        }
+                      }
+                    }
+                  },
+                ),
+                actions: [
+                  if (!coreInfo.readOnly && !widget.isWhiteboard)
+                    SaveIndicator(
+                      savingState: savingState,
+                      triggerSave: saveToFile,
+                    ),
+                  if (widget.isWhiteboard) _buildClearWhiteboardButton(context),
+                  if (!coreInfo.readOnly && !widget.isWhiteboard)
+                    const SizedBox(width: 16),
+                  if (!coreInfo.readOnly && !widget.isWhiteboard)
+                    _buildTerminateButton(context),
+                  if (!coreInfo.readOnly && !widget.isWhiteboard)
+                    const SizedBox(width: 20),
+                  if (!coreInfo.readOnly && !widget.isWhiteboard)
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.blue.shade500, Colors.blue.shade700],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.blue.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: TextButton.icon(
+                        icon: const Icon(
+                          Icons.auto_awesome,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        label: const Text(
+                          'Finish Session',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onPressed: coreInfo.readOnly
+                            ? null
+                            : () async {
+                                // First, check if a report already exists for this session
+                                log.info(
+                                  'Checking for existing report with path: ${coreInfo.filePath}',
+                                );
+                                ClinicalReport? existingReport;
                                 try {
-                                  final existingReport =
+                                  existingReport =
                                       await SupabaseReportService.getReportBySourcePath(
                                         coreInfo.filePath,
                                       );
-                                  if (existingReport != null && mounted) {
-                                    _showReportDialog(
-                                      context,
-                                      existingReport.structuredData,
-                                      <Uint8List>[],
-                                      onRegenerate: () async {
-                                        // Close current report first
-                                        Navigator.pop(context);
-                                        // Show confirmation for regeneration
-                                        final confirmRegen = await showDialog<bool>(
-                                          context: context,
-                                          barrierDismissible: false,
-                                          builder: (dialogContext) =>
-                                              AdaptiveAlertDialog(
-                                                title: const Text(
-                                                  'Regenerate Report?',
-                                                ),
-                                                content: const Text(
-                                                  'This will replace the existing report with a new one. This action cannot be undone.',
-                                                ),
-                                                actions: [
-                                                  CupertinoDialogAction(
-                                                    child: Text(
-                                                      t.common.cancel,
-                                                    ),
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                          dialogContext,
-                                                          false,
-                                                        ),
-                                                  ),
-                                                  CupertinoDialogAction(
-                                                    isDestructiveAction: true,
-                                                    child: const Text(
-                                                      'Regenerate',
-                                                    ),
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                          dialogContext,
-                                                          true,
-                                                        ),
-                                                  ),
-                                                ],
-                                              ),
-                                        );
-
-                                        if ((confirmRegen ?? false) &&
-                                            mounted) {
-                                          await SupabaseReportService.deleteReport(
-                                            existingReport.id,
-                                          );
-                                          if (mounted) _generateReport(context);
-                                        }
-                                      },
+                                  if (existingReport != null) {
+                                    log.info(
+                                      'Found existing report: ${existingReport.id}',
                                     );
-                                    return;
+                                  } else {
+                                    log.info(
+                                      'No existing report found for this session',
+                                    );
                                   }
                                 } catch (e) {
                                   log.warning(
@@ -2385,8 +2306,206 @@ class EditorState extends State<Editor> {
                                   );
                                 }
 
-                                // No existing report, show confirmation
-                                if (!mounted) return;
+                                if (existingReport != null) {
+                                  // Show existing report without confirmation
+                                  if (!context.mounted) return;
+                                  log.info(
+                                    'Showing existing report instead of generating new one',
+                                  );
+                                  _showReportDialog(
+                                    context,
+                                    existingReport.structuredData,
+                                    <Uint8List>[],
+                                    onRegenerate: () async {
+                                      // Close the current dialog
+                                      Navigator.pop(context);
+
+                                      // Show confirmation dialog for regeneration
+                                      final confirmRegen = await showDialog<bool>(
+                                        context: context,
+                                        barrierDismissible: false,
+                                        builder: (dialogContext) => Dialog(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                          ),
+                                          child: Container(
+                                            constraints: const BoxConstraints(
+                                              maxWidth: 400,
+                                            ),
+                                            padding: const EdgeInsets.all(24),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                // Warning icon with gradient background
+                                                Container(
+                                                  width: 80,
+                                                  height: 80,
+                                                  decoration: BoxDecoration(
+                                                    gradient: LinearGradient(
+                                                      colors: [
+                                                        Colors.orange.shade400,
+                                                        Colors.orange.shade700,
+                                                      ],
+                                                      begin: Alignment.topLeft,
+                                                      end:
+                                                          Alignment.bottomRight,
+                                                    ),
+                                                    shape: BoxShape.circle,
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.orange
+                                                            .withValues(
+                                                              alpha: 0.3,
+                                                            ),
+                                                        blurRadius: 12,
+                                                        spreadRadius: 2,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.refresh,
+                                                    color: Colors.white,
+                                                    size: 40,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 24),
+                                                // Title
+                                                Text(
+                                                  'Regenerate Report?',
+                                                  style: Theme.of(dialogContext)
+                                                      .textTheme
+                                                      .headlineSmall
+                                                      ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                                const SizedBox(height: 12),
+                                                // Description
+                                                Text(
+                                                  'This will generate a new AI report for this session. The current report will be replaced. This action cannot be undone.',
+                                                  style: Theme.of(dialogContext)
+                                                      .textTheme
+                                                      .bodyMedium
+                                                      ?.copyWith(
+                                                        color:
+                                                            Theme.of(
+                                                                  dialogContext,
+                                                                )
+                                                                .colorScheme
+                                                                .onSurfaceVariant,
+                                                      ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                                const SizedBox(height: 24),
+                                                // Action buttons
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: OutlinedButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                              dialogContext,
+                                                              false,
+                                                            ),
+                                                        style: OutlinedButton.styleFrom(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                vertical: 14,
+                                                              ),
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  12,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        child: Text(
+                                                          t.common.cancel,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 12),
+                                                    Expanded(
+                                                      child: FilledButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                              dialogContext,
+                                                              true,
+                                                            ),
+                                                        style: FilledButton.styleFrom(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                vertical: 14,
+                                                              ),
+                                                          backgroundColor:
+                                                              Colors
+                                                                  .orange
+                                                                  .shade700,
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  12,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        child: const Text(
+                                                          'Regenerate',
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      );
+
+                                      // If confirmed, delete the old report and generate a new one
+                                      if (confirmRegen == true &&
+                                          context.mounted) {
+                                        try {
+                                          // Delete the existing report from database
+                                          await SupabaseReportService.deleteReport(
+                                            existingReport!.id,
+                                          );
+                                          log.info(
+                                            'Deleted existing report ${existingReport!.id}',
+                                          );
+
+                                          // Generate new report
+                                          _generateReport(context);
+                                        } catch (e) {
+                                          log.severe(
+                                            'Failed to delete existing report',
+                                            e,
+                                          );
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Failed to regenerate report: $e',
+                                                ),
+                                                backgroundColor: Theme.of(
+                                                  context,
+                                                ).colorScheme.error,
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      }
+                                    },
+                                  );
+                                  return;
+                                }
+
+                                // No existing report, show confirmation dialog
                                 final confirm = await showDialog<bool>(
                                   context: context,
                                   barrierDismissible: false,
@@ -2402,6 +2521,7 @@ class EditorState extends State<Editor> {
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
+                                          // Icon with gradient background
                                           Container(
                                             width: 80,
                                             height: 80,
@@ -2432,6 +2552,7 @@ class EditorState extends State<Editor> {
                                             ),
                                           ),
                                           const SizedBox(height: 24),
+                                          // Title
                                           Text(
                                             'Generate AI Report?',
                                             style: Theme.of(dialogContext)
@@ -2443,6 +2564,7 @@ class EditorState extends State<Editor> {
                                             textAlign: TextAlign.center,
                                           ),
                                           const SizedBox(height: 12),
+                                          // Description
                                           Text(
                                             'This will finalize the session and generate a comprehensive clinical report using AI. The editor will be locked after generation.',
                                             style: Theme.of(dialogContext)
@@ -2456,6 +2578,7 @@ class EditorState extends State<Editor> {
                                             textAlign: TextAlign.center,
                                           ),
                                           const SizedBox(height: 24),
+                                          // Action buttons
                                           Row(
                                             children: [
                                               Expanded(
@@ -2515,111 +2638,103 @@ class EditorState extends State<Editor> {
                                   ),
                                 );
 
-                                if ((confirm ?? false) && mounted) {
+                                if (confirm == true && context.mounted) {
                                   _generateReport(context);
                                 }
                               },
-                            ),
-                          ),
-                        if (coreInfo.readOnly)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8.0),
-                            child: TextButton.icon(
-                              onPressed: () {
-                                setState(() {
-                                  coreInfo.readOnly = false;
-                                });
-                              },
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              label: const Text(
-                                'Unlock to Edit',
-                                style: TextStyle(
-                                  color: Colors.blue,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              style: TextButton.styleFrom(
-                                backgroundColor: Colors.blue.withOpacity(0.1),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ),
-                        IconButton(
-                          icon: const AdaptiveIcon(
-                            icon: Icons.insert_page_break,
-                            cupertinoIcon: CupertinoIcons.add,
-                          ),
-                          tooltip: t.editor.menu.insertPage,
-                          onPressed: () => setState(() {
-                            final currentPageIndex = this.currentPageIndex;
-                            insertPageAfter(currentPageIndex);
-                            CanvasGestureDetector.scrollToPage(
-                              pageIndex: currentPageIndex + 1,
-                              pages: coreInfo.pages,
-                              screenWidth: MediaQuery.sizeOf(context).width,
-                              transformationController:
-                                  _transformationController,
-                            );
-                          }),
-                        ),
-                        IconButton(
-                          icon: const AdaptiveIcon(
-                            icon: Icons.grid_view,
-                            cupertinoIcon: CupertinoIcons.rectangle_grid_2x2,
-                          ),
-                          tooltip: t.editor.pages,
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => AdaptiveAlertDialog(
-                                title: Text(t.editor.pages),
-                                content: pageManager(context),
-                                actions: const [],
-                              ),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: const AdaptiveIcon(
-                            icon: Icons.more_vert,
-                            cupertinoIcon: CupertinoIcons.ellipsis_vertical,
-                          ),
-                          onPressed: () {
-                            showModalBottomSheet(
-                              context: context,
-                              builder: (context) => bottomSheet(context),
-                              isScrollControlled: true,
-                              showDragHandle: true,
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.surface,
-                              constraints: const BoxConstraints(maxWidth: 500),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                      ],
+                      ),
                     ),
+                  if (coreInfo.readOnly)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            coreInfo.readOnly = false;
+                          });
+                        },
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        label: const Text(
+                          'Unlock to Edit',
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          backgroundColor: Colors.blue.withOpacity(0.1),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  IconButton(
+                    icon: const AdaptiveIcon(
+                      icon: Icons.insert_page_break,
+                      cupertinoIcon: CupertinoIcons.add,
+                    ),
+                    tooltip: t.editor.menu.insertPage,
+                    onPressed: () => setState(() {
+                      final currentPageIndex = this.currentPageIndex;
+                      insertPageAfter(currentPageIndex);
+                      CanvasGestureDetector.scrollToPage(
+                        pageIndex: currentPageIndex + 1,
+                        pages: coreInfo.pages,
+                        screenWidth: MediaQuery.sizeOf(context).width,
+                        transformationController: _transformationController,
+                      );
+                    }),
                   ),
-                ),
-          body: body,
-          floatingActionButton:
-              (DynamicMaterialApp.isFullscreen &&
-                  !stows.editorToolbarShowInFullscreen.value)
-              ? FloatingActionButton(
-                  shape: platform.isCupertino ? const CircleBorder() : null,
-                  onPressed: () {
-                    DynamicMaterialApp.setFullscreen(false, updateSystem: true);
-                  },
-                  child: const Icon(Icons.fullscreen_exit),
-                )
-              : null,
-        ),
+                  IconButton(
+                    icon: const AdaptiveIcon(
+                      icon: Icons.grid_view,
+                      cupertinoIcon: CupertinoIcons.rectangle_grid_2x2,
+                    ),
+                    tooltip: t.editor.pages,
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AdaptiveAlertDialog(
+                          title: Text(t.editor.pages),
+                          content: pageManager(context),
+                          actions: const [],
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: const AdaptiveIcon(
+                      icon: Icons.more_vert,
+                      cupertinoIcon: CupertinoIcons.ellipsis_vertical,
+                    ),
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        builder: (context) => bottomSheet(context),
+                        isScrollControlled: true,
+                        showDragHandle: true,
+                        backgroundColor: colorScheme.surface,
+                        constraints: const BoxConstraints(maxWidth: 500),
+                      );
+                    },
+                  ),
+                ],
+              ),
+        body: body,
+        floatingActionButton:
+            (DynamicMaterialApp.isFullscreen &&
+                !stows.editorToolbarShowInFullscreen.value)
+            ? FloatingActionButton(
+                shape: platform.isCupertino ? const CircleBorder() : null,
+                onPressed: () {
+                  DynamicMaterialApp.setFullscreen(false, updateSystem: true);
+                },
+                child: const Icon(Icons.fullscreen_exit),
+              )
+            : null,
       ),
     );
   }
@@ -2677,28 +2792,6 @@ class EditorState extends State<Editor> {
         if (coreInfo.readOnly) return;
         autosaveAfterDelay();
       }),
-      pickPhotos: _pickPhotos,
-      importPdf: importPdf,
-      canRasterPdf: Editor.canRasterPdf,
-      getIsWatchingServer: () => _watchServerTimer?.isActive ?? false,
-      setIsWatchingServer: (bool watch) {
-        if (watch) {
-          _watchServerTimer ??= Timer.periodic(
-            const Duration(seconds: 5),
-            (_) => _refreshCurrentNote(),
-          );
-          coreInfo.readOnlyBecauseWatchingServer |= !coreInfo.readOnly;
-          if (!coreInfo.readOnly) setState(() => coreInfo.readOnly = true);
-        } else {
-          _watchServerTimer?.cancel();
-          _watchServerTimer = null;
-          if (coreInfo.readOnlyBecauseWatchingServer)
-            setState(() {
-              coreInfo.readOnly = false;
-              coreInfo.readOnlyBecauseWatchingServer = false;
-            });
-        }
-      },
     );
   }
 
@@ -2970,69 +3063,174 @@ class EditorState extends State<Editor> {
     );
   }
 
-  Future<void> _confirmTerminateSession(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+  void _confirmTerminateSession(BuildContext context) {
+    showDialog(
       context: context,
-      builder: (context) => const PremiumConfirmationDialog(
-        title: 'Terminate Session?',
-        content:
-            'Are you sure you want to end this session? Any unsaved changes will be permanently lost.',
-        confirmLabel: 'Terminate',
-        cancelLabel: 'Keep Writing',
-        icon: Icons.warning_amber_rounded,
-        iconColor: Colors.red,
-        isDestructive: true,
+      builder: (dialogContext) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 400),
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 30,
+                offset: const Offset(0, 15),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.red,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Terminate Session?',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Are you sure you want to end this session? Any unsaved changes will be permanently lost.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.5,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(height: 32),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        side: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Text(
+                        'Keep Writing',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () async {
+                        // 1. Cancel in DB if we have a consultation ID
+                        final consultationId =
+                            widget.consultationId ??
+                            SessionManager().consultationId;
+                        if (consultationId != null) {
+                          try {
+                            await SupabaseDashboardService.cancelAppointment(
+                              consultationId,
+                            );
+                          } catch (e) {
+                            log.warning(
+                              'Failed to cancel appointment in DB: $e',
+                            );
+                          }
+                        }
+
+                        // 2. Delete the session file/folder
+                        try {
+                          final relativePath = coreInfo.filePath;
+                          log.info(
+                            'Terminating session. File path: $relativePath',
+                          );
+
+                          final parentDir = p.dirname(relativePath);
+                          final parentDirName = p.basename(parentDir);
+
+                          // Check if parent dir is like "session_123"
+                          if (parentDirName.startsWith('session_')) {
+                            // Delete the entire session directory
+                            log.info('Deleting session directory: $parentDir');
+                            await FileManager.deleteDirectory(parentDir);
+                          } else {
+                            // Just delete the file
+                            log.info('Deleting session file: $relativePath');
+                            await FileManager.deleteFile(relativePath);
+                          }
+                        } catch (e) {
+                          log.warning(
+                            'Failed to delete terminated session file: $e',
+                          );
+                        }
+
+                        // 3. Terminate local state
+                        SessionManager().terminate();
+
+                        // 4. Close dialog
+                        if (dialogContext.mounted) {
+                          Navigator.of(dialogContext).pop();
+                        }
+
+                        // 5. Navigate away
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (context.mounted) {
+                            if (Navigator.of(context).canPop()) {
+                              context.pop();
+                            } else {
+                              context.go(HomeRoutes.getRoute(0));
+                            }
+                          }
+                        });
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Terminate',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
-
-    if (confirmed == true && context.mounted) {
-      // 1. Cancel in DB if we have a consultation ID
-      final consultationId =
-          widget.consultationId ?? SessionManager().consultationId;
-      if (consultationId != null) {
-        try {
-          await SupabaseDashboardService.cancelAppointment(consultationId);
-        } catch (e) {
-          log.warning('Failed to cancel appointment in DB: $e');
-        }
-      }
-
-      // 2. Delete the session file/folder
-      try {
-        final relativePath = coreInfo.filePath;
-        log.info('Terminating session. File path: $relativePath');
-
-        final parentDir = p.dirname(relativePath);
-        final parentDirName = p.basename(parentDir);
-
-        // Check if parent dir is like "session_123"
-        if (parentDirName.startsWith('session_')) {
-          // Delete the entire session directory
-          log.info('Deleting session directory: $parentDir');
-          await FileManager.deleteDirectory(parentDir);
-        } else {
-          // Just delete the file
-          log.info('Deleting session file: $relativePath');
-          await FileManager.deleteFile(relativePath);
-        }
-      } catch (e) {
-        log.warning('Failed to delete terminated session file: $e');
-      }
-
-      // 3. Terminate local state
-      SessionManager().terminate();
-
-      // 4. Navigate away
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted) {
-          if (Navigator.of(context).canPop()) {
-            context.pop();
-          } else {
-            context.go(HomeRoutes.getRoute(0));
-          }
-        }
-      });
-    }
   }
 
   Widget _buildClearWhiteboardButton(BuildContext context) {
@@ -3195,7 +3393,6 @@ class EditorState extends State<Editor> {
     DynamicMaterialApp.removeFullscreenListener(_setState);
 
     _delayedSaveTimer?.cancel();
-    _watchServerTimer?.cancel();
     _lastSeenPointerCountTimer?.cancel();
 
     _removeKeybindings();
@@ -3236,7 +3433,7 @@ class EditorState extends State<Editor> {
 
       builder: (context) => Dialog(
         insetPadding: const EdgeInsets.all(16),
-        child: DecoratedBox(
+        child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -3265,7 +3462,7 @@ class EditorState extends State<Editor> {
                 separatorBuilder: (context, index) =>
                     const SizedBox(height: 24),
                 itemBuilder: (context, index) {
-                  return DecoratedBox(
+                  return Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -4053,7 +4250,7 @@ class EditorState extends State<Editor> {
 }
 
 class _ReportGenerationDialog extends StatefulWidget {
-  const _ReportGenerationDialog();
+  const _ReportGenerationDialog({super.key});
 
   @override
   State<_ReportGenerationDialog> createState() =>
@@ -4065,15 +4262,13 @@ class _ReportGenerationDialogState extends State<_ReportGenerationDialog>
   late AnimationController _progressController;
   late AnimationController _backgroundController;
   late AnimationController _fadeController;
-  var _currentMessage = 'Synapse AI is thinking...';
-  Timer? _messageTimer;
 
   @override
   void initState() {
     super.initState();
     _progressController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 20),
+      duration: const Duration(seconds: 15),
     )..forward();
     _backgroundController = AnimationController(
       vsync: this,
@@ -4083,18 +4278,6 @@ class _ReportGenerationDialogState extends State<_ReportGenerationDialog>
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     )..forward();
-
-    // Setup message rotation timers
-    _messageTimer = Timer(const Duration(seconds: 15), () {
-      if (mounted) {
-        setState(() => _currentMessage = 'Just taking a little more time...');
-      }
-      _messageTimer = Timer(const Duration(seconds: 10), () {
-        if (mounted) {
-          setState(() => _currentMessage = 'Almost there...');
-        }
-      });
-    });
   }
 
   @override
@@ -4102,7 +4285,6 @@ class _ReportGenerationDialogState extends State<_ReportGenerationDialog>
     _progressController.dispose();
     _backgroundController.dispose();
     _fadeController.dispose();
-    _messageTimer?.cancel();
     super.dispose();
   }
 
@@ -4178,35 +4360,26 @@ class _ReportGenerationDialogState extends State<_ReportGenerationDialog>
               ),
             ),
 
-            // Dynamic messages at the bottom
+            // "Synapse AI is thinking..." at the bottom
             Positioned(
               bottom: 80,
               left: 0,
               right: 0,
               child: Center(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 500),
-                  transitionBuilder:
-                      (Widget child, Animation<double> animation) {
-                        return FadeTransition(opacity: animation, child: child);
-                      },
-                  child: Text(
-                    _currentMessage,
-                    key: ValueKey(_currentMessage),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.8),
-                          offset: const Offset(0, 4),
-                          blurRadius: 10,
-                        ),
-                      ],
-                    ),
+                child: Text(
+                  'Synapse AI is thinking...',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withOpacity(0.8),
+                        offset: const Offset(0, 4),
+                        blurRadius: 10,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -4224,52 +4397,13 @@ class _ReportGenerationDialogState extends State<_ReportGenerationDialog>
                     child: AnimatedBuilder(
                       animation: _progressController,
                       builder: (context, child) {
-                        // Use a non-linear curve: fast to 90%, then very slow
-                        final double value = Curves.easeOutCubic.transform(
-                          _progressController.value,
-                        );
-
-                        return Stack(
-                          children: [
-                            LinearProgressIndicator(
-                              minHeight: 6,
-                              value:
-                                  value *
-                                  0.98, // Never quite hits 100% until closed
-                              backgroundColor: Colors.white.withOpacity(0.05),
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                const Color(0xFF93D6F6).withOpacity(0.8),
-                              ),
-                            ),
-                            // Add shimmer/motion overlay if taking longer
-                            if (_progressController.value > 0.75)
-                              Positioned.fill(
-                                child: AnimatedBuilder(
-                                  animation: _backgroundController,
-                                  builder: (context, child) {
-                                    return FractionallySizedBox(
-                                      alignment: Alignment(
-                                        -1.0 +
-                                            (_backgroundController.value * 2),
-                                        0,
-                                      ),
-                                      widthFactor: 0.3,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              Colors.transparent,
-                                              Colors.white.withOpacity(0.2),
-                                              Colors.transparent,
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                          ],
+                        return LinearProgressIndicator(
+                          minHeight: 6,
+                          value: _progressController.value,
+                          backgroundColor: Colors.white.withOpacity(0.05),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            const Color(0xFF93D6F6).withOpacity(0.8),
+                          ),
                         );
                       },
                     ),

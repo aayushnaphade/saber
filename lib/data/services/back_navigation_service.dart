@@ -151,20 +151,25 @@ class BackNavigationService {
     BackNavigationResult result,
     String exitMessage,
   ) {
+    // Safety check: verify context is still valid before performing operations
+    if (!context.mounted) return;
+
     switch (result.action) {
       case BackNavigationAction.navigateTo:
-        if (result.targetRoute != null) {
+        if (result.targetRoute != null && context.mounted) {
           context.go(result.targetRoute!);
         }
       case BackNavigationAction.showExitConfirmation:
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(exitMessage),
-            duration: _exitConfirmationDuration,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(exitMessage),
+              duration: _exitConfirmationDuration,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       case BackNavigationAction.exitApp:
         SystemNavigator.pop();
     }

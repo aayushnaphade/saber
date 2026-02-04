@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
+import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_auth_service.dart';
 
@@ -27,22 +28,12 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Sign Out'),
-          ),
-        ],
+      builder: (context) => const PremiumConfirmationDialog(
+        title: 'Sign Out',
+        content: 'Are you sure you want to sign out?',
+        confirmLabel: 'Sign Out',
+        isDestructive: true,
+        icon: Icons.logout_rounded,
       ),
     );
 

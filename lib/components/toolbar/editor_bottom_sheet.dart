@@ -7,7 +7,6 @@ import 'package:saber/components/canvas/inner_canvas.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/extensions/list_extensions.dart';
-import 'package:saber/data/prefs.dart';
 import 'package:saber/i18n/extensions/box_fit_localized.dart';
 import 'package:saber/i18n/strings.g.dart';
 
@@ -25,11 +24,6 @@ class EditorBottomSheet extends StatefulWidget {
     required this.clearPage,
     required this.clearAllPages,
     required this.redrawAndSave,
-    required this.pickPhotos,
-    required this.importPdf,
-    required this.canRasterPdf,
-    required this.getIsWatchingServer,
-    required this.setIsWatchingServer,
   });
 
   final bool invert;
@@ -43,11 +37,6 @@ class EditorBottomSheet extends StatefulWidget {
   final VoidCallback clearPage;
   final VoidCallback clearAllPages;
   final VoidCallback redrawAndSave;
-  final Future<int> Function() pickPhotos;
-  final Future<bool> Function() importPdf;
-  final bool canRasterPdf;
-  final bool Function() getIsWatchingServer;
-  final void Function(bool) setIsWatchingServer;
 
   @override
   State<EditorBottomSheet> createState() => _EditorBottomSheetState();
@@ -287,55 +276,6 @@ class _EditorBottomSheetState extends State<EditorBottomSheet> {
               ],
             ),
             const SizedBox(height: 16),
-            Text(
-              t.editor.menu.import,
-              style: TextTheme.of(context).titleMedium,
-            ),
-            Wrap(
-              spacing: 8,
-              children: [
-                ElevatedButton(
-                  onPressed: () async {
-                    final photosPicked = await widget.pickPhotos();
-                    if (photosPicked > 0) {
-                      if (!context.mounted) return;
-                      Navigator.pop(context);
-                    }
-                  },
-                  child: Text(t.editor.toolbar.photo),
-                ),
-                if (widget.canRasterPdf)
-                  ElevatedButton(
-                    onPressed: () async {
-                      final pdfImported = await widget.importPdf();
-                      if (pdfImported) {
-                        if (!context.mounted) return;
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: const Text('PDF'),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (stows.loggedIn) ...[
-              StatefulBuilder(
-                builder: (context, setState) {
-                  final isWatchingServer = widget.getIsWatchingServer();
-                  return CheckboxListTile.adaptive(
-                    value: isWatchingServer,
-                    title: Text(t.editor.menu.watchServer),
-                    subtitle: isWatchingServer
-                        ? Text(t.editor.menu.watchServerReadOnly)
-                        : null,
-                    onChanged: (value) => setState(() {
-                      widget.setIsWatchingServer(value!);
-                    }),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
           ],
         ),
       ),

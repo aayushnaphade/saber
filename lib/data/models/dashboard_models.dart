@@ -13,6 +13,7 @@ class Appointment {
   final String appointmentType;
   final String? gender;
   final int? age;
+  final String? registrationNumber;
 
   const Appointment({
     required this.id,
@@ -25,6 +26,7 @@ class Appointment {
     this.appointmentType = 'walk-in',
     this.gender,
     this.age,
+    this.registrationNumber,
   });
 
   bool get isScheduled => appointmentType == 'scheduled';
@@ -41,6 +43,7 @@ class QueueItem {
   final String gender;
   final DateTime registeredTime;
   final String patientType;
+  final String? registrationNumber;
 
   const QueueItem({
     required this.id,
@@ -53,6 +56,7 @@ class QueueItem {
     required this.gender,
     required this.registeredTime,
     required this.patientType,
+    this.registrationNumber,
   });
 }
 

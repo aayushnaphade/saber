@@ -130,6 +130,7 @@ class SupabasePatientService {
     String? gender,
     String? phoneNumber,
     String? email,
+    String? address,
     Map<String, dynamic>? medicalHistory,
   }) async {
     try {
@@ -151,6 +152,7 @@ class SupabasePatientService {
         doctorId: currentUserId,
         phoneNumber: phoneNumber,
         email: email,
+        address: address,
         medicalHistory: medicalHistory,
         isActive: true,
       );

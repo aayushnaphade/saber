@@ -16,7 +16,7 @@ class WelcomeHeader extends StatefulWidget {
 }
 
 class _WelcomeHeaderState extends State<WelcomeHeader> {
-  final _battery = Battery();
+  Battery? _battery;
   var _batteryLevel = 100;
   BatteryState _batteryState = BatteryState.unknown;
   StreamSubscription<BatteryState>? _batterySubscription;
@@ -25,13 +25,19 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
   @override
   void initState() {
     super.initState();
-    _updateBattery();
-    _batterySubscription = _battery.onBatteryStateChanged.listen((state) {
-      if (mounted) {
-        setState(() => _batteryState = state);
-        _updateBattery();
-      }
-    });
+    try {
+      _battery = Battery();
+      _updateBattery();
+
+      _batterySubscription = _battery?.onBatteryStateChanged.listen((state) {
+        if (mounted) {
+          setState(() => _batteryState = state);
+          _updateBattery();
+        }
+      });
+    } catch (e) {
+      debugPrint('Error initializing battery service: $e');
+    }
 
     // Update time every minute
     _timer = Timer.periodic(const Duration(minutes: 1), (timer) {
@@ -43,7 +49,8 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
 
   Future<void> _updateBattery() async {
     try {
-      final level = await _battery.batteryLevel;
+      if (_battery == null) return;
+      final level = await _battery!.batteryLevel;
       if (mounted) {
         setState(() => _batteryLevel = level);
       }

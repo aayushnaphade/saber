@@ -1,6 +1,9 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:saber/components/theming/adaptive_alert_dialog.dart';
+import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
@@ -21,6 +24,7 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
   final _hospitalController = TextEditingController();
   final _specializationController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
 
   var _isLoggingOut = false;
   var _isUpdatingPassword = false;
@@ -41,6 +45,7 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
     _hospitalController.text = stows.userHospital.value;
     _specializationController.text = stows.userSpecialization.value;
     _phoneController.text = stows.userPhone.value;
+    _emailController.text = stows.supabaseUserEmail.value;
     _avatarUrl = stows.userAvatarUrl.value;
 
     if (_nameController.text.isNotEmpty || _avatarUrl != null) {
@@ -54,6 +59,7 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
     _hospitalController.dispose();
     _specializationController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -112,11 +118,45 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final newEmail = _emailController.text.trim();
+    if (newEmail != user.email) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AdaptiveAlertDialog(
+          title: const Text('Change Email Address?'),
+          content: Text(
+            'A confirmation link will be sent to $newEmail. '
+            'The change will only take effect after you click the link in your inbox. '
+            'Until then, you can continue using the app with your current email.',
+          ),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Send Link'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+    }
+
     setState(() => _isSavingProfile = true);
 
     try {
-      final user = supabase.auth.currentUser;
-      if (user == null) return;
+      // Update email if changed
+      if (newEmail != user.email) {
+        await supabase.auth.updateUser(UserAttributes(email: newEmail));
+        stows.supabaseUserEmail.value = newEmail;
+      }
 
       await supabase.from('profiles').upsert({
         'id': user.id,
@@ -137,7 +177,11 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
+          const SnackBar(
+            content: Text(
+              'Profile updated successfully. If you changed your email, please check your inbox for confirmation.',
+            ),
+          ),
         );
       }
     } catch (e) {
@@ -213,22 +257,12 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Sign Out'),
-          ),
-        ],
+      builder: (context) => const PremiumConfirmationDialog(
+        title: 'Sign Out',
+        content: 'Are you sure you want to sign out?',
+        confirmLabel: 'Sign Out',
+        isDestructive: true,
+        icon: Icons.logout_rounded,
       ),
     );
 
@@ -457,11 +491,27 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        user.email ?? '',
+                        _emailController.text.isNotEmpty
+                            ? _emailController.text
+                            : (user?.email ?? ''),
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
+                      if (_emailController.text.isNotEmpty &&
+                          user?.email != null &&
+                          _emailController.text.trim() != user.email)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            'Confirmation link sent to your inbox',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -527,6 +577,28 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.phone_outlined),
                           ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: const InputDecoration(
+                            labelText: 'Email Address',
+                            hintText: 'doctor@example.com',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.email_outlined),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your email';
+                            }
+                            if (!RegExp(
+                              r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                            ).hasMatch(value)) {
+                              return 'Please enter a valid email';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 24),
                         SizedBox(

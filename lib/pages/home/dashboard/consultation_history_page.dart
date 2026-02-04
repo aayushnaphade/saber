@@ -67,7 +67,7 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(ErrorHandler.getFriendlyErrorMessage(e))),
         );
@@ -416,7 +416,7 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
-                    // ID Badge
+                    // Registration Number Badge
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
@@ -427,7 +427,7 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        'ID: ${consultation.patientId}',
+                        'Reg: ${(consultation.registrationNumber != null && consultation.registrationNumber!.isNotEmpty) ? consultation.registrationNumber : "Not defined"}',
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                           fontSize: 10,

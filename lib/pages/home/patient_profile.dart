@@ -24,9 +24,14 @@ import 'package:saber/design_system/spacing.dart';
 
 /// Patient profile page with demographics, session management, and history
 class PatientProfilePage extends StatefulWidget {
-  const PatientProfilePage({super.key, required this.patientId});
+  const PatientProfilePage({
+    super.key,
+    required this.patientId,
+    this.autoStartSession = false,
+  });
 
   final String patientId;
+  final bool autoStartSession;
 
   @override
   State<PatientProfilePage> createState() => _PatientProfilePageState();
@@ -109,25 +114,14 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Sessions'),
-        content: Text(
-          'Are you sure you want to delete ${_selectedSessionIds.length} sessions? '
-          'This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
+      builder: (context) => PremiumConfirmationDialog(
+        title: 'Delete Sessions',
+        content:
+            'Are you sure you want to delete ${_selectedSessionIds.length} sessions? '
+            'This action cannot be undone.',
+        confirmLabel: 'Delete',
+        isDestructive: true,
+        icon: Icons.delete_forever_rounded,
       ),
     );
 
@@ -249,6 +243,13 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         _patientIntake = intake;
         isLoading = false;
       });
+
+      if (widget.autoStartSession && sessions.isEmpty) {
+        // Trigger new session for newly registered patient automatically
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _confirmAndStartNewSession();
+        });
+      }
     } catch (e) {
       setState(() {
         error = ErrorHandler.getFriendlyErrorMessage(e);
@@ -303,6 +304,8 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   Future<void> _showIntakeForm() async {
     if (patient == null) return;
 
+    if (!context.mounted) return;
+
     final result = await Navigator.of(context).push<PsychiatricIntake>(
       MaterialPageRoute(
         builder: (context) => PsychiatricIntakeForm(
@@ -316,14 +319,16 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               final savedIntake = await SupabaseIntakeService.upsertIntake(
                 intake,
               );
-              setState(() {
-                _patientIntake = savedIntake;
-              });
               if (mounted) {
+                setState(() {
+                  _patientIntake = savedIntake;
+                });
+              }
+              if (mounted && context.mounted) {
                 Navigator.of(context).pop(savedIntake);
               }
             } catch (e) {
-              if (mounted) {
+              if (mounted && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(ErrorHandler.getFriendlyErrorMessage(e)),
@@ -333,12 +338,16 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               }
             }
           },
-          onCancel: () => Navigator.of(context).pop(),
+          onCancel: () {
+            if (context.mounted) {
+              Navigator.of(context).pop();
+            }
+          },
         ),
       ),
     );
 
-    if (result != null) {
+    if (result != null && mounted) {
       setState(() {
         _patientIntake = result;
       });
@@ -477,11 +486,11 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       }
 
       // Navigate to editor with new document
-      if (mounted) {
+      if (mounted && context.mounted) {
         await context.push(
           RoutePaths.editFilePath(documentPath, consultationId: consultationId),
         );
-        if (mounted) {
+        if (mounted && context.mounted) {
           _loadPatientData();
         }
       }
@@ -1430,25 +1439,14 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
           confirmDismiss: (direction) async {
             return await showDialog<bool>(
               context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Delete Session'),
-                content: Text(
-                  'Are you sure you want to delete Session ${session.sessionNumber}? '
-                  'This action cannot be undone.',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text('Cancel'),
-                  ),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.error,
-                    ),
-                    child: const Text('Delete'),
-                  ),
-                ],
+              builder: (context) => PremiumConfirmationDialog(
+                title: 'Delete Session',
+                content:
+                    'Are you sure you want to delete Session ${session.sessionNumber}? '
+                    'This action cannot be undone.',
+                confirmLabel: 'Delete',
+                isDestructive: true,
+                icon: Icons.delete_forever_rounded,
               ),
             );
           },
