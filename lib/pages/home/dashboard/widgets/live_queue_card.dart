@@ -1,7 +1,17 @@
 import 'dart:math' as math;
 
+/**
+ * 🔒 VISUAL INTEGRITY GUARD: 
+ * This widget contains premium Mesh Gradient animations (Apple-style).
+ * DO NOT modify the background logic, MeshGradientPoints, or blend values
+ * without explicit designer approval. This component is part of the 
+ * SynapseAI Core Design Language.
+ */
+
 import 'package:flutter/material.dart';
+import 'package:mesh_gradient/mesh_gradient.dart';
 import 'package:saber/data/models/dashboard_models.dart';
+import 'package:saber/data/session_manager.dart';
 import 'package:saber/design_system/radius.dart';
 import 'package:saber/design_system/spacing.dart';
 
@@ -34,8 +44,10 @@ class _LiveQueueCardState extends State<LiveQueueCard>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 16), // Faster for visible liquid motion
-    )..repeat(); // Standard repeat is now seamless because we use modulo math (sin/cos)
+      duration: const Duration(
+        seconds: 60,
+      ), // Much longer loop to avoid repetition
+    )..repeat();
   }
 
   @override
@@ -81,7 +93,6 @@ class _LiveQueueCardState extends State<LiveQueueCard>
     );
   }
 
-  /// Calculate safe waiting count (excluding current patient if in progress)
   int get _displayWaitingCount {
     if (widget.currentPatient == null) return 0;
     return widget.waitingCount > 0 ? widget.waitingCount : 0;
@@ -93,39 +104,106 @@ class _LiveQueueCardState extends State<LiveQueueCard>
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    // Extracted Logo Colors
-    const blob1Color = Color(0xFF0A4D8B); // Navy
-    const blob2Color = Color(0xFF50B9E8); // Sky
-    const blob3Color = Color(0xFF0D9488); // Teal
+    // Extracted Logo Colors from tailwind.config.ts
+    // Deep Blue: #0A4D8B, Sky: #50B9E8, Success: #10B981
+    final colors = [
+      const Color(0xFF0A4D8B), // Navy
+      const Color(0xFF50B9E8), // Sky
+      const Color(0xFF10B981), // Emerald/Teal
+      const Color(0xFF0D9488), // Deep Teal
+      isDark ? Colors.black87 : Colors.white, // Blending base
+    ];
 
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: AppRadius.xlRadius,
-            boxShadow: [
-              BoxShadow(
-                color: (isDark ? Colors.black : colorScheme.primary).withValues(
-                  alpha: 0.06,
-                ),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
+        final t = _controller.value * 2 * math.pi;
+
+        // Apple-style mesh points: Organic, overlapping orbits
+        // Multipliers adjusted for 60s duration to maintain speed (approx 3x original coefficients)
+        final meshPoints = [
+          MeshGradientPoint(
+            position: Offset(
+              0.5 + 0.45 * math.sin(t * 0.6),
+              0.5 + 0.35 * math.cos(t * 0.45),
+            ),
+            color: colors[0].withValues(alpha: 0.8),
           ),
-          child: ClipRRect(
-            borderRadius: AppRadius.xlRadius,
-            child: CustomPaint(
-              painter: _FluidBlobPainter(
-                animation: _controller,
-                blob1Color: blob1Color,
-                blob2Color: blob2Color,
-                blob3Color: blob3Color,
-                isDark: isDark,
-                surfaceColor: colorScheme.surface,
+          MeshGradientPoint(
+            position: Offset(
+              0.5 + 0.5 * math.sin(t * 1.05 + 1),
+              0.3 + 0.4 * math.cos(t * 1.2 + 2),
+            ),
+            color: colors[1].withValues(alpha: 0.7),
+          ),
+          MeshGradientPoint(
+            position: Offset(
+              0.2 + 0.4 * math.sin(t * 0.75 + math.pi),
+              0.7 + 0.3 * math.cos(t * 0.9 + 4),
+            ),
+            color: colors[2].withValues(alpha: 0.6),
+          ),
+          MeshGradientPoint(
+            position: Offset(
+              0.8 + 0.3 * math.sin(t * 1.35 + 5),
+              0.9 + 0.2 * math.cos(t * 0.6 + 6),
+            ),
+            color: colors[3].withValues(alpha: 0.5),
+          ),
+          MeshGradientPoint(
+            position: Offset(
+              0.5 + 0.2 * math.sin(t * 2.4),
+              0.5 + 0.2 * math.cos(t * 2.1),
+            ),
+            color: colors[4],
+          ),
+        ];
+
+        return HeroMode(
+          enabled: !SessionManager().hasActiveSession,
+          child: Hero(
+            tag: 'active_session',
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: AppRadius.xlRadius,
+                boxShadow: [
+                  BoxShadow(
+                    color: (isDark ? Colors.black : colorScheme.primary)
+                        .withValues(alpha: 0.08),
+                    blurRadius: 32,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
               ),
-              child: child,
+              child: ClipRRect(
+                borderRadius: AppRadius.xlRadius,
+                child: Stack(
+                  children: [
+                    // 1. Base Mesh Gradient
+                    Positioned.fill(
+                      child: MeshGradient(
+                        points: meshPoints,
+                        options: MeshGradientOptions(
+                          blend: 4.5, // High blend for smooth mixing
+                          noiseIntensity: 0.08, // Subtle film grain feel
+                        ),
+                      ),
+                    ),
+
+                    // 2. Faint Layer for extra smoothness (Glass effect)
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: (isDark ? Colors.black12 : Colors.white10),
+                        ),
+                      ),
+                    ),
+
+                    // 3. The Actual Content
+                    child!,
+                  ],
+                ),
+              ),
             ),
           ),
         );
@@ -135,8 +213,8 @@ class _LiveQueueCardState extends State<LiveQueueCard>
           borderRadius: AppRadius.xlRadius,
           border: Border.all(
             color: isDark
-                ? colorScheme.primary.withValues(alpha: 0.12)
-                : colorScheme.outlineVariant.withValues(alpha: 0.35),
+                ? colorScheme.primary.withValues(alpha: 0.15)
+                : colorScheme.outlineVariant.withValues(alpha: 0.4),
           ),
         ),
         padding: const EdgeInsets.all(AppSpacing.cardPadding),
@@ -152,10 +230,10 @@ class _LiveQueueCardState extends State<LiveQueueCard>
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer.withValues(alpha: 0.4),
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: colorScheme.primary.withValues(alpha: 0.2),
+                      color: colorScheme.primary.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
@@ -194,10 +272,10 @@ class _LiveQueueCardState extends State<LiveQueueCard>
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: colorScheme.surface.withValues(alpha: 0.5),
+                      color: colorScheme.surface.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: colorScheme.onSurface.withValues(alpha: 0.1),
+                        color: colorScheme.onSurface.withValues(alpha: 0.15),
                       ),
                     ),
                     child: Row(
@@ -348,82 +426,5 @@ class _LiveQueueCardState extends State<LiveQueueCard>
         ),
       ),
     );
-  }
-}
-
-class _FluidBlobPainter extends CustomPainter {
-  final Animation<double> animation;
-  final Color blob1Color;
-  final Color blob2Color;
-  final Color blob3Color;
-  final bool isDark;
-  final Color surfaceColor;
-
-  _FluidBlobPainter({
-    required this.animation,
-    required this.blob1Color,
-    required this.blob2Color,
-    required this.blob3Color,
-    required this.isDark,
-    required this.surfaceColor,
-  }) : super(repaint: animation);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Fill background
-    final bgPaint = Paint()..color = surfaceColor;
-    canvas.drawRect(Offset.zero & size, bgPaint);
-
-    final t = animation.value * 2 * math.pi;
-
-    // Draw fewer blobs for better performance on mobile devices (e.g. Xiaomi/MIUI)
-    _drawBlob(
-      canvas,
-      dx: -200 + 100 * math.cos(t * 0.4),
-      dy: -200 + 100 * math.sin(t * 0.4),
-      color: blob1Color,
-      opacity: isDark ? 0.4 : 0.2,
-      radius: 300,
-    );
-
-    _drawBlob(
-      canvas,
-      dx: size.width - 50 + 80 * math.sin(t * 0.5),
-      dy: size.height - 50 + 80 * math.cos(t * 0.5),
-      color: blob2Color,
-      opacity: isDark ? 0.3 : 0.2,
-      radius: 250,
-    );
-  }
-
-  void _drawBlob(
-    Canvas canvas, {
-    required double dx,
-    required double dy,
-    required Color color,
-    required double opacity,
-    required double radius,
-  }) {
-    final center = Offset(dx, dy); // Center of the blob
-    // Correct radial gradient center logic:
-    // The previous implementation used a Container(width, height) with RadialGradient.
-    // The gradient center is usually the center of that container.
-    // Here we draw a circle at certain offset.
-
-    final paint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          color.withValues(alpha: opacity),
-          color.withValues(alpha: 0),
-        ],
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-
-    canvas.drawCircle(center, radius, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _FluidBlobPainter oldDelegate) {
-    return oldDelegate.isDark != isDark ||
-        oldDelegate.surfaceColor != surfaceColor;
   }
 }

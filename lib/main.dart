@@ -63,13 +63,16 @@ Future<void> appRunner(List<String> args) async {
 
   // Force loading of Battery class to avoid "Class: Battery which is not loaded yet" crash on some Android devices
   // We use runZonedGuarded to catch potential MissingPluginException during init
-  runZonedGuarded(() {
-    try {
-      Battery();
-    } catch (_) {}
-  }, (error, stack) {
-    debugPrint('Main: Battery service init skipped: $error');
-  });
+  runZonedGuarded(
+    () {
+      try {
+        Battery();
+      } catch (_) {}
+    },
+    (error, stack) {
+      debugPrint('Main: Battery service init skipped: $error');
+    },
+  );
 
   final parser = ArgParser()..addFlag('verbose', abbr: 'v', negatable: false);
   final parsedArgs = parser.parse(args);
@@ -196,10 +199,8 @@ class App extends StatefulWidget {
   const App({super.key});
 
   static final log = Logger('App');
-  static final rootNavigatorKey =
-      GlobalKey<NavigatorState>();
-  static final shellNavigatorKey =
-      GlobalKey<NavigatorState>();
+  static final rootNavigatorKey = GlobalKey<NavigatorState>();
+  static final shellNavigatorKey = GlobalKey<NavigatorState>();
 
   static String getInitialLocation() {
     // Check if user is authenticated
@@ -365,10 +366,12 @@ class App extends StatefulWidget {
             patientId: state.uri.queryParameters['patient_id'],
             readOnly: state.uri.queryParameters['readOnly'] == 'true',
           ),
-          transitionDuration: const Duration(milliseconds: 900),
-          reverseTransitionDuration: const Duration(milliseconds: 800),
+          transitionDuration: const Duration(milliseconds: 380),
+          reverseTransitionDuration: const Duration(milliseconds: 300),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
+            // No fade/slide here - returning child allows the Hero widget
+            // to be the primary visual transition.
+            return child;
           },
         ),
       ),

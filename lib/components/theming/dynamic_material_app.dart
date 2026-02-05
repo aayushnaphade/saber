@@ -17,6 +17,7 @@ import 'package:saber/i18n/extensions/redirecting_localization_delegate.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:yaru/yaru.dart';
+import 'package:saber/components/report/report_generation_overlay.dart';
 
 class DynamicMaterialApp extends StatefulWidget {
   const DynamicMaterialApp({
@@ -285,16 +286,18 @@ class _ExplicitlyThemedAppState extends State<ExplicitlyThemedApp> {
             ? _BorderedWindow(child: child)
             : child ?? const SizedBox();
 
-        return Stack(
-          children: [
-            app,
-            const Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: NetworkErrorBanner(),
-            ),
-          ],
+        return ReportGenerationOverlay(
+          child: Stack(
+            children: [
+              app,
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: NetworkErrorBanner(),
+              ),
+            ],
+          ),
         );
       },
     );

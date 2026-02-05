@@ -278,9 +278,10 @@ You must output a single valid JSON object containing exactly these six keys. Do
     } catch (e) {
       log.severe('Error generating report', e);
       if (e.toString().contains('SocketException') ||
-          e.toString().contains('Connection timed out')) {
+          e.toString().contains('Connection timed out') ||
+          e.toString().contains('connection abort')) {
         throw Exception(
-          'Network error: Unable to reach Google services. Please check your internet connection or hospital firewall settings.',
+          'Network error: The connection was interrupted. This often happens with large notes or poor internet. Please try again with fewer pages or a stronger connection.',
         );
       }
       rethrow;

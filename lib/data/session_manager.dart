@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
+import 'package:path/path.dart' as p;
 import 'package:saber/data/editor/editor_core_info.dart';
+import 'package:saber/data/file_manager/file_manager.dart';
 
 class SessionManager extends ChangeNotifier {
   static final _log = Logger('SessionManager');
@@ -50,6 +52,27 @@ class SessionManager extends ChangeNotifier {
     if (hasActiveSession) {
       _isMinimized = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> deleteActiveSessionFiles() async {
+    final session = _activeSession;
+    if (session == null) return;
+
+    try {
+      final path = session.filePath;
+      final parentDir = p.dirname(path);
+      final parentDirName = p.basename(parentDir);
+
+      if (parentDirName.startsWith('session_')) {
+        _log.info('Deleting session directory: $parentDir');
+        await FileManager.deleteDirectory(parentDir);
+      } else {
+        _log.info('Deleting session file: $path');
+        await FileManager.deleteFile(path);
+      }
+    } catch (e) {
+      _log.severe('Failed to delete active session files: $e');
     }
   }
 

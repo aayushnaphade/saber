@@ -59,13 +59,41 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
       // 1. Fetch AI Report
       // The sourceDocumentPath matches the session file path
       // e.g. /patients/{patientId}/session_notes/session_{num}/session_{num}_notes.sbn
+      final documentName = '${session.folderName}_notes';
       final expectedPath =
-          '/patients/${widget.patientId}/session_notes/${session.folderName}/${session.folderName}_notes.sbn';
-      log.info('Fetching report for path: $expectedPath');
-
-      final report = await SupabaseReportService.getReportBySourcePath(
-        expectedPath,
+          '/patients/${widget.patientId}/session_notes/${session.folderName}/$documentName.sbn';
+      log.info(
+        'Fetching report for patient ${widget.patientId}, session folder ${session.folderName}',
       );
+      log.info('Expected path: $expectedPath');
+
+      // Robust fetch: get all reports for patient and filter in Dart
+      // to handle potential path mismatch or extension variation (.sbn vs .sbn2)
+      final allReports = await SupabaseReportService.getReportsForPatient(
+        widget.patientId,
+      );
+      log.info('Found ${allReports.length} total reports for this patient');
+
+      ClinicalReport? report;
+      try {
+        report = allReports.firstWhere(
+          (r) =>
+              r.sourceDocumentPath == expectedPath ||
+              r.sourceDocumentPath == expectedPath + '2' ||
+              r.sourceDocumentPath ==
+                  expectedPath.replaceAll('.sbn', '.sbn2') ||
+              (r.sourceDocumentPath?.contains(session.folderName) ?? false),
+        );
+        log.info('Found matching report: ${report.id}');
+      } catch (e) {
+        log.warning(
+          'No matching report found after filtering ${allReports.length} reports',
+        );
+        // Fallback to direct path search if firstWhere failed (though it shouldn't if getReportsForPatient returned it)
+        report = await SupabaseReportService.getReportBySourcePath(
+          expectedPath,
+        );
+      }
 
       // 2. Fetch Handwritten Note Preview
       // Use efficient single-fetch instead of loading all historic notes

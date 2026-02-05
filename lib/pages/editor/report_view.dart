@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
@@ -12,6 +13,8 @@ class ReportView extends StatefulWidget {
     required this.onVerify,
     this.onRegenerate,
     this.patient,
+    this.rawNotes,
+    this.imageBytesList,
     this.readonly = false,
     this.showAppBar = true,
   });
@@ -20,6 +23,8 @@ class ReportView extends StatefulWidget {
   final VoidCallback onVerify;
   final VoidCallback? onRegenerate;
   final Patient? patient;
+  final String? rawNotes;
+  final List<Uint8List>? imageBytesList;
   final bool readonly;
   final bool showAppBar;
 
@@ -39,6 +44,20 @@ class _ReportViewState extends State<ReportView> {
 
   // Medications
   final List<Map<String, String>> _medications = [];
+
+  bool _showNotes = false;
+  Offset _notesPosition = const Offset(100, 100);
+  Size _notesSize = const Size(400, 500);
+  int _currentNotePage = 0;
+  bool _initializedPosition = false;
+
+  @override
+  void didUpdateWidget(covariant ReportView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.imageBytesList != oldWidget.imageBytesList) {
+      _currentNotePage = 0;
+    }
+  }
 
   @override
   void initState() {
@@ -132,6 +151,13 @@ class _ReportViewState extends State<ReportView> {
       appBar: AppBar(
         title: const Text('Clinical Assessment Report'),
         actions: [
+          if (widget.rawNotes != null || widget.imageBytesList != null)
+            IconButton(
+              icon: Icon(_showNotes ? Icons.notes_rounded : Icons.notes),
+              tooltip: 'Show Original Notes',
+              onPressed: () => setState(() => _showNotes = !_showNotes),
+              color: _showNotes ? Colors.blue : null,
+            ),
           if (widget.onRegenerate != null)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -197,7 +223,204 @@ class _ReportViewState extends State<ReportView> {
           ),
         ],
       ),
-      body: _buildBentoLayout(context),
+      body: Stack(
+        children: [
+          _buildBentoLayout(context),
+          if (_showNotes &&
+              ((widget.rawNotes != null && widget.rawNotes!.isNotEmpty) ||
+                  (widget.imageBytesList != null &&
+                      widget.imageBytesList!.isNotEmpty)))
+            _buildDraggableNotesOverlay(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDraggableNotesOverlay() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final colorScheme = theme.colorScheme;
+
+    if (!_initializedPosition) {
+      final size = MediaQuery.of(context).size;
+      _notesPosition = Offset(size.width - _notesSize.width - 40, 100);
+      _initializedPosition = true;
+    }
+
+    return Positioned(
+      left: _notesPosition.dx,
+      top: _notesPosition.dy,
+      child: Container(
+        width: _notesSize.width,
+        height: _notesSize.height,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: colorScheme.outlineVariant.withOpacity(0.5),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 25,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header / Drag Handle
+            GestureDetector(
+              onPanUpdate: (details) {
+                setState(() {
+                  _notesPosition += details.delta;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHigh,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      widget.imageBytesList != null
+                          ? Icons.edit_note_rounded
+                          : Icons.notes_rounded,
+                      size: 20,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Original Notes',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                      onPressed: () => setState(() => _showNotes = false),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Content
+            Expanded(
+              child: ClipRRect(
+                child:
+                    widget.imageBytesList != null &&
+                        widget.imageBytesList!.isNotEmpty
+                    ? _buildImageContent()
+                    : _buildTextContent(),
+              ),
+            ),
+
+            // Resize Handle
+            GestureDetector(
+              onPanUpdate: (details) {
+                setState(() {
+                  _notesSize = Size(
+                    (_notesSize.width + details.delta.dx).clamp(200, 800),
+                    (_notesSize.height + details.delta.dy).clamp(200, 800),
+                  );
+                });
+              },
+              child: Container(
+                height: 20,
+                width: double.infinity,
+                alignment: Alignment.bottomRight,
+                child: Icon(
+                  Icons.south_east_rounded,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageContent() {
+    final images = widget.imageBytesList!;
+    return Column(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.withOpacity(0.2)),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: images.isNotEmpty && _currentNotePage < images.length
+                    ? InteractiveViewer(
+                        child: Image.memory(
+                          images[_currentNotePage],
+                          fit: BoxFit.contain,
+                        ),
+                      )
+                    : const Center(child: Text('Image not available')),
+              ),
+            ),
+          ),
+        ),
+        if (images.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left_rounded),
+                  onPressed: _currentNotePage > 0
+                      ? () => setState(() => _currentNotePage--)
+                      : null,
+                ),
+                Text(
+                  '${_currentNotePage + 1} / ${images.length}',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  onPressed: _currentNotePage < images.length - 1
+                      ? () => setState(() => _currentNotePage++)
+                      : null,
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildTextContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Text(
+        widget.rawNotes ?? 'No notes available',
+        style: (Theme.of(context).textTheme.bodyMedium ?? const TextStyle())
+            .copyWith(fontFamily: 'monospace', height: 1.6),
+      ),
     );
   }
 
@@ -798,15 +1021,15 @@ class _ReportViewState extends State<ReportView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.patient!.fullName,
+                        widget.patient?.fullName ?? 'Anonymous Patient',
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      if (widget.patient!.age != null ||
-                          widget.patient!.gender != null)
+                      if (widget.patient?.age != null ||
+                          widget.patient?.gender != null)
                         Text(
-                          '${widget.patient!.gender ?? ''}${widget.patient!.gender != null && widget.patient!.age != null ? ', ' : ''}${widget.patient!.age != null ? '${widget.patient!.age} yrs' : ''}',
+                          '${widget.patient?.gender ?? ''}${widget.patient?.gender != null && widget.patient?.age != null ? ', ' : ''}${widget.patient?.age != null ? '${widget.patient?.age} yrs' : ''}',
                           style: theme.textTheme.bodySmall,
                         ),
                     ],
@@ -815,13 +1038,13 @@ class _ReportViewState extends State<ReportView> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      if (widget.patient!.phoneNumber != null)
+                      if (widget.patient?.phoneNumber != null)
                         Text(
-                          widget.patient!.phoneNumber!,
+                          widget.patient?.phoneNumber ?? '',
                           style: theme.textTheme.bodySmall,
                         ),
                       Text(
-                        'Reg No: ${widget.patient!.registrationNumber ?? 'Not defined'}',
+                        'Reg No: ${widget.patient?.registrationNumber ?? 'Not defined'}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurfaceVariant.withOpacity(0.7),
                           fontSize: 10,

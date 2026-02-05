@@ -120,30 +120,13 @@ class _HomePageState extends State<HomePage> {
                     sessionManager.hasActiveSession &&
                     sessionManager.isMinimized;
 
-                return AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 900),
-                  reverseDuration: const Duration(milliseconds: 700),
-                  switchInCurve: Curves.easeInOutExpo,
-                  switchOutCurve: Curves.easeInOutExpo,
-                  transitionBuilder: (child, animation) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, 0.3),
-                          end: Offset.zero,
-                        ).animate(animation),
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: isVisible
-                      ? MinimizedSessionOverlay(
-                          key: const ValueKey('session_bar'),
-                          router: GoRouter.of(context),
-                        )
-                      : const SizedBox.shrink(key: ValueKey('empty_bar')),
-                );
+                if (isVisible) {
+                  return MinimizedSessionOverlay(
+                    key: const ValueKey('session_bar'),
+                    router: GoRouter.of(context),
+                  );
+                }
+                return const SizedBox.shrink(key: ValueKey('empty_bar'));
               },
             ),
           ),

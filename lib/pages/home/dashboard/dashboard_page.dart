@@ -62,22 +62,25 @@ class _DashboardPageState extends State<DashboardPage> {
     // audioplayers 6.x initializes asynchronously in the constructor.
     // We use runZonedGuarded to catch the MissingPluginException that may be thrown
     // from an unawaited future inside the AudioPlayer constructor.
-    runZonedGuarded(() {
-      try {
-        final player = AudioPlayer();
-        _audioPlayer = player;
-      } catch (e) {
-        debugPrint('Dashboard: Synchronous AudioPlayer creation failed: $e');
-      }
-    }, (error, stack) {
-      if (error.toString().contains('audioplayers') ||
-          error is MissingPluginException) {
-        debugPrint('Dashboard: AudioPlayer plugin is not available: $error');
-        _audioPlayer = null; // Ensure we don't try to use a broken player
-      } else {
-        debugPrint('Dashboard: Unexpected AudioPlayer error: $error');
-      }
-    });
+    runZonedGuarded(
+      () {
+        try {
+          final player = AudioPlayer();
+          _audioPlayer = player;
+        } catch (e) {
+          debugPrint('Dashboard: Synchronous AudioPlayer creation failed: $e');
+        }
+      },
+      (error, stack) {
+        if (error.toString().contains('audioplayers') ||
+            error is MissingPluginException) {
+          debugPrint('Dashboard: AudioPlayer plugin is not available: $error');
+          _audioPlayer = null; // Ensure we don't try to use a broken player
+        } else {
+          debugPrint('Dashboard: Unexpected AudioPlayer error: $error');
+        }
+      },
+    );
   }
 
   void _onConnectivityChanged() {
@@ -160,7 +163,9 @@ class _DashboardPageState extends State<DashboardPage> {
       // Play SFX if transitioning from Busy to Available in Reception Mode
       if (_wasBusy && !isNowBusy && stows.receptionMode.value) {
         debugPrint('Dashboard: Doctor is now available, playing SFX');
-        _audioPlayer?.play(AssetSource('doc_available_sfx.mp3')).catchError((e) {
+        _audioPlayer?.play(AssetSource('doc_available_sfx.mp3')).catchError((
+          e,
+        ) {
           debugPrint('Dashboard: Failed to play SFX: $e');
         });
       }
@@ -461,6 +466,12 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Future<void> _handleCancelAppointment(String consultationId) async {
     try {
+      // If the cancelled appointment is the currently active/minimized session, clean it up
+      if (SessionManager().consultationId == consultationId) {
+        await SessionManager().deleteActiveSessionFiles();
+        SessionManager().terminate();
+      }
+
       await SupabaseDashboardService.cancelAppointment(consultationId);
       if (mounted && context.mounted) {
         ScaffoldMessenger.of(

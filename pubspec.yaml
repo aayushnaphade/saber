@@ -98,6 +98,7 @@ dependencies:
 
   worker_manager: ^7.0.1
   workmanager: ^0.9.0
+  audioplayers: ^6.5.1
 
   archive: ^4.0.3
 
@@ -162,6 +163,7 @@ dependencies:
   lottie: ^3.3.2
   flutter_markdown: ^0.7.7+1
   flutter_dotenv: ^6.0.0
+  battery_plus: ^7.0.0
   
   # Photo capture for intake forms
   image_picker: ^1.0.7
@@ -169,8 +171,6 @@ dependencies:
   signature: ^6.3.0
   animated_theme_switcher: ^2.0.10
   palette_generator: ^0.3.3+7
-  battery_plus: ^7.0.0
-  audioplayers: ^6.5.1
 
 dev_dependencies:
   flutter_test:
@@ -223,6 +223,7 @@ flutter:
   assets:
     - .env
     - assets/saber.json
+    - assets/doc_available_sfx.mp3
     - assets/icon/icon.svg
     - assets/icon/icon.png
     - assets/android/playstore-icon.png

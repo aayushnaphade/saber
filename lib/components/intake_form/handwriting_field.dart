@@ -146,12 +146,15 @@ class _HandwritingFieldState extends State<HandwritingField> {
                     ),
                     child: AspectRatio(
                       aspectRatio: 1200 / 800,
-                      child: RepaintBoundary(
-                        child: Signature(
-                          controller: widget.controller,
-                          backgroundColor: Colors.white,
-                          width: 1200,
-                          height: 800,
+                      child: FittedBox(
+                        fit: BoxFit.contain,
+                        child: RepaintBoundary(
+                          child: Signature(
+                            controller: widget.controller,
+                            backgroundColor: Colors.white,
+                            width: 1200,
+                            height: 800,
+                          ),
                         ),
                       ),
                     ),
@@ -185,9 +188,18 @@ class _HandwritingFieldState extends State<HandwritingField> {
 
     if (widget.controller.isNotEmpty) {
       // This case is rare if we're truly readOnly, but good for preview
-      return Signature(
-        controller: widget.controller,
-        backgroundColor: Colors.transparent,
+      return Center(
+        child: FittedBox(
+          fit: BoxFit.contain,
+          child: RepaintBoundary(
+            child: Signature(
+              controller: widget.controller,
+              backgroundColor: Colors.transparent,
+              width: 1200,
+              height: 800,
+            ),
+          ),
+        ),
       );
     }
 

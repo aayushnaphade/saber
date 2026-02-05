@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:path/path.dart' as p;
-import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/session_manager.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
@@ -19,98 +17,101 @@ class MinimizedSessionOverlay extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    return Hero(
-      tag: 'active_session',
-      child: Container(
-        height: 84,
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isDark
-                ? Colors.white.withOpacity(0.12)
-                : colorScheme.primary.withOpacity(0.15),
-            width: 1.5,
+    return HeroMode(
+      enabled: sessionManager.isMinimized,
+      child: Hero(
+        key: const ValueKey('active_session_hero_minimized'),
+        tag: 'active_session',
+        child: Container(
+          height: 84,
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withOpacity(0.12)
+                  : colorScheme.primary.withOpacity(0.15),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.4 : 0.12),
+                blurRadius: 30,
+                offset: const Offset(0, 15),
+              ),
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.4 : 0.12),
-              blurRadius: 30,
-              offset: const Offset(0, 15),
-            ),
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Material(
-              color: Colors.transparent,
-              child: Row(
-                children: [
-                  _buildStatusIndicator(colorScheme),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'ACTIVE SESSION',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Material(
+                color: Colors.transparent,
+                child: Row(
+                  children: [
+                    _buildStatusIndicator(colorScheme),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'ACTIVE SESSION',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          sessionManager.patientName ?? 'Unknown Patient',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
+                          const SizedBox(height: 2),
+                          Text(
+                            sessionManager.patientName ?? 'Unknown Patient',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  _buildActionButton(
-                    context,
-                    'Restore',
-                    Icons.open_in_full_rounded,
-                    colorScheme.primary,
-                    () {
-                      debugPrint('Saber: Minimized Restore clicked');
-                      final path = sessionManager.activeSession!.filePath;
-                      final consultationId = sessionManager.consultationId;
+                    const SizedBox(width: 16),
+                    _buildActionButton(
+                      context,
+                      'Restore',
+                      Icons.open_in_full_rounded,
+                      colorScheme.primary,
+                      () {
+                        debugPrint('Saber: Minimized Restore clicked');
+                        final path = sessionManager.activeSession!.filePath;
+                        final consultationId = sessionManager.consultationId;
 
-                      router.push(
-                        RoutePaths.editFilePath(
-                          path,
-                          consultationId: consultationId,
-                        ),
-                      );
-                      sessionManager.restore();
-                    },
-                  ),
-                  const SizedBox(width: 12),
-                  _buildActionButton(
-                    context,
-                    'End',
-                    Icons.close_rounded,
-                    colorScheme.error,
-                    () {
-                      debugPrint('Saber: Minimized End clicked');
-                      _showTerminateDialog(context);
-                    },
-                  ),
-                ],
+                        router.push(
+                          RoutePaths.editFilePath(
+                            path,
+                            consultationId: consultationId,
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 12),
+                    _buildActionButton(
+                      context,
+                      'End',
+                      Icons.close_rounded,
+                      colorScheme.error,
+                      () {
+                        debugPrint('Saber: Minimized End clicked');
+                        _showTerminateDialog(context);
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -289,26 +290,12 @@ class MinimizedSessionOverlay extends StatelessWidget {
                         }
 
                         // Delete local files
-                        final path = SessionManager().activeSession?.filePath;
-                        if (path != null) {
-                          try {
-                            final parentDir = p.dirname(path);
-                            final parentDirName = p.basename(parentDir);
+                        await SessionManager().deleteActiveSessionFiles();
 
-                            if (parentDirName.startsWith('session_')) {
-                              await FileManager.deleteDirectory(parentDir);
-                            } else {
-                              await FileManager.deleteFile(path);
-                            }
-                          } catch (e) {
-                            debugPrint('Error deleting file: $e');
-                          }
-                        }
-
-                        SessionManager().terminate();
                         if (dialogContext.mounted) {
                           Navigator.pop(dialogContext);
                         }
+                        SessionManager().terminate();
                       },
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.red,

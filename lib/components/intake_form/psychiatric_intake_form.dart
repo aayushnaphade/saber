@@ -961,7 +961,9 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isDark ? theme.colorScheme.outlineVariant : MedicalColors.infoBorder,
+          color: isDark
+              ? theme.colorScheme.outlineVariant
+              : MedicalColors.infoBorder,
         ),
       ),
       child: Padding(
@@ -1785,27 +1787,41 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
     bool isDanger = false,
   }) {
     Color? textColor;
-    if (isDanger && value) {
-      textColor = MedicalColors.critical;
-    } else if (isWarning && value) {
-      textColor = MedicalColors.warning;
+    Color? backgroundColor;
+
+    if (value) {
+      if (isDanger) {
+        textColor = MedicalColors.critical;
+        backgroundColor = MedicalColors.criticalBg.withOpacity(0.7);
+      } else if (isWarning) {
+        textColor = MedicalColors.warning;
+        backgroundColor = MedicalColors.warningBg.withOpacity(0.7);
+      } else {
+        textColor = MedicalColors.info;
+        backgroundColor = MedicalColors.infoBg.withOpacity(0.5);
+      }
     }
 
-    return CheckboxListTile(
-      title: Text(
-        label,
-        style: TextStyle(
-          fontSize: 13,
-          color: textColor,
-          fontWeight: (isWarning || isDanger) && value ? FontWeight.bold : null,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: CheckboxListTile(
+        title: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            color: textColor,
+            fontWeight: value ? FontWeight.bold : FontWeight.normal,
+          ),
         ),
+        value: value,
+        onChanged: _isEditing ? onChanged : null,
+        dense: true,
+        controlAffinity: ListTileControlAffinity.leading,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+        visualDensity: VisualDensity.compact,
+        tileColor: backgroundColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
-      value: value,
-      onChanged: _isEditing ? onChanged : null,
-      dense: true,
-      controlAffinity: ListTileControlAffinity.leading,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-      visualDensity: VisualDensity.compact,
     );
   }
 
