@@ -12,10 +12,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' as flutter_quill;
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:keybinder/keybinder.dart';
 import 'package:logging/logging.dart';
-import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
@@ -26,25 +26,22 @@ import 'package:saber/components/canvas/canvas_image.dart';
 import 'package:saber/components/canvas/canvas_preview.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
 import 'package:saber/components/canvas/save_indicator.dart';
-import 'package:saber/data/models/vitals.dart';
+import 'package:saber/components/editor/previous_notes_overlay_card.dart';
 import 'package:saber/components/intake_form/intake_overlay_card.dart'
     hide AnimatedBuilder;
 import 'package:saber/components/intake_form/psychiatric_intake_form.dart';
 import 'package:saber/components/intake_form/vitals_overlay_card.dart';
-import 'package:saber/components/editor/previous_notes_overlay_card.dart';
-import 'package:saber/data/models/previous_session_note.dart';
 import 'package:saber/components/overlays/medication_history_overlay.dart';
-import 'package:saber/data/supabase/supabase_consultation_service.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/components/toolbar/color_bar.dart';
+import 'package:saber/components/editor/patient_progress_dialog.dart';
 import 'package:saber/components/toolbar/editor_bottom_sheet.dart';
 import 'package:saber/components/toolbar/editor_page_manager.dart';
 import 'package:saber/components/toolbar/toolbar.dart';
 import 'package:saber/data/api/error_handler.dart';
-import 'package:saber/data/report_generation_manager.dart';
 import 'package:saber/data/editor/_color_change.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
@@ -53,19 +50,22 @@ import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/extensions/change_notifier_extensions.dart';
 import 'package:saber/data/extensions/matrix4_extensions.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
-import 'package:saber/data/models/psychiatric_intake.dart';
-import 'package:saber/data/prefs.dart';
-import 'package:saber/data/supabase/supabase_dashboard_service.dart';
-import 'package:saber/data/supabase/supabase_intake_service.dart';
 import 'package:saber/data/models/patient.dart';
-import 'package:saber/data/supabase/supabase_patient_service.dart';
-import 'package:saber/data/supabase/supabase_prescription_service.dart';
-import 'package:saber/data/supabase/supabase_vitals_service.dart';
+import 'package:saber/data/models/previous_session_note.dart';
+import 'package:saber/data/models/psychiatric_intake.dart';
+import 'package:saber/data/models/vitals.dart';
+import 'package:saber/data/prefs.dart';
+import 'package:saber/data/report_generation_manager.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/session_manager.dart';
-import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
-import 'package:saber/main.dart';
+import 'package:saber/data/supabase/supabase_consultation_service.dart';
+import 'package:saber/data/supabase/supabase_dashboard_service.dart';
+import 'package:saber/data/supabase/supabase_intake_service.dart';
+import 'package:saber/data/supabase/supabase_patient_service.dart';
+import 'package:saber/data/supabase/supabase_prescription_service.dart';
+import 'package:saber/data/supabase/supabase_report_service.dart';
+import 'package:saber/data/supabase/supabase_vitals_service.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
 import 'package:saber/data/tools/highlighter.dart';
@@ -75,6 +75,7 @@ import 'package:saber/data/tools/pencil.dart';
 import 'package:saber/data/tools/select.dart';
 import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/i18n/strings.g.dart';
+import 'package:saber/main.dart';
 import 'package:saber/pages/editor/report_view.dart';
 import 'package:saber/pages/home/whiteboard.dart';
 import 'package:screenshot/screenshot.dart';
@@ -144,8 +145,8 @@ class Editor extends StatefulWidget {
 class EditorState extends State<Editor> {
   final log = Logger('EditorState');
 
-  bool _isClearing = false;
-  bool _isTerminating = false;
+  var _isClearing = false;
+  var _isTerminating = false;
 
   late var coreInfo = EditorCoreInfo(filePath: '');
 
@@ -189,36 +190,37 @@ class EditorState extends State<Editor> {
 
   // Psychiatric intake overlay state
   PsychiatricIntake? _patientIntake;
-  bool _showIntakeOverlay = false;
-  bool _hasLoadedIntake = false;
-  bool _isIntakeExpanded = false;
+  var _showIntakeOverlay = false;
+  var _hasLoadedIntake = false;
+  var _isIntakeExpanded = false;
   Offset? _intakeOverlayPosition; // null means use default right-side position
-  bool _isCapturingForReport = false;
+  var _isCapturingForReport = false;
 
   // Vitals overlay state
   List<Vitals> _vitalsHistory = [];
-  bool _showVitalsOverlay =
+  var _showVitalsOverlay =
       false; // Only show in minimized form if there are vitals entries
-  bool _isVitalsExpanded = false;
+  var _isVitalsExpanded = false;
   Offset? _vitalsOverlayPosition;
 
   // Report View State
-  bool _isReportViewVisible = false;
+  final _isReportViewVisible = false;
   Map<String, dynamic>? _generatedReportData;
 
   String? _doctorName;
   String? _patientId;
   String? _patientName;
   Patient? _patient;
+  String? _patientProgressStatus;
 
   // Previous Session Notes overlay state
-  bool _showPreviousNotesOverlay = false;
+  var _showPreviousNotesOverlay = false;
   List<PreviousSessionNote> _previousNotes = [];
-  bool _isLoadingPreviousNotes = false;
+  var _isLoadingPreviousNotes = false;
   Offset? _previousNotesOverlayPosition;
 
   // Medication History overlay state
-  bool _showMedicationHistoryOverlay = false;
+  var _showMedicationHistoryOverlay = false;
   Offset? _medicationHistoryOverlayPosition;
 
   // used to prevent accidentally drawing when pinch zooming
@@ -347,7 +349,7 @@ class EditorState extends State<Editor> {
     try {
       // Extract patient ID from file path
       // Path format: .../patients/{patient_id}/session_notes/session_X/...
-      String filePath = coreInfo.filePath;
+      final String filePath = coreInfo.filePath;
       log.info('Attempting to load intake. Raw FilePath: $filePath');
 
       String? patientId;
@@ -430,193 +432,6 @@ class EditorState extends State<Editor> {
     }
   }
 
-  Future<void> _verifyAndSaveReport(Map<String, dynamic> reportData) async {
-    setState(() {
-      _isTerminating = true;
-    });
-    try {
-      // Convert to Markdown
-      final sb = StringBuffer();
-      sb.writeln('# 📋 Clinical Assessment Report');
-      sb.writeln();
-      sb.writeln('---');
-      sb.writeln();
-      if (_patientName != null) {
-        sb.writeln('**👤 Patient:** $_patientName');
-      }
-      sb.writeln('**📅 Date:** ${DateFormat.yMMMd().format(DateTime.now())}');
-      if (_doctorName != null) {
-        sb.writeln('**👨‍⚕️ Doctor:** $_doctorName');
-      }
-      sb.writeln();
-      sb.writeln('---');
-      sb.writeln();
-
-      sb.writeln('### 🕒 Current Symptoms (HPI)');
-      sb.writeln(reportData['current_symptoms'] ?? 'Not mentioned');
-      sb.writeln();
-
-      sb.writeln('### 👤 Premorbid Personality');
-      sb.writeln(reportData['premorbid_personality'] ?? 'Not mentioned');
-      sb.writeln();
-
-      sb.writeln('### 📜 Past History');
-      sb.writeln(reportData['past_history'] ?? 'Not mentioned');
-      sb.writeln();
-
-      sb.writeln('### 👨‍👩‍👧‍👦 Family History');
-      sb.writeln(reportData['family_history'] ?? 'Not mentioned');
-      sb.writeln();
-
-      sb.writeln('### 🏥 Mental Status Examination');
-      final mse = reportData['mental_status_examination'];
-      if (mse is Map) {
-        mse.forEach((key, value) {
-          final formattedKey = key
-              .toString()
-              .replaceAll('_', ' ')
-              .toUpperCase();
-          sb.writeln('- **$formattedKey:** $value');
-        });
-      } else if (mse is String) {
-        sb.writeln(mse);
-      } else {
-        sb.writeln('*Not mentioned*');
-      }
-      sb.writeln();
-
-      sb.writeln('### 🏁 Diagnosis');
-      sb.writeln('**${reportData['provided_diagnosis'] ?? 'Not mentioned'}**');
-      sb.writeln();
-
-      sb.writeln('---');
-      sb.writeln();
-      sb.writeln('### 💊 Prescribed Medications');
-      final meds = reportData['medications'] as List?;
-      if (meds != null && meds.isNotEmpty) {
-        sb.writeln('| Medication | Frequency | Duration | Remarks |');
-        sb.writeln('| :--- | :--- | :--- | :--- |');
-        for (final m in meds) {
-          if (m is Map) {
-            final name = m['name'] ?? 'N/A';
-            final freq = m['frequency'] ?? 'N/A';
-            final duration = m['duration'] ?? 'N/A';
-            final remarks = m['remarks'] ?? '';
-            sb.writeln('| **$name** | $freq | $duration | $remarks |');
-          }
-        }
-      } else {
-        sb.writeln('*None prescribed or not mentioned.*');
-      }
-      sb.writeln();
-      sb.writeln('---');
-      sb.writeln();
-      sb.write(
-        '> *This report was automatically generated by Synapse AI based on clinical notes.*',
-      );
-
-      // Determine path
-      String filePath = coreInfo.filePath;
-      String? patientId;
-
-      if (!File(filePath).isAbsolute ||
-          (Platform.isAndroid || Platform.isIOS) &&
-              filePath.startsWith('/patients')) {
-        if (filePath.startsWith('/')) {
-          filePath = filePath.substring(1);
-        }
-        final parts = filePath.split('/');
-        if (parts.length >= 2 && parts[0] == 'patients') {
-          patientId = parts[1];
-        }
-        filePath = p.join(FileManager.documentsDirectory, filePath);
-      }
-
-      if (patientId != null) {
-        try {
-          await SupabaseReportService.createReport(
-            patientId: patientId,
-            structuredData: reportData,
-            markdownContent: sb.toString(),
-            sourceDocumentPath: coreInfo.filePath,
-          );
-        } catch (dbError) {
-          log.severe('Failed to save report to DB', dbError);
-        }
-
-        try {
-          final medications = reportData['medications'];
-          if (medications is List && medications.isNotEmpty) {
-            String? pName;
-            try {
-              final pData = await SupabasePatientService.getPatient(patientId);
-              pName = pData?.fullName;
-            } catch (e) {
-              /* ignore */
-            }
-
-            final medsList = medications.whereType<Map<String, dynamic>>().map((
-              m,
-            ) {
-              final newMap = Map<String, dynamic>.from(m);
-              if (newMap.containsKey('remarks')) {
-                newMap['instructions'] = newMap['remarks'];
-              }
-              return newMap;
-            }).toList();
-
-            if (medsList.isNotEmpty) {
-              await SupabasePrescriptionService.createPrescription(
-                patientId: patientId,
-                consultationId: widget.consultationId,
-                medications: medsList,
-                patientName: pName,
-              );
-            }
-          }
-        } catch (rxError) {
-          log.severe('Failed to send prescriptions', rxError);
-        }
-
-        if (widget.consultationId != null) {
-          try {
-            await SupabaseDashboardService.completeConsultation(
-              widget.consultationId!,
-            );
-          } catch (e) {
-            log.warning('Failed to mark consultation as completed: $e');
-          }
-        }
-      }
-
-      // 4. Terminate local state
-      SessionManager().terminate();
-      ReportGenerationManager().reset();
-
-      // 5. Navigate away
-      if (mounted) {
-        if (Navigator.of(context).canPop()) {
-          context.pop();
-        } else {
-          context.go(HomeRoutes.getRoute(0));
-        }
-      }
-    } catch (e) {
-      setState(() => _isTerminating = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: HeroMode(
-              enabled: false,
-              child: Text('Failed to save report: $e'),
-            ),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
-    }
-  }
-
   Future _initStrokes() async {
     debugPrint('Editor: _initStrokes loading from file: ${coreInfo.filePath}');
     coreInfo = await EditorCoreInfo.loadFromFilePath(coreInfo.filePath);
@@ -634,8 +449,8 @@ class EditorState extends State<Editor> {
       listenToQuillChanges(coreInfo.pages[pageIndex].quill, pageIndex);
     }
 
-    if (coreInfo.isEmpty) {
-      createPage(-1);
+    if (coreInfo.pages.isEmpty) {
+      createPage(0);
     } else {
       for (final page in coreInfo.pages) {
         page.backgroundImage?.onMoveImage = onMoveImage;
@@ -707,7 +522,7 @@ class EditorState extends State<Editor> {
   /// Creates pages until the given page index exists,
   /// plus an extra blank page
   void createPage(int pageIndex) {
-    while (pageIndex >= coreInfo.pages.length - 1) {
+    while (pageIndex >= coreInfo.pages.length) {
       final page = EditorPage();
       coreInfo.pages.add(page);
       listenToQuillChanges(page.quill, coreInfo.pages.length - 1);
@@ -1419,6 +1234,57 @@ class EditorState extends State<Editor> {
     );
   }
 
+  Future<void> _promptProgressStatus() async {
+    // 0. Cache Check: If we already have a status, don't ask again.
+    if (_patientProgressStatus != null) return;
+
+    // Only prompt if we have a consultation ID to save it to
+    if (widget.consultationId == null) return;
+
+    // Check if there are previous completed sessions to establish a baseline
+    if (_patientId != null) {
+      try {
+        final history =
+            await SupabaseConsultationService.getPatientConsultations(
+              _patientId!,
+            );
+        // Filter out the current session ID to see if there are ACTUAL prior sessions
+        final hasPriorHistory = history.any(
+          (c) => c.status == 'completed' && c.id != widget.consultationId,
+        );
+
+        debugPrint(
+          'Progress Dialog: Patient $_patientId, History Count: ${history.length}, Has Prior: $hasPriorHistory',
+        );
+
+        if (!hasPriorHistory) {
+          debugPrint(
+            'Progress Dialog: First session detected. Skipping prompt.',
+          );
+          // It's the first session, so we don't need to ask for progress
+          return;
+        }
+      } catch (e) {
+        log.warning('Failed to check patient history for progress prompt: $e');
+        // Fail safe: show prompt or skip?
+        // Safer to skip to avoid confusion if we aren't sure.
+        return;
+      }
+    }
+
+    final status = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const PatientProgressDialog(),
+    );
+
+    if (mounted && status != null) {
+      setState(() {
+        _patientProgressStatus = status;
+      });
+    }
+  }
+
   late final _filenameFormKey = GlobalKey<FormState>();
   late final filenameTextEditingController = TextEditingController();
   Timer? _renameTimer;
@@ -1979,6 +1845,7 @@ class EditorState extends State<Editor> {
     }
   }
 
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -2276,7 +2143,7 @@ class EditorState extends State<Editor> {
     // We use a SINGLE LayoutBuilder and Stack here to prevent layout cycles/ANRs
     // caused by nested LayoutBuilders in previous implementations.
 
-    Widget finalCanvasWithOverlay = LayoutBuilder(
+    final Widget finalCanvasWithOverlay = LayoutBuilder(
       builder: (context, constraints) {
         final List<Widget> stackChildren = [canvas];
 
@@ -2338,32 +2205,36 @@ class EditorState extends State<Editor> {
               children: [
                 // 1. Intake
                 if (_patientId != null || _patientIntake != null) ...[
-                  _showIntakeOverlay && _intakeOverlayPosition == null
-                      ? _buildDraggableIntakeOverlay(constraints)
-                      : _buildIntakeButton(colorScheme, theme),
+                  if (_showIntakeOverlay && _intakeOverlayPosition == null)
+                    _buildDraggableIntakeOverlay(constraints)
+                  else
+                    _buildIntakeButton(colorScheme, theme),
                   const SizedBox(height: 16),
                 ],
                 // 2. Vitals
                 if (_patientId != null) ...[
-                  _showVitalsOverlay && _vitalsOverlayPosition == null
-                      ? _buildDraggableVitalsOverlay(constraints)
-                      : _buildVitalsButton(colorScheme, theme),
+                  if (_showVitalsOverlay && _vitalsOverlayPosition == null)
+                    _buildDraggableVitalsOverlay(constraints)
+                  else
+                    _buildVitalsButton(colorScheme, theme),
                   const SizedBox(height: 16),
                 ],
                 // 3. Previous Notes
                 if (_patientId != null) ...[
-                  _showPreviousNotesOverlay &&
-                          _previousNotesOverlayPosition == null
-                      ? _buildDraggablePreviousNotesOverlay(constraints)
-                      : _buildPreviousNotesButton(colorScheme, theme),
+                  if (_showPreviousNotesOverlay &&
+                      _previousNotesOverlayPosition == null)
+                    _buildDraggablePreviousNotesOverlay(constraints)
+                  else
+                    _buildPreviousNotesButton(colorScheme, theme),
                   const SizedBox(height: 16),
                 ],
                 // 4. Medication History
                 if (_patientId != null) ...[
-                  _showMedicationHistoryOverlay &&
-                          _medicationHistoryOverlayPosition == null
-                      ? _buildDraggableMedicationHistoryOverlay(constraints)
-                      : _buildMedicationHistoryButton(colorScheme, theme),
+                  if (_showMedicationHistoryOverlay &&
+                      _medicationHistoryOverlayPosition == null)
+                    _buildDraggableMedicationHistoryOverlay(constraints)
+                  else
+                    _buildMedicationHistoryButton(colorScheme, theme),
                 ],
               ],
             ),
@@ -2419,652 +2290,635 @@ class EditorState extends State<Editor> {
       );
     }
 
-    return HeroMode(
-      enabled: !_isCapturingForReport && !SessionManager().isMinimized,
-      child: Hero(
-        key: const ValueKey('active_session_hero_editor'),
-        tag: 'active_session',
-        child: ValueListenableBuilder<SavingState>(
-          valueListenable: savingState,
-          builder: (context, savingState, child) {
-            // handle session minimization on back navigation
-            return PopScope(
-              canPop: savingState != SavingState.saving,
-              onPopInvokedWithResult: (didPop, _) {
-                if (!didPop) {
-                  snackBarNeedsToSaveBeforeExiting();
-                  return;
-                }
+    final bool enableHero =
+        !_isCapturingForReport && !SessionManager().isMinimized;
 
-                // Trigger minimization immediately so the Hero destination exists
-                // on the previous page when the transition starts.
-                if (!widget.readOnly &&
-                    SessionManager().hasActiveSession &&
-                    SessionManager().isMinimized == false) {
-                  SessionManager().minimize();
-                }
-              },
-              child: child!,
-            );
+    Widget contentWithPopScope = ValueListenableBuilder<SavingState>(
+      valueListenable: savingState,
+      builder: (context, savingState, child) {
+        // handle session minimization on back navigation
+        return PopScope(
+          canPop: savingState != SavingState.saving,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) {
+              snackBarNeedsToSaveBeforeExiting();
+              return;
+            }
+
+            // Trigger minimization immediately so the Hero destination exists
+            // on the previous page when the transition starts.
+            if (!widget.readOnly &&
+                SessionManager().hasActiveSession &&
+                SessionManager().isMinimized == false) {
+              SessionManager().minimize();
+            }
           },
-          child: Scaffold(
-            appBar: DynamicMaterialApp.isFullscreen
-                ? null
-                : AppBar(
-                    centerTitle: false,
-                    toolbarHeight: kToolbarHeight,
-                    title: widget.customTitle != null
-                        ? Text(
-                            widget.customTitle!,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          )
-                        : _patientName != null
-                        ? Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _patientName!,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                coreInfo.fileName,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.normal,
-                                ),
-                              ),
-                            ],
-                          )
-                        : Form(
-                            key: _filenameFormKey,
-                            autovalidateMode:
-                                AutovalidateMode.onUserInteraction,
-                            child: TextFormField(
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                              ),
-                              controller: filenameTextEditingController,
-                              onChanged: renameFile,
-                              autofocus: needsNaming,
-                              validator: _validateFilenameTextField,
+          child: child!,
+        );
+      },
+      child: Scaffold(
+        appBar: DynamicMaterialApp.isFullscreen
+            ? null
+            : AppBar(
+                centerTitle: false,
+                toolbarHeight: kToolbarHeight,
+                title: widget.customTitle != null
+                    ? Text(
+                        widget.customTitle!,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      )
+                    : _patientName != null
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _patientName!,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                    leading: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                      onPressed: () {
-                        debugPrint('Editor: Back button pressed');
-                        if (!context.mounted) return;
-
-                        if (savingState.value == SavingState.saving) {
-                          snackBarNeedsToSaveBeforeExiting();
-                        } else {
-                          // Safety fallback: if there is no stack to pop (can happen with go_router),
-                          // navigate to the dashboard explicitly instead of popping to black.
-                          if (Navigator.of(context).canPop() &&
-                              context.mounted) {
-                            context.pop();
-                          } else if (context.mounted) {
-                            // If no session terminated, minimize first before moving
-                            if (!widget.readOnly &&
-                                SessionManager().hasActiveSession) {
-                              SessionManager().minimize();
-                            }
-                            if (context.mounted) {
-                              context.go(HomeRoutes.getRoute(0));
-                            }
-                          }
-                        }
-                      },
-                    ),
-                    actions: [
-                      if (!coreInfo.readOnly && !widget.isWhiteboard)
-                        SaveIndicator(
-                          savingState: savingState,
-                          triggerSave: saveToFile,
+                          Text(
+                            coreInfo.fileName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Form(
+                        key: _filenameFormKey,
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                        child: TextFormField(
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                          ),
+                          controller: filenameTextEditingController,
+                          onChanged: renameFile,
+                          autofocus: needsNaming,
+                          validator: _validateFilenameTextField,
                         ),
-                      if (widget.isWhiteboard)
-                        _buildClearWhiteboardButton(context),
-                      if (!coreInfo.readOnly && !widget.isWhiteboard)
-                        const SizedBox(width: 16),
-                      if (!coreInfo.readOnly && !widget.isWhiteboard)
-                        _buildTerminateButton(context),
-                      if (!coreInfo.readOnly && !widget.isWhiteboard)
-                        const SizedBox(width: 20),
-                      if (!coreInfo.readOnly && !widget.isWhiteboard)
-                        Container(
-                          margin: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.blue.shade500,
-                                Colors.blue.shade700,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.blue.withValues(alpha: 0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
+                      ),
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                  onPressed: () {
+                    debugPrint('Editor: Back button pressed');
+                    if (!context.mounted) return;
+
+                    if (savingState.value == SavingState.saving) {
+                      snackBarNeedsToSaveBeforeExiting();
+                    } else {
+                      // Safety fallback: if there is no stack to pop (can happen with go_router),
+                      // navigate to the dashboard explicitly instead of popping to black.
+                      if (Navigator.of(context).canPop() && context.mounted) {
+                        context.pop();
+                      } else if (context.mounted) {
+                        // If no session terminated, minimize first before moving
+                        if (!widget.readOnly &&
+                            SessionManager().hasActiveSession) {
+                          SessionManager().minimize();
+                        }
+                        if (context.mounted) {
+                          context.go(HomeRoutes.getRoute(0));
+                        }
+                      }
+                    }
+                  },
+                ),
+                actions: [
+                  if (!coreInfo.readOnly && !widget.isWhiteboard)
+                    SaveIndicator(
+                      savingState: savingState,
+                      triggerSave: saveToFile,
+                    ),
+                  if (widget.isWhiteboard) _buildClearWhiteboardButton(context),
+                  if (!coreInfo.readOnly && !widget.isWhiteboard)
+                    const SizedBox(width: 16),
+                  if (!coreInfo.readOnly && !widget.isWhiteboard)
+                    _buildTerminateButton(context),
+                  if (!coreInfo.readOnly && !widget.isWhiteboard)
+                    const SizedBox(width: 20),
+                  if (!coreInfo.readOnly && !widget.isWhiteboard)
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.blue.shade500, Colors.blue.shade700],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.blue.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
                           ),
-                          child: TextButton.icon(
-                            icon: const Icon(
-                              Icons.auto_awesome,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                            label: const Text(
-                              'Finish Session',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            onPressed: coreInfo.readOnly
-                                ? null
-                                : () async {
-                                    // First, check if a report already exists for this session
+                        ],
+                      ),
+                      child: TextButton.icon(
+                        icon: const Icon(
+                          Icons.auto_awesome,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        label: const Text(
+                          'Finish Session',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onPressed: coreInfo.readOnly
+                            ? null
+                            : () async {
+                                // Parallel Execution: Prompt for status AND check/generate report
+                                final progressFuture = _promptProgressStatus();
+
+                                // First, check if a report already exists for this session
+                                log.info(
+                                  'Checking for existing report with path: ${coreInfo.filePath}',
+                                );
+                                ClinicalReport? existingReport;
+                                try {
+                                  existingReport =
+                                      await SupabaseReportService.getReportBySourcePath(
+                                        coreInfo.filePath,
+                                      );
+                                  if (existingReport != null) {
                                     log.info(
-                                      'Checking for existing report with path: ${coreInfo.filePath}',
+                                      'Found existing report: ${existingReport.id}',
                                     );
-                                    ClinicalReport? existingReport;
-                                    try {
-                                      existingReport =
-                                          await SupabaseReportService.getReportBySourcePath(
-                                            coreInfo.filePath,
-                                          );
-                                      if (existingReport != null) {
-                                        log.info(
-                                          'Found existing report: ${existingReport.id}',
-                                        );
-                                      } else {
-                                        log.info(
-                                          'No existing report found for this session',
-                                        );
-                                      }
-                                    } catch (e) {
-                                      log.warning(
-                                        'Failed to check for existing report: $e',
-                                      );
-                                    }
+                                  } else {
+                                    log.info(
+                                      'No existing report found for this session',
+                                    );
+                                  }
+                                } catch (e) {
+                                  log.warning(
+                                    'Failed to check for existing report: $e',
+                                  );
+                                }
 
-                                    if (existingReport != null) {
-                                      // Show existing report without confirmation
-                                      if (!context.mounted) return;
-                                      log.info(
-                                        'Showing existing report instead of generating new one',
-                                      );
-                                      _showReportDialog(
-                                        context,
-                                        existingReport.structuredData,
-                                        <Uint8List>[],
-                                        onRegenerate: () async {
-                                          // Close the current dialog
-                                          Navigator.pop(context);
+                                // Wait for progress prompt to complete (it's quick usually)
+                                // or finding existing report.
+                                // We await the prompt here to ensure we have the status before showing the report dialog
+                                // (because the user might want to cancel/skip).
+                                // However, to be truly parallel visually, we let it run.
+                                // But we need the result before _verifyAndSaveReport is called.
+                                // Since _verifyAndSaveReport is called FROM the report dialog,
+                                // and the report dialog is shown AFTER this block...
 
-                                          // Show confirmation dialog for regeneration
-                                          final confirmRegen = await showDialog<bool>(
-                                            context: context,
-                                            barrierDismissible: false,
-                                            builder: (dialogContext) => Dialog(
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                              ),
-                                              child: Container(
-                                                constraints:
-                                                    const BoxConstraints(
-                                                      maxWidth: 400,
-                                                    ),
-                                                padding: const EdgeInsets.all(
-                                                  24,
-                                                ),
-                                                child: Column(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    // Warning icon with gradient background
-                                                    Container(
-                                                      width: 80,
-                                                      height: 80,
-                                                      decoration: BoxDecoration(
-                                                        gradient:
-                                                            LinearGradient(
-                                                              colors: [
-                                                                Colors
-                                                                    .orange
-                                                                    .shade400,
-                                                                Colors
-                                                                    .orange
-                                                                    .shade700,
-                                                              ],
-                                                              begin: Alignment
-                                                                  .topLeft,
-                                                              end: Alignment
-                                                                  .bottomRight,
-                                                            ),
-                                                        shape: BoxShape.circle,
-                                                        boxShadow: [
-                                                          BoxShadow(
-                                                            color: Colors.orange
-                                                                .withValues(
-                                                                  alpha: 0.3,
-                                                                ),
-                                                            blurRadius: 12,
-                                                            spreadRadius: 2,
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      child: const Icon(
-                                                        Icons.refresh,
-                                                        color: Colors.white,
-                                                        size: 40,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 24),
-                                                    // Title
-                                                    Text(
-                                                      'Regenerate Report?',
-                                                      style:
-                                                          Theme.of(
-                                                                dialogContext,
-                                                              )
-                                                              .textTheme
-                                                              .headlineSmall
-                                                              ?.copyWith(
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                              ),
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                    ),
-                                                    const SizedBox(height: 12),
-                                                    // Description
-                                                    Text(
-                                                      'This will generate a new AI report for this session. The current report will be replaced. This action cannot be undone.',
-                                                      style: Theme.of(dialogContext)
-                                                          .textTheme
-                                                          .bodyMedium
-                                                          ?.copyWith(
-                                                            color:
-                                                                Theme.of(
-                                                                      dialogContext,
-                                                                    )
-                                                                    .colorScheme
-                                                                    .onSurfaceVariant,
-                                                          ),
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                    ),
-                                                    const SizedBox(height: 24),
-                                                    // Action buttons
-                                                    Row(
-                                                      children: [
-                                                        Expanded(
-                                                          child: OutlinedButton(
-                                                            onPressed: () =>
-                                                                Navigator.pop(
-                                                                  dialogContext,
-                                                                  false,
-                                                                ),
-                                                            style: OutlinedButton.styleFrom(
-                                                              padding:
-                                                                  const EdgeInsets.symmetric(
-                                                                    vertical:
-                                                                        14,
-                                                                  ),
-                                                              shape: RoundedRectangleBorder(
-                                                                borderRadius:
-                                                                    BorderRadius.circular(
-                                                                      12,
-                                                                    ),
-                                                              ),
-                                                            ),
-                                                            child: Text(
-                                                              t.common.cancel,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 12,
-                                                        ),
-                                                        Expanded(
-                                                          child: FilledButton(
-                                                            onPressed: () =>
-                                                                Navigator.pop(
-                                                                  dialogContext,
-                                                                  true,
-                                                                ),
-                                                            style: FilledButton.styleFrom(
-                                                              padding:
-                                                                  const EdgeInsets.symmetric(
-                                                                    vertical:
-                                                                        14,
-                                                                  ),
-                                                              backgroundColor:
-                                                                  Colors
-                                                                      .orange
-                                                                      .shade700,
-                                                              shape: RoundedRectangleBorder(
-                                                                borderRadius:
-                                                                    BorderRadius.circular(
-                                                                      12,
-                                                                    ),
-                                                              ),
-                                                            ),
-                                                            child: const Text(
-                                                              'Regenerate',
-                                                            ),
-                                                          ),
-                                                        ),
+                                // Let's await the prompt here. It might delay showing the existing report slightly
+                                // but ensures data integrity.
+                                // User flow: Click Finish -> Status Dialog -> Report Dialog.
+                                await progressFuture;
+
+                                if (existingReport != null) {
+                                  // Show existing report without confirmation
+                                  if (!context.mounted) return;
+                                  log.info(
+                                    'Showing existing report instead of generating new one',
+                                  );
+                                  _showReportDialog(
+                                    context,
+                                    existingReport.structuredData,
+                                    <Uint8List>[],
+                                    onRegenerate: () async {
+                                      // Close the current dialog
+                                      Navigator.pop(context);
+
+                                      // Show confirmation dialog for regeneration
+                                      final confirmRegen = await showDialog<bool>(
+                                        context: context,
+                                        barrierDismissible: false,
+                                        builder: (dialogContext) => Dialog(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                          ),
+                                          child: Container(
+                                            constraints: const BoxConstraints(
+                                              maxWidth: 400,
+                                            ),
+                                            padding: const EdgeInsets.all(24),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                // Warning icon with gradient background
+                                                Container(
+                                                  width: 80,
+                                                  height: 80,
+                                                  decoration: BoxDecoration(
+                                                    gradient: LinearGradient(
+                                                      colors: [
+                                                        Colors.orange.shade400,
+                                                        Colors.orange.shade700,
                                                       ],
+                                                      begin: Alignment.topLeft,
+                                                      end:
+                                                          Alignment.bottomRight,
+                                                    ),
+                                                    shape: BoxShape.circle,
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.orange
+                                                            .withValues(
+                                                              alpha: 0.3,
+                                                            ),
+                                                        blurRadius: 12,
+                                                        spreadRadius: 2,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.refresh,
+                                                    color: Colors.white,
+                                                    size: 40,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 24),
+                                                // Title
+                                                Text(
+                                                  'Regenerate Report?',
+                                                  style: Theme.of(dialogContext)
+                                                      .textTheme
+                                                      .headlineSmall
+                                                      ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                                const SizedBox(height: 12),
+                                                // Description
+                                                Text(
+                                                  'This will generate a new AI report for this session. The current report will be replaced. This action cannot be undone.',
+                                                  style: Theme.of(dialogContext)
+                                                      .textTheme
+                                                      .bodyMedium
+                                                      ?.copyWith(
+                                                        color:
+                                                            Theme.of(
+                                                                  dialogContext,
+                                                                )
+                                                                .colorScheme
+                                                                .onSurfaceVariant,
+                                                      ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                                const SizedBox(height: 24),
+                                                // Action buttons
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: OutlinedButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                              dialogContext,
+                                                              false,
+                                                            ),
+                                                        style: OutlinedButton.styleFrom(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                vertical: 14,
+                                                              ),
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  12,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        child: Text(
+                                                          t.common.cancel,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 12),
+                                                    Expanded(
+                                                      child: FilledButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                              dialogContext,
+                                                              true,
+                                                            ),
+                                                        style: FilledButton.styleFrom(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                vertical: 14,
+                                                              ),
+                                                          backgroundColor:
+                                                              Colors
+                                                                  .orange
+                                                                  .shade700,
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  12,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        child: const Text(
+                                                          'Regenerate',
+                                                        ),
+                                                      ),
                                                     ),
                                                   ],
                                                 ),
-                                              ),
+                                              ],
                                             ),
-                                          );
-
-                                          // If confirmed, delete the old report and generate a new one
-                                          if (confirmRegen == true &&
-                                              context.mounted) {
-                                            try {
-                                              // Delete the existing report from database
-                                              await SupabaseReportService.deleteReport(
-                                                existingReport!.id,
-                                              );
-                                              log.info(
-                                                'Deleted existing report ${existingReport!.id}',
-                                              );
-
-                                              // Generate new report
-                                              _generateReport(context);
-                                            } catch (e) {
-                                              log.severe(
-                                                'Failed to delete existing report',
-                                                e,
-                                              );
-                                              if (context.mounted) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    content: HeroMode(
-                                                      enabled: false,
-                                                      child: Text(
-                                                        'Failed to regenerate report: $e',
-                                                      ),
-                                                    ),
-                                                    backgroundColor: Theme.of(
-                                                      context,
-                                                    ).colorScheme.error,
-                                                  ),
-                                                );
-                                              }
-                                            }
-                                          }
-                                        },
-                                      );
-                                      return;
-                                    }
-
-                                    // No existing report, show confirmation dialog
-                                    final confirm = await showDialog<bool>(
-                                      context: context,
-                                      barrierDismissible: false,
-                                      builder: (dialogContext) => Dialog(
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            20,
                                           ),
                                         ),
-                                        child: Container(
-                                          constraints: const BoxConstraints(
-                                            maxWidth: 400,
-                                          ),
-                                          padding: const EdgeInsets.all(24),
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              // Icon with gradient background
-                                              Container(
-                                                width: 80,
-                                                height: 80,
-                                                decoration: BoxDecoration(
-                                                  gradient: LinearGradient(
-                                                    colors: [
-                                                      Colors.blue.shade400,
-                                                      Colors.blue.shade700,
-                                                    ],
-                                                    begin: Alignment.topLeft,
-                                                    end: Alignment.bottomRight,
+                                      );
+
+                                      // If confirmed, delete the old report and generate a new one
+                                      if ((confirmRegen ?? false) &&
+                                          context.mounted) {
+                                        try {
+                                          // Delete the existing report from database
+                                          await SupabaseReportService.deleteReport(
+                                            existingReport!.id,
+                                          );
+                                          log.info(
+                                            'Deleted existing report ${existingReport.id}',
+                                          );
+
+                                          // Generate new report
+                                          _generateReport(context);
+                                        } catch (e) {
+                                          log.severe(
+                                            'Failed to delete existing report',
+                                            e,
+                                          );
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: HeroMode(
+                                                  enabled: false,
+                                                  child: Text(
+                                                    'Failed to regenerate report: $e',
                                                   ),
-                                                  shape: BoxShape.circle,
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: Colors.blue
-                                                          .withValues(
-                                                            alpha: 0.3,
-                                                          ),
-                                                      blurRadius: 12,
-                                                      spreadRadius: 2,
-                                                    ),
-                                                  ],
                                                 ),
-                                                child: const Icon(
-                                                  Icons.auto_awesome,
-                                                  color: Colors.white,
-                                                  size: 40,
-                                                ),
+                                                backgroundColor: Theme.of(
+                                                  context,
+                                                ).colorScheme.error,
                                               ),
-                                              const SizedBox(height: 24),
-                                              // Title
-                                              Text(
-                                                'Generate AI Report?',
-                                                style: Theme.of(dialogContext)
-                                                    .textTheme
-                                                    .headlineSmall
-                                                    ?.copyWith(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                              const SizedBox(height: 12),
-                                              // Description
-                                              Text(
-                                                'This will finalize the session and generate a comprehensive clinical report using AI. The editor will be locked after generation.',
-                                                style: Theme.of(dialogContext)
-                                                    .textTheme
-                                                    .bodyMedium
-                                                    ?.copyWith(
-                                                      color:
-                                                          Theme.of(
-                                                                dialogContext,
-                                                              )
-                                                              .colorScheme
-                                                              .onSurfaceVariant,
-                                                    ),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                              const SizedBox(height: 24),
-                                              // Action buttons
-                                              Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: OutlinedButton(
-                                                      onPressed: () =>
-                                                          Navigator.pop(
-                                                            dialogContext,
-                                                            false,
-                                                          ),
-                                                      style: OutlinedButton.styleFrom(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              vertical: 14,
-                                                            ),
-                                                        shape: RoundedRectangleBorder(
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                12,
-                                                              ),
-                                                        ),
-                                                      ),
-                                                      child: Text(
-                                                        t.common.cancel,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 12),
-                                                  Expanded(
-                                                    child: FilledButton(
-                                                      onPressed: () =>
-                                                          Navigator.pop(
-                                                            dialogContext,
-                                                            true,
-                                                          ),
-                                                      style: FilledButton.styleFrom(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              vertical: 14,
-                                                            ),
-                                                        backgroundColor: Colors
-                                                            .blue
-                                                            .shade700,
-                                                        shape: RoundedRectangleBorder(
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                12,
-                                                              ),
-                                                        ),
-                                                      ),
-                                                      child: const Text(
-                                                        'Generate Report',
-                                                      ),
-                                                    ),
-                                                  ),
+                                            );
+                                          }
+                                        }
+                                      }
+                                    },
+                                  );
+                                  return;
+                                }
+
+                                // No existing report, show confirmation dialog
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (dialogContext) => Dialog(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Container(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 400,
+                                      ),
+                                      padding: const EdgeInsets.all(24),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          // Icon with gradient background
+                                          Container(
+                                            width: 80,
+                                            height: 80,
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  Colors.blue.shade400,
+                                                  Colors.blue.shade700,
                                                 ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              ),
+                                              shape: BoxShape.circle,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.blue.withValues(
+                                                    alpha: 0.3,
+                                                  ),
+                                                  blurRadius: 12,
+                                                  spreadRadius: 2,
+                                                ),
+                                              ],
+                                            ),
+                                            child: const Icon(
+                                              Icons.auto_awesome,
+                                              color: Colors.white,
+                                              size: 40,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 24),
+                                          // Title
+                                          Text(
+                                            'Generate AI Report?',
+                                            style: Theme.of(dialogContext)
+                                                .textTheme
+                                                .headlineSmall
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 12),
+                                          // Description
+                                          Text(
+                                            'This will finalize the session and generate a comprehensive clinical report using AI. The editor will be locked after generation.',
+                                            style: Theme.of(dialogContext)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  color: Theme.of(dialogContext)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 24),
+                                          // Action buttons
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: OutlinedButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        dialogContext,
+                                                        false,
+                                                      ),
+                                                  style: OutlinedButton.styleFrom(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          vertical: 14,
+                                                        ),
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  child: Text(t.common.cancel),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: FilledButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        dialogContext,
+                                                        true,
+                                                      ),
+                                                  style: FilledButton.styleFrom(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          vertical: 14,
+                                                        ),
+                                                    backgroundColor:
+                                                        Colors.blue.shade700,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  child: const Text(
+                                                    'Generate Report',
+                                                  ),
+                                                ),
                                               ),
                                             ],
                                           ),
-                                        ),
+                                        ],
                                       ),
-                                    );
+                                    ),
+                                  ),
+                                );
 
-                                    if (confirm == true && context.mounted) {
-                                      _generateReport(context);
-                                    }
-                                  },
+                                if ((confirm ?? false) && context.mounted) {
+                                  _generateReport(context);
+                                }
+                              },
+                      ),
+                    ),
+                  if (coreInfo.readOnly)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            coreInfo.readOnly = false;
+                          });
+                        },
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        label: const Text(
+                          'Unlock to Edit',
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      if (coreInfo.readOnly)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: TextButton.icon(
-                            onPressed: () {
-                              setState(() {
-                                coreInfo.readOnly = false;
-                              });
-                            },
-                            icon: const Icon(Icons.edit, color: Colors.blue),
-                            label: const Text(
-                              'Unlock to Edit',
-                              style: TextStyle(
-                                color: Colors.blue,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            style: TextButton.styleFrom(
-                              backgroundColor: Colors.blue.withOpacity(0.1),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
+                        style: TextButton.styleFrom(
+                          backgroundColor: Colors.blue.withOpacity(0.1),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
+                      ),
+                    ),
 
-                      IconButton(
-                        icon: const AdaptiveIcon(
-                          icon: Icons.insert_page_break,
-                          cupertinoIcon: CupertinoIcons.add,
-                        ),
-                        tooltip: t.editor.menu.insertPage,
-                        onPressed: () => setState(() {
-                          final currentPageIndex = this.currentPageIndex;
-                          insertPageAfter(currentPageIndex);
-                          CanvasGestureDetector.scrollToPage(
-                            pageIndex: currentPageIndex + 1,
-                            pages: coreInfo.pages,
-                            screenWidth: MediaQuery.sizeOf(context).width,
-                            transformationController: _transformationController,
-                          );
-                        }),
-                      ),
-                      IconButton(
-                        icon: const AdaptiveIcon(
-                          icon: Icons.grid_view,
-                          cupertinoIcon: CupertinoIcons.rectangle_grid_2x2,
-                        ),
-                        tooltip: t.editor.pages,
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => AdaptiveAlertDialog(
-                              title: Text(t.editor.pages),
-                              content: pageManager(context),
-                              actions: const [],
-                            ),
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: const AdaptiveIcon(
-                          icon: Icons.more_vert,
-                          cupertinoIcon: CupertinoIcons.ellipsis_vertical,
-                        ),
-                        onPressed: () {
-                          showModalBottomSheet(
-                            context: context,
-                            builder: (context) => bottomSheet(context),
-                            isScrollControlled: true,
-                            showDragHandle: true,
-                            backgroundColor: colorScheme.surface,
-                            constraints: const BoxConstraints(maxWidth: 500),
-                          );
-                        },
-                      ),
-                    ],
+                  IconButton(
+                    icon: const AdaptiveIcon(
+                      icon: Icons.insert_page_break,
+                      cupertinoIcon: CupertinoIcons.add,
+                    ),
+                    tooltip: t.editor.menu.insertPage,
+                    onPressed: () => setState(() {
+                      final currentPageIndex = this.currentPageIndex;
+                      insertPageAfter(currentPageIndex);
+                      CanvasGestureDetector.scrollToPage(
+                        pageIndex: currentPageIndex + 1,
+                        pages: coreInfo.pages,
+                        screenWidth: MediaQuery.sizeOf(context).width,
+                        transformationController: _transformationController,
+                      );
+                    }),
                   ),
-            body: body,
-            floatingActionButton:
-                (DynamicMaterialApp.isFullscreen &&
-                    !stows.editorToolbarShowInFullscreen.value)
-                ? FloatingActionButton(
-                    shape: platform.isCupertino ? const CircleBorder() : null,
+                  IconButton(
+                    icon: const AdaptiveIcon(
+                      icon: Icons.grid_view,
+                      cupertinoIcon: CupertinoIcons.rectangle_grid_2x2,
+                    ),
+                    tooltip: t.editor.pages,
                     onPressed: () {
-                      DynamicMaterialApp.setFullscreen(
-                        false,
-                        updateSystem: true,
+                      showDialog(
+                        context: context,
+                        builder: (context) => AdaptiveAlertDialog(
+                          title: Text(t.editor.pages),
+                          content: pageManager(context),
+                          actions: const [],
+                        ),
                       );
                     },
-                    child: const Icon(Icons.fullscreen_exit),
-                  )
-                : null,
-          ),
-        ),
+                  ),
+                  IconButton(
+                    icon: const AdaptiveIcon(
+                      icon: Icons.more_vert,
+                      cupertinoIcon: CupertinoIcons.ellipsis_vertical,
+                    ),
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        builder: (context) => bottomSheet(context),
+                        isScrollControlled: true,
+                        showDragHandle: true,
+                        backgroundColor: colorScheme.surface,
+                        constraints: const BoxConstraints(maxWidth: 500),
+                      );
+                    },
+                  ),
+                ],
+              ),
+        body: body,
+        floatingActionButton:
+            (DynamicMaterialApp.isFullscreen &&
+                !stows.editorToolbarShowInFullscreen.value)
+            ? FloatingActionButton(
+                shape: platform.isCupertino ? const CircleBorder() : null,
+                onPressed: () {
+                  DynamicMaterialApp.setFullscreen(false, updateSystem: true);
+                },
+                child: const Icon(Icons.fullscreen_exit),
+              )
+            : null,
       ),
     );
+
+    if (enableHero) {
+      return Hero(
+        key: const ValueKey('active_session_hero_editor'),
+        tag: 'active_session',
+        child: contentWithPopScope,
+      );
+    }
+
+    return contentWithPopScope;
   }
 
   void snackBarNeedsToSaveBeforeExiting() {
@@ -3756,7 +3610,7 @@ class EditorState extends State<Editor> {
 
       builder: (context) => Dialog(
         insetPadding: const EdgeInsets.all(16),
-        child: Container(
+        child: DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -3785,7 +3639,7 @@ class EditorState extends State<Editor> {
                 separatorBuilder: (context, index) =>
                     const SizedBox(height: 24),
                 itemBuilder: (context, index) {
-                  return Container(
+                  return DecoratedBox(
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -3919,7 +3773,8 @@ class EditorState extends State<Editor> {
 
                     // Determine path
                     String filePath = coreInfo.filePath;
-                    String? patientId;
+                    // Use _patientId as source of truth if available, otherwise fallback to path parsing
+                    String? patientId = _patientId;
 
                     // Ensure we have a valid absolute path
                     // If the path is just '/patients/...' on mobile, it's likely relative to the app sandbox
@@ -3930,10 +3785,12 @@ class EditorState extends State<Editor> {
                         filePath = filePath.substring(1);
                       }
 
-                      // Attempt to extract patient ID from path "patients/{id}/..."
-                      final parts = filePath.split('/');
-                      if (parts.length >= 2 && parts[0] == 'patients') {
-                        patientId = parts[1];
+                      // Attempt to extract patient ID from path if not already found
+                      if (patientId == null) {
+                        final parts = filePath.split('/');
+                        if (parts.length >= 2 && parts[0] == 'patients') {
+                          patientId = parts[1];
+                        }
                       }
 
                       // Use FileManager.documentsDirectory to ensure we are in the 'Saber' subfolder
@@ -4006,14 +3863,15 @@ class EditorState extends State<Editor> {
                         log.severe('Failed to send prescriptions', rxError);
                       }
 
-                      // Mark consultation as completed
+                      // Mark consultation as completed with progress status
                       if (widget.consultationId != null) {
                         try {
-                          await SupabaseDashboardService.completeConsultation(
+                          await SupabaseConsultationService.completeConsultation(
                             widget.consultationId!,
+                            progressStatus: _patientProgressStatus,
                           );
                           log.info(
-                            'Consultation ${widget.consultationId} marked as completed',
+                            'Consultation ${widget.consultationId} marked as completed with status: $_patientProgressStatus',
                           );
                         } catch (e) {
                           log.warning(
@@ -4609,12 +4467,10 @@ class EditorState extends State<Editor> {
   }
 }
 
-/**
- * 🔒 VISUAL INTEGRITY GUARD:
- * This dialog implements the premium Mesh Orb and Particle Absorption animation.
- * Part of the "Thinking AI" visual identity. 
- * Please cross-reference lib/components/animations/mesh_orb.dart before making changes.
- */
+/// 🔒 VISUAL INTEGRITY GUARD:
+/// This dialog implements the premium Mesh Orb and Particle Absorption animation.
+/// Part of the "Thinking AI" visual identity.
+/// Please cross-reference lib/components/animations/mesh_orb.dart before making changes.
 // _ReportGenerationDialog removed (moved to global overlay)
 // _ReportGenerationDialog removed (moved to global overlay)
 

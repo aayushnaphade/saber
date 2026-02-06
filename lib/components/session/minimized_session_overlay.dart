@@ -17,13 +17,14 @@ class MinimizedSessionOverlay extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    return HeroMode(
-      enabled: sessionManager.isMinimized,
-      child: Hero(
-        key: const ValueKey('active_session_hero_minimized'),
-        tag: 'active_session',
+    final isHeroEnabled = sessionManager.isMinimized;
+
+    Widget content = Material(
+      color: Colors.transparent,
+      child: Center(
         child: Container(
           height: 84,
+          constraints: const BoxConstraints(maxWidth: 600),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
             borderRadius: BorderRadius.circular(24),
@@ -50,74 +51,82 @@ class MinimizedSessionOverlay extends StatelessWidget {
             borderRadius: BorderRadius.circular(24),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Material(
-                color: Colors.transparent,
-                child: Row(
-                  children: [
-                    _buildStatusIndicator(colorScheme),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'ACTIVE SESSION',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                            ),
+              child: Row(
+                children: [
+                  _buildStatusIndicator(colorScheme),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'ACTIVE SESSION',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            sessionManager.patientName ?? 'Unknown Patient',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          sessionManager.patientName ?? 'Unknown Patient',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
-                        ],
-                      ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 16),
-                    _buildActionButton(
-                      context,
-                      'Restore',
-                      Icons.open_in_full_rounded,
-                      colorScheme.primary,
-                      () {
-                        debugPrint('Saber: Minimized Restore clicked');
-                        final path = sessionManager.activeSession!.filePath;
-                        final consultationId = sessionManager.consultationId;
+                  ),
+                  const SizedBox(width: 16),
+                  _buildActionButton(
+                    context,
+                    'Restore',
+                    Icons.open_in_full_rounded,
+                    colorScheme.primary,
+                    () {
+                      debugPrint('Saber: Minimized Restore clicked');
+                      final path = sessionManager.activeSession!.filePath;
+                      final consultationId = sessionManager.consultationId;
 
-                        router.push(
-                          RoutePaths.editFilePath(
-                            path,
-                            consultationId: consultationId,
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                    _buildActionButton(
-                      context,
-                      'End',
-                      Icons.close_rounded,
-                      colorScheme.error,
-                      () {
-                        debugPrint('Saber: Minimized End clicked');
-                        _showTerminateDialog(context);
-                      },
-                    ),
-                  ],
-                ),
+                      sessionManager.restore();
+                      router.push(
+                        RoutePaths.editFilePath(
+                          path,
+                          consultationId: consultationId,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  _buildActionButton(
+                    context,
+                    'End',
+                    Icons.close_rounded,
+                    colorScheme.error,
+                    () {
+                      debugPrint('Saber: Minimized End clicked');
+                      _showTerminateDialog(context);
+                    },
+                  ),
+                ],
               ),
             ),
           ),
         ),
       ),
     );
+
+    if (isHeroEnabled) {
+      return Hero(
+        key: const ValueKey('active_session_hero_minimized'),
+        tag: 'active_session',
+        child: content,
+      );
+    }
+
+    return content;
   }
 
   Widget _buildStatusIndicator(ColorScheme colorScheme) {

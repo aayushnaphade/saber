@@ -262,9 +262,8 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
                                   fillColor: isDark
                                       ? colorScheme.surfaceContainerHighest
                                             .withOpacity(0.3)
-                                      : colorScheme.surfaceContainerHighest.withOpacity(
-                                          0.1,
-                                        ),
+                                      : colorScheme.surfaceContainerHighest
+                                            .withOpacity(0.1),
                                 ),
                                 items: const [
                                   DropdownMenuItem(

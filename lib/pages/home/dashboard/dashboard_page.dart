@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
+import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/dashboard_models.dart';
@@ -14,10 +15,11 @@ import 'package:saber/data/routes.dart';
 import 'package:saber/data/session_manager.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
-import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/pages/home/dashboard/dashboard_skeleton.dart';
+import 'package:saber/pages/home/dashboard/widgets/expandable_patient_progress.dart';
 import 'package:saber/pages/home/dashboard/widgets/live_queue_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/live_queue_list.dart';
+import 'package:saber/pages/home/dashboard/widgets/patient_progress_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/stat_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/welcome_header.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -34,8 +36,8 @@ class _DashboardPageState extends State<DashboardPage> {
   String? _avatarUrl = stows.userAvatarUrl.value;
   RealtimeChannel? _consultationsSubscription;
   AudioPlayer? _audioPlayer;
-  bool _wasBusy = false;
-  bool _isFetching = false;
+  var _wasBusy = false;
+  var _isFetching = false;
 
   // Dashboard Data
   var _isLoading = true;
@@ -524,39 +526,68 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     return Scaffold(
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _loadDashboardData,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                WelcomeHeader(doctorName: _doctorName, avatarUrl: _avatarUrl),
-                const SizedBox(height: 24),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: RefreshIndicator(
+              onRefresh: _loadDashboardData,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    WelcomeHeader(
+                      doctorName: _doctorName,
+                      avatarUrl: _avatarUrl,
+                    ),
+                    const SizedBox(height: 24),
 
-                // Doctor Status Indicator (for Reception Mode)
-                if (stows.receptionMode.value) ...[
-                  _buildDoctorStatusIndicator(),
-                  const SizedBox(height: 32),
-                ],
+                    // Doctor Status Indicator (for Reception Mode)
+                    if (stows.receptionMode.value) ...[
+                      _buildDoctorStatusIndicator(),
+                      const SizedBox(height: 32),
+                    ],
 
-                // Main Grid Layout
-                Builder(
-                  builder: (context) {
-                    final width = MediaQuery.of(context).size.width;
-                    if (width >= 1100) {
-                      return _buildDesktopLayout(_stats, _queue, _appointments);
-                    } else {
-                      return _buildMobileLayout(_stats, _queue, _appointments);
-                    }
-                  },
+                    // Main Grid Layout
+                    Builder(
+                      builder: (context) {
+                        final width = MediaQuery.of(context).size.width;
+                        if (width >= 1100) {
+                          return _buildDesktopLayout(
+                            _stats,
+                            _queue,
+                            _appointments,
+                          );
+                        } else {
+                          return _buildMobileLayout(
+                            _stats,
+                            _queue,
+                            _appointments,
+                          );
+                        }
+                      },
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+          // Floating Expandable Progress Card (Portrait/Mobile Only)
+          Builder(
+            builder: (context) {
+              final width = MediaQuery.of(context).size.width;
+              if (width < 1100) {
+                return const Positioned(
+                  right: 24,
+                  bottom: 24,
+                  child: ExpandablePatientProgress(),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        ],
       ),
     );
   }
@@ -737,18 +768,20 @@ class _DashboardPageState extends State<DashboardPage> {
       return '$prefix${trend.toStringAsFixed(1)}%';
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // If each card would be less than 160px wide, wrap them
-        final useVertical = constraints.maxWidth < 480;
+    return Builder(
+      builder: (context) {
+        final width = MediaQuery.of(context).size.width;
+        final useVertical = width < 480;
+        final showProgressInGrid = width >= 1100;
 
         if (useVertical) {
           return Column(
             children: [
               StatCard(
                 label: 'Consultations Done',
-                value: stats.consultationsToday.toString(),
+                value: '${stats.consultationsToday}',
                 icon: Icons.check_circle_outline,
+                color: Colors.green,
                 trend: formatTrend(stats.consultationsTrend),
                 isPositiveTrend: (stats.consultationsTrend ?? 0) >= 0,
               ),
@@ -756,19 +789,23 @@ class _DashboardPageState extends State<DashboardPage> {
               StatCard(
                 label: 'Total Time',
                 value: '${stats.totalConsultationMinutes}m',
-                icon: Icons.timer_outlined,
+                icon: Icons.access_time,
                 color: Colors.orange,
                 trend: formatTrend(stats.timeTrend),
                 isPositiveTrend: (stats.timeTrend ?? 0) >= 0,
               ),
               const SizedBox(height: 12),
               StatCard(
-                label: 'History',
-                value: 'View All',
-                icon: Icons.history,
-                color: Colors.purple,
-                onTap: () => context.go('/home/history'),
+                label: 'All Patients',
+                value: 'View Directory',
+                icon: Icons.people_alt_outlined,
+                color: Colors.blue,
+                onTap: () => context.go('/home/browse'),
               ),
+              if (showProgressInGrid) ...[
+                const SizedBox(height: 12),
+                const PatientProgressCard(),
+              ],
             ],
           );
         }
@@ -778,8 +815,9 @@ class _DashboardPageState extends State<DashboardPage> {
             Expanded(
               child: StatCard(
                 label: 'Consultations Done',
-                value: stats.consultationsToday.toString(),
+                value: '${stats.consultationsToday}',
                 icon: Icons.check_circle_outline,
+                color: Colors.green,
                 trend: formatTrend(stats.consultationsTrend),
                 isPositiveTrend: (stats.consultationsTrend ?? 0) >= 0,
               ),
@@ -789,7 +827,7 @@ class _DashboardPageState extends State<DashboardPage> {
               child: StatCard(
                 label: 'Total Time',
                 value: '${stats.totalConsultationMinutes}m',
-                icon: Icons.timer_outlined,
+                icon: Icons.access_time,
                 color: Colors.orange,
                 trend: formatTrend(stats.timeTrend),
                 isPositiveTrend: (stats.timeTrend ?? 0) >= 0,
@@ -798,13 +836,17 @@ class _DashboardPageState extends State<DashboardPage> {
             const SizedBox(width: 12),
             Expanded(
               child: StatCard(
-                label: 'History',
-                value: 'View All',
-                icon: Icons.history,
-                color: Colors.purple,
-                onTap: () => context.go('/home/history'),
+                label: 'All Patients',
+                value: 'View Directory',
+                icon: Icons.people_alt_outlined,
+                color: Colors.blue,
+                onTap: () => context.go('/home/browse'),
               ),
             ),
+            if (showProgressInGrid) ...[
+              const SizedBox(width: 12),
+              const Expanded(flex: 2, child: PatientProgressCard()),
+            ],
           ],
         );
       },

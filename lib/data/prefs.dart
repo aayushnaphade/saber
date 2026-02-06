@@ -100,11 +100,7 @@ class Stows {
       supabaseUserId.value.isNotEmpty && supabaseAccessToken.value.isNotEmpty;
 
   /// Whether the app is currently online.
-  final isOnline = PlainStow<bool>(
-    'isOnline',
-    true,
-    volatile: true,
-  );
+  final isOnline = PlainStow<bool>('isOnline', true, volatile: true);
 
   /// Legacy Nextcloud login check (deprecated)
   @Deprecated('Use loggedIn instead')

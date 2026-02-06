@@ -9,6 +9,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saber/components/connectivity/network_error_banner.dart';
+import 'package:saber/components/report/report_generation_overlay.dart';
 import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/components/theming/yaru_builder.dart';
 import 'package:saber/data/prefs.dart';
@@ -17,7 +18,6 @@ import 'package:saber/i18n/extensions/redirecting_localization_delegate.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:yaru/yaru.dart';
-import 'package:saber/components/report/report_generation_overlay.dart';
 
 class DynamicMaterialApp extends StatefulWidget {
   const DynamicMaterialApp({

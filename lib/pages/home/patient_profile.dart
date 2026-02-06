@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:saber/components/empty_state/empty_state.dart';
 import 'package:saber/components/intake_form/psychiatric_intake_form.dart';
 import 'package:saber/components/loading/skeleton_loader.dart';
+import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/patient.dart';
@@ -17,9 +18,9 @@ import 'package:saber/data/supabase/document_sync_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_intake_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
+import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/design_system/colors.dart';
 import 'package:saber/design_system/radius.dart';
-import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/design_system/spacing.dart';
 
 /// Patient profile page with demographics, session management, and history
@@ -41,6 +42,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   static final _log = Logger('PatientProfilePage');
   Patient? patient;
   var sessions = <SessionInfo>[];
+  var reports = <ClinicalReport>[];
   var isLoading = true;
   var isSyncing = false;
   String? error;
@@ -237,9 +239,16 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         intake = _patientIntake;
       }
 
+      // Load AI reports from Supabase
+      final reportsList = await SupabaseReportService.getReportsForPatient(
+        loadedPatient.id,
+      );
+      debugPrint('PatientProfile: Reports loaded: ${reportsList.length}');
+
       setState(() {
         patient = loadedPatient;
         sessions = sessionsList;
+        reports = reportsList;
         _patientIntake = intake;
         isLoading = false;
       });
@@ -1402,8 +1411,9 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
             actionLabel: 'Start First Session',
             onAction: _confirmAndStartNewSession,
           )
-        else
+        else ...[
           _buildSessionsList(),
+        ],
         const SizedBox(height: AppSpacing.xl),
       ],
     );
@@ -1417,6 +1427,14 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       itemBuilder: (context, index) {
         final session = sessions[index];
         final isSelected = _selectedSessionIds.contains(session.folderName);
+
+        // Check if there's a corresponding report
+        // Logic: ClinicalReport.sourceDocumentPath contains folderName
+        final hasReport = reports.any(
+          (r) =>
+              r.sourceDocumentPath?.contains('/${session.folderName}/') ??
+              false,
+        );
 
         return Dismissible(
           key: Key(session.folderName),
@@ -1536,9 +1554,49 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                             ),
                           ),
                         ),
-                  title: Text(
-                    'Session ${session.sessionNumber}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  title: Row(
+                    children: [
+                      Text(
+                        'Session ${session.sessionNumber}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      if (hasReport) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: Colors.orange.withOpacity(0.3),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.auto_awesome_rounded,
+                                size: 10,
+                                color: Colors.orange,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'AI REPORT',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   subtitle: Row(
                     children: [
@@ -1567,40 +1625,10 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                   ),
                   trailing: _isSelectionMode
                       ? null
-                      : Row(
+                      : const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // View Notes Button
-                            FilledButton.tonal(
-                              onPressed: () {
-                                final sessionPath =
-                                    '${patient!.documentFolderPath(DocumentType.sessionNote)}/${session.folderName}';
-                                final documentPath =
-                                    '$sessionPath/${session.folderName}_notes.sbn';
-                                context.push(
-                                  RoutePaths.editFilePath(
-                                    documentPath,
-                                    readOnly: true,
-                                  ),
-                                );
-                              },
-                              style: FilledButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.visibility, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('View Notes'),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.chevron_right, color: Colors.grey),
+                            Icon(Icons.chevron_right, color: Colors.grey),
                           ],
                         ),
                 ),

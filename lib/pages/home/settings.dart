@@ -1,3 +1,4 @@
+import 'package:animated_theme_switcher/animated_theme_switcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -6,8 +7,9 @@ import 'package:saber/components/settings/settings_button.dart';
 import 'package:saber/components/settings/settings_dropdown.dart';
 import 'package:saber/components/settings/update_manager.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
-import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/components/theming/adaptive_toggle_buttons.dart';
+import 'package:saber/components/theming/dynamic_material_app.dart';
+import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
@@ -16,8 +18,6 @@ import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:stow/stow.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:animated_theme_switcher/animated_theme_switcher.dart';
-import 'package:saber/components/theming/dynamic_material_app.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -70,9 +70,9 @@ class _SettingsPageState extends State<SettingsPage> {
   var _isUploadingImage = false;
   String? _avatarUrl;
 
-  bool _profileExpanded = false;
-  bool _aiReportsExpanded = false;
-  bool _isEditingProfile = false;
+  var _profileExpanded = false;
+  var _aiReportsExpanded = false;
+  var _isEditingProfile = false;
 
   @override
   void initState() {
@@ -480,7 +480,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: Container(
+      body: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -770,12 +770,12 @@ class _SettingsPageState extends State<SettingsPage> {
                         Text(
                           _emailController.text.isNotEmpty
                               ? _emailController.text
-                              : (user?.email ?? ''),
+                              : (user.email ?? ''),
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                         if (_emailController.text.isNotEmpty &&
-                            user?.email != null &&
+                            user.email != null &&
                             _emailController.text.trim() != user.email)
                           Padding(
                             padding: const EdgeInsets.only(top: 2),
@@ -1218,7 +1218,7 @@ class _SettingsPageState extends State<SettingsPage> {
     required bool isDark,
     required Widget child,
   }) {
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(

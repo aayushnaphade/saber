@@ -231,12 +231,11 @@ class SupabaseAuthService {
 
       if (profile != null) {
         stows.receptionMode.value = profile['reception_mode'] as bool? ?? false;
-        
+
         // Robust role handling: default to doctor if null/empty
         final role = profile['role'] as String?;
-        stows.userRole.value =
-            (role == null || role.isEmpty) ? 'doctor' : role;
-            
+        stows.userRole.value = (role == null || role.isEmpty) ? 'doctor' : role;
+
         stows.userDisplayName.value = profile['display_name'] as String? ?? '';
         stows.userQualification.value =
             profile['qualification'] as String? ?? '';
@@ -287,7 +286,7 @@ class SupabaseAuthService {
       log.warning('Failed to sync profile or clinic', e);
       // Fallback on error: assume doctor role to prevent lockout
       if (stows.userRole.value.isEmpty) {
-         stows.userRole.value = 'doctor';
+        stows.userRole.value = 'doctor';
       }
     }
   }

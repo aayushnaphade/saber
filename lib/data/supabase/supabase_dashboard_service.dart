@@ -12,7 +12,9 @@ class SupabaseDashboardService {
     try {
       final response = await supabase
           .from('consultations')
-          .select('*, patients(full_name, gender, age, visit_type, registration_number)')
+          .select(
+            '*, patients(full_name, gender, age, visit_type, registration_number)',
+          )
           .eq('status', 'in_progress')
           .limit(1)
           .maybeSingle();
@@ -34,7 +36,9 @@ class SupabaseDashboardService {
 
       final response = await supabase
           .from('consultations')
-          .select('*, patients(full_name, gender, age, visit_type, registration_number)')
+          .select(
+            '*, patients(full_name, gender, age, visit_type, registration_number)',
+          )
           .eq('status', 'waiting')
           .order('queue_order', ascending: true)
           .order('scheduled_time', ascending: true);
@@ -141,7 +145,9 @@ class SupabaseDashboardService {
 
       final response = await supabase
           .from('consultations')
-          .select('*, patients(full_name, visit_type, gender, age, registration_number)')
+          .select(
+            '*, patients(full_name, visit_type, gender, age, registration_number)',
+          )
           .gte('scheduled_time', startOfDay)
           .lte('scheduled_time', endOfDay)
           .order('scheduled_time', ascending: true);
@@ -150,8 +156,9 @@ class SupabaseDashboardService {
         final patient = item['patients'];
         final patientName = patient != null ? patient['full_name'] : 'Unknown';
         final visitType = patient != null ? patient['visit_type'] : null;
-        final registrationNumber =
-            patient != null ? patient['registration_number'] : null;
+        final registrationNumber = patient != null
+            ? patient['registration_number']
+            : null;
         final statusStr = item['status'] as String;
         final appointmentTypeStr = item['appointment_type'] as String?;
 
@@ -492,7 +499,9 @@ class SupabaseDashboardService {
     try {
       final response = await supabase
           .from('consultations')
-          .select('*, patients(full_name, visit_type, gender, age, registration_number)')
+          .select(
+            '*, patients(full_name, visit_type, gender, age, registration_number)',
+          )
           .gte('created_at', start.toUtc().toIso8601String())
           .lte('created_at', end.toUtc().toIso8601String())
           .order('created_at', ascending: false);
@@ -501,8 +510,9 @@ class SupabaseDashboardService {
         final patient = item['patients'];
         final patientName = patient != null ? patient['full_name'] : 'Unknown';
         final visitType = patient != null ? patient['visit_type'] : null;
-        final registrationNumber =
-            patient != null ? patient['registration_number'] : null;
+        final registrationNumber = patient != null
+            ? patient['registration_number']
+            : null;
         final statusStr = item['status'] as String;
         final appointmentTypeStr = item['appointment_type'] as String?;
 

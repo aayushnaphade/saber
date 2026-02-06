@@ -107,7 +107,9 @@ class _StatCardState extends State<StatCard> {
                           children: [
                             // Icon Container
                             Container(
-                              padding: const EdgeInsets.all(AppSpacing.iconPadding),
+                              padding: const EdgeInsets.all(
+                                AppSpacing.iconPadding,
+                              ),
                               decoration: BoxDecoration(
                                 color: baseColor.withOpacity(0.1),
                                 borderRadius: AppRadius.mdRadius,

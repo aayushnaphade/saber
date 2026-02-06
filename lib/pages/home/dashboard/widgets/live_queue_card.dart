@@ -111,7 +111,7 @@ class _LiveQueueCardState extends State<LiveQueueCard>
       const Color(0xFF50B9E8), // Sky
       const Color(0xFF10B981), // Emerald/Teal
       const Color(0xFF0D9488), // Deep Teal
-      isDark ? Colors.black87 : Colors.white, // Blending base
+      if (isDark) Colors.black87 else Colors.white, // Blending base
     ];
 
     return AnimatedBuilder(
@@ -159,54 +159,57 @@ class _LiveQueueCardState extends State<LiveQueueCard>
           ),
         ];
 
-        return HeroMode(
-          enabled: !SessionManager().hasActiveSession,
-          child: Hero(
-            tag: 'active_session',
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: AppRadius.xlRadius,
-                boxShadow: [
-                  BoxShadow(
-                    color: (isDark ? Colors.black : colorScheme.primary)
-                        .withValues(alpha: 0.08),
-                    blurRadius: 32,
-                    offset: const Offset(0, 12),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: AppRadius.xlRadius,
-                child: Stack(
-                  children: [
-                    // 1. Base Mesh Gradient
-                    Positioned.fill(
-                      child: MeshGradient(
-                        points: meshPoints,
-                        options: MeshGradientOptions(
-                          blend: 4.5, // High blend for smooth mixing
-                          noiseIntensity: 0.08, // Subtle film grain feel
-                        ),
-                      ),
-                    ),
+        final canHero = !SessionManager().hasActiveSession;
 
-                    // 2. Faint Layer for extra smoothness (Glass effect)
-                    Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: (isDark ? Colors.black12 : Colors.white10),
-                        ),
-                      ),
-                    ),
-
-                    // 3. The Actual Content
-                    child!,
-                  ],
+        Widget cardDecoration = DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.xlRadius,
+            boxShadow: [
+              BoxShadow(
+                color: (isDark ? Colors.black : colorScheme.primary).withValues(
+                  alpha: 0.08,
                 ),
+                blurRadius: 32,
+                offset: const Offset(0, 12),
               ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: AppRadius.xlRadius,
+            child: Stack(
+              children: [
+                // 1. Base Mesh Gradient
+                Positioned.fill(
+                  child: MeshGradient(
+                    points: meshPoints,
+                    options: MeshGradientOptions(
+                      blend: 4.5, // High blend for smooth mixing
+                      noiseIntensity: 0.08, // Subtle film grain feel
+                    ),
+                  ),
+                ),
+
+                // 2. Faint Layer for extra smoothness (Glass effect)
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: (isDark ? Colors.black12 : Colors.white10),
+                    ),
+                  ),
+                ),
+
+                // 3. The Actual Content
+                child!,
+              ],
             ),
           ),
         );
+
+        if (canHero) {
+          return Hero(tag: 'active_session', child: cardDecoration);
+        }
+
+        return cardDecoration;
       },
       child: Container(
         decoration: BoxDecoration(
@@ -332,6 +335,7 @@ class _LiveQueueCardState extends State<LiveQueueCard>
                           widget.currentPatient!.patientName,
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
+                            fontSize: 18, // Slightly reduced to avoid overflow
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -357,9 +361,17 @@ class _LiveQueueCardState extends State<LiveQueueCard>
                 ],
               ),
               const SizedBox(height: 24),
-              Row(
+              // Use Wrap to handle button overflows gracefully on small screens
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                alignment: WrapAlignment.start,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Expanded(
+                  SizedBox(
+                    width: (MediaQuery.of(context).size.width < 400)
+                        ? double.infinity
+                        : 200,
                     child: FilledButton.icon(
                       onPressed: widget.onStartSession,
                       icon: const Icon(Icons.play_arrow_rounded),
@@ -367,36 +379,39 @@ class _LiveQueueCardState extends State<LiveQueueCard>
                         widget.currentPatient!.status == 'in_progress'
                             ? 'Continue Session'
                             : 'Start Session',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                          horizontal: 16,
+                        ),
                       ),
                     ),
                   ),
-                  if (widget.onViewProfile != null) ...[
-                    const SizedBox(width: 12),
+                  if (widget.onViewProfile != null)
                     OutlinedButton(
                       onPressed: widget.onViewProfile,
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.all(16),
+                        minimumSize: const Size(56, 56),
                       ),
                       child: const Icon(Icons.person_outline),
                     ),
-                  ],
-                  if (widget.onCancel != null) ...[
-                    const SizedBox(width: 12),
+                  if (widget.onCancel != null)
                     OutlinedButton(
                       onPressed: () => _showCancelConfirmation(context),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.all(16),
+                        minimumSize: const Size(56, 56),
                         foregroundColor: colorScheme.error,
                         side: BorderSide(
-                          color: colorScheme.error.withValues(alpha: 0.5),
+                          color: colorScheme.error.withValues(alpha: 0.4),
                         ),
                       ),
                       child: const Icon(Icons.close_rounded),
                     ),
-                  ],
                 ],
               ),
             ] else ...[

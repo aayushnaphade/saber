@@ -140,7 +140,11 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
       ),
       child: Row(
         children: [
-          const Icon(Icons.assignment_outlined, size: 16, color: MedicalColors.info),
+          const Icon(
+            Icons.assignment_outlined,
+            size: 16,
+            color: MedicalColors.info,
+          ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(

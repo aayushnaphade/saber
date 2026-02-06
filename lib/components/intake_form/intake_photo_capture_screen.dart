@@ -212,7 +212,10 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
                 color: MedicalColors.criticalBg,
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, color: MedicalColors.critical),
+                    const Icon(
+                      Icons.error_outline,
+                      color: MedicalColors.critical,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(

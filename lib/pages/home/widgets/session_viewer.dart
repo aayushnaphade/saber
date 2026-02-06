@@ -79,7 +79,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
         report = allReports.firstWhere(
           (r) =>
               r.sourceDocumentPath == expectedPath ||
-              r.sourceDocumentPath == expectedPath + '2' ||
+              r.sourceDocumentPath == '${expectedPath}2' ||
               r.sourceDocumentPath ==
                   expectedPath.replaceAll('.sbn', '.sbn2') ||
               (r.sourceDocumentPath?.contains(session.folderName) ?? false),

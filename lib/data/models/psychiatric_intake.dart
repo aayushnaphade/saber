@@ -1,6 +1,7 @@
 /// Psychiatric Intake Form Model
 /// Based on Dr. Monisha Dass's clinical intake form format
 /// This captures comprehensive psychiatric evaluation data
+library;
 
 class PsychiatricIntake {
   final String id;
@@ -273,7 +274,8 @@ class PsychiatricIntake {
       somaticAbdominal: json['somatic_abdominal'] as bool? ?? false,
       somaticOther: json['somatic_other']?.toString(),
       substanceUse: json['substance_use']?.toString(),
-      alcoholDrugs: json['alcohol_drugs'] as bool? ??
+      alcoholDrugs:
+          json['alcohol_drugs'] as bool? ??
           json['alcohol_drugs_tobacco'] as bool? ??
           false,
       tobaccoSmoking: json['tobacco_smoking'] as bool? ?? false,

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:saber/data/api/error_handler.dart';
+import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_vitals_service.dart';
-import 'package:saber/data/models/patient.dart';
 
 class DoctorPatientRegistrationWizard extends StatefulWidget {
   const DoctorPatientRegistrationWizard({super.key});
@@ -14,7 +14,7 @@ class DoctorPatientRegistrationWizard extends StatefulWidget {
 
 class _DoctorPatientRegistrationWizardState
     extends State<DoctorPatientRegistrationWizard> {
-  int _currentStep = 0;
+  var _currentStep = 0;
   final _demographicsFormKey = GlobalKey<FormState>();
   final _vitalsFormKey = GlobalKey<FormState>();
 
@@ -273,7 +273,7 @@ class _DoctorPatientRegistrationWizardState
               const SizedBox(width: 16),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _genderController.text.isEmpty
+                  initialValue: _genderController.text.isEmpty
                       ? null
                       : _genderController.text,
                   decoration: const InputDecoration(
@@ -282,10 +282,10 @@ class _DoctorPatientRegistrationWizardState
                     border: OutlineInputBorder(),
                   ),
                   items: ['Male', 'Female', 'Other']
-                      .map((label) => DropdownMenuItem(
-                            value: label,
-                            child: Text(label),
-                          ))
+                      .map(
+                        (label) =>
+                            DropdownMenuItem(value: label, child: Text(label)),
+                      )
                       .toList(),
                   onChanged: (value) {
                     setState(() {

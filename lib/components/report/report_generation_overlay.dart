@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saber/components/animations/mesh_orb.dart';
 import 'package:saber/data/report_generation_manager.dart';
-import 'package:saber/data/session_manager.dart';
-import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/data/routes.dart';
-import 'package:saber/pages/editor/report_view.dart';
+import 'package:saber/data/session_manager.dart';
+import 'package:saber/data/supabase/supabase_consultation_service.dart';
+import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/main.dart';
+import 'package:saber/pages/editor/report_view.dart';
 
 class ReportGenerationOverlay extends StatefulWidget {
   const ReportGenerationOverlay({
@@ -24,7 +25,7 @@ class ReportGenerationOverlay extends StatefulWidget {
 }
 
 class _ReportGenerationOverlayState extends State<ReportGenerationOverlay> {
-  Offset _position = const Offset(-1, -1); // -1 means use default
+  var _position = const Offset(-1, -1); // -1 means use default
 
   @override
   Widget build(BuildContext context) {
@@ -89,8 +90,8 @@ class _AsyncReportCardState extends State<_AsyncReportCard>
     with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late AnimationController _progressController;
-  int _messageIndex = 0;
-  final List<String> _reassuranceMessages = [
+  var _messageIndex = 0;
+  final _reassuranceMessages = <String>[
     'Synapse AI is thinking...',
     'Analyzing session notes...',
     'Generating clinical insights...',
@@ -444,6 +445,16 @@ class _AsyncReportCardState extends State<_AsyncReportCard>
                     );
 
                     // 2. Terminate Session properly
+                    try {
+                      final consultationId = SessionManager().consultationId;
+                      if (consultationId != null) {
+                        await SupabaseConsultationService.completeConsultation(
+                          consultationId,
+                        );
+                      }
+                    } catch (e) {
+                      debugPrint('Error completing consultation: $e');
+                    }
                     await SessionManager().deleteActiveSessionFiles();
                     SessionManager().terminate();
 

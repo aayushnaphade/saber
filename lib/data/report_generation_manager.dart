@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 import 'package:saber/data/api/report_generator.dart';
@@ -33,7 +32,7 @@ class ReportGenerationManager extends ChangeNotifier {
   String? _rawNotes;
   String? get rawNotes => _rawNotes;
 
-  String _currentMessage = 'Synapse AI is thinking...';
+  var _currentMessage = 'Synapse AI is thinking...';
   String get currentMessage => _currentMessage;
 
   void startGeneration({

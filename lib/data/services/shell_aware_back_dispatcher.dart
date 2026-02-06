@@ -14,24 +14,21 @@ import 'package:saber/pages/home/home.dart';
 /// will pop the shell route entirely when there's nothing in the
 /// nested navigator stack, which exits the app unexpectedly.
 class ShellAwareBackButtonDispatcher extends RootBackButtonDispatcher {
-  ShellAwareBackButtonDispatcher({
-    required this.router,
-  });
+  ShellAwareBackButtonDispatcher({required this.router});
 
   final GoRouter router;
-  
+
   /// Global key for accessing the scaffold messenger
-  static final scaffoldMessengerKey = 
-      GlobalKey<ScaffoldMessengerState>();
+  static final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
   @override
   Future<bool> didPopRoute() async {
     // Get the current location from the router
     final currentLocation = router.routerDelegate.currentConfiguration.uri.path;
-    
+
     // Determine the current subpage based on the path
     final subpage = _getSubpageFromPath(currentLocation);
-    
+
     // Check if we're within the shell (home) routes
     if (_isInShellRoute(currentLocation)) {
       // Get the navigation result from our service
@@ -84,7 +81,7 @@ class ShellAwareBackButtonDispatcher extends RootBackButtonDispatcher {
     if (path.contains('/patients')) {
       return HomePage.browseSubpage;
     }
-    
+
     // Match /home/:subpage pattern
     final homePattern = RegExp(r'^/home/([^/]+)');
     final match = homePattern.firstMatch(path);
@@ -94,7 +91,7 @@ class ShellAwareBackButtonDispatcher extends RootBackButtonDispatcher {
         return subpage;
       }
     }
-    
+
     return HomePage.dashboardSubpage;
   }
 

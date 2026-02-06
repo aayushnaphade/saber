@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:saber/components/intake_form/patient_registration_wizard.dart';
 import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/prefs.dart';
+import 'package:saber/data/routes.dart';
 import 'package:saber/design_system/animations.dart';
 import 'package:saber/design_system/radius.dart';
 import 'package:saber/design_system/spacing.dart';
-import 'package:saber/components/intake_form/patient_registration_wizard.dart';
-import 'package:saber/data/routes.dart';
 
 class QuickActions extends StatelessWidget {
   const QuickActions({super.key});
@@ -27,8 +27,7 @@ class QuickActions extends StatelessWidget {
 
           if (patient != null && context.mounted) {
             context.push(
-              RoutePaths.patientDetail.replaceFirst(':patientId', patient.id) +
-                  '?autoStartSession=true',
+              '${RoutePaths.patientDetail.replaceFirst(':patientId', patient.id)}?autoStartSession=true',
             );
           }
         },

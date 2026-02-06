@@ -265,10 +265,7 @@ class SupabaseConsultationService {
               // Use createSignedUrl instead of getPublicUrl for private buckets
               final signedUrl = await supabase.storage
                   .from('medical_notes')
-                  .createSignedUrl(
-                    '$sessionPath/${previewFile!.name}',
-                    60 * 60,
-                  );
+                  .createSignedUrl('$sessionPath/${previewFile.name}', 60 * 60);
 
               notes.add(
                 PreviousSessionNote(
@@ -347,6 +344,69 @@ class SupabaseConsultationService {
       return null;
     }
   }
+
+  /// Get patient progress statistics
+  static Future<Map<String, int>> getPatientProgressStats() async {
+    try {
+      final doctorId = supabase.auth.currentUser?.id;
+      if (doctorId == null) return {};
+
+      // Get all completed consultations with a progress status
+      final response = await supabase
+          .from('consultations')
+          .select('progress_status')
+          .eq('doctor_id', doctorId)
+          .eq('status', 'completed')
+          .not('progress_status', 'is', null);
+
+      int improving = 0;
+      int stable = 0;
+      int deteriorating = 0;
+
+      for (final item in response as List) {
+        final status = item['progress_status'] as String?;
+        if (status == 'improving')
+          improving++;
+        else if (status == 'stable')
+          stable++;
+        else if (status == 'deteriorating')
+          deteriorating++;
+      }
+
+      return {
+        'improving': improving,
+        'stable': stable,
+        'deteriorating': deteriorating,
+      };
+    } catch (e) {
+      log.severe('Error fetching patient progress stats: $e');
+      return {'improving': 0, 'stable': 0, 'deteriorating': 0};
+    }
+  }
+
+  /// Complete a consultation
+  static Future<void> completeConsultation(
+    String consultationId, {
+    String? progressStatus,
+  }) async {
+    try {
+      final updates = {'status': 'completed'};
+      if (progressStatus != null) {
+        updates['progress_status'] = progressStatus;
+      }
+
+      await supabase
+          .from('consultations')
+          .update(updates)
+          .eq('id', consultationId);
+      log.info(
+        'Consultation $consultationId marked as completed with status: $progressStatus',
+      );
+    } catch (e) {
+      log.severe('Error completing consultation: $e');
+      rethrow; // Vital: let the caller handle/log this visibility
+    }
+  }
 }
 
 /// Model for patient consultation data
@@ -362,6 +422,7 @@ class PatientConsultation {
   final String? doctorName;
   final int? patientAge;
   final String? patientContact;
+  final String? progressStatus;
 
   PatientConsultation({
     required this.id,
@@ -375,6 +436,7 @@ class PatientConsultation {
     this.doctorName,
     this.patientAge,
     this.patientContact,
+    this.progressStatus,
   });
 
   factory PatientConsultation.fromJson(Map<String, dynamic> json) {
@@ -395,6 +457,7 @@ class PatientConsultation {
       doctorName: json['profiles']?['full_name'] as String?,
       patientAge: json['patients']?['age'] as int?,
       patientContact: json['patients']?['contact_number'] as String?,
+      progressStatus: json['progress_status'] as String?,
     );
   }
 

@@ -45,11 +45,11 @@ class _ReportViewState extends State<ReportView> {
   // Medications
   final List<Map<String, String>> _medications = [];
 
-  bool _showNotes = false;
-  Offset _notesPosition = const Offset(100, 100);
-  Size _notesSize = const Size(400, 500);
-  int _currentNotePage = 0;
-  bool _initializedPosition = false;
+  var _showNotes = false;
+  var _notesPosition = const Offset(100, 100);
+  var _notesSize = const Size(400, 500);
+  var _currentNotePage = 0;
+  var _initializedPosition = false;
 
   @override
   void didUpdateWidget(covariant ReportView oldWidget) {
@@ -152,11 +152,35 @@ class _ReportViewState extends State<ReportView> {
         title: const Text('Clinical Assessment Report'),
         actions: [
           if (widget.rawNotes != null || widget.imageBytesList != null)
-            IconButton(
-              icon: Icon(_showNotes ? Icons.notes_rounded : Icons.notes),
-              tooltip: 'Show Original Notes',
-              onPressed: () => setState(() => _showNotes = !_showNotes),
-              color: _showNotes ? Colors.blue : null,
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+              child: FilledButton.icon(
+                onPressed: () => setState(() => _showNotes = !_showNotes),
+                icon: Icon(
+                  _showNotes
+                      ? Icons.visibility_off_rounded
+                      : Icons.notes_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
+                label: const Text(
+                  'Notes',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _showNotes
+                      ? Colors.orange.shade800
+                      : Colors.orange.shade600,
+                  elevation: 2,
+                  shadowColor: Colors.orange.withOpacity(0.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
             ),
           if (widget.onRegenerate != null)
             Padding(
@@ -362,7 +386,7 @@ class _ReportViewState extends State<ReportView> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(12),
-            child: Container(
+            child: DecoratedBox(
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -688,13 +712,13 @@ class _ReportViewState extends State<ReportView> {
       children: [
         ..._medications.map((med) {
           final summary = StringBuffer(med['name'] ?? '');
-          if (med['dosage']?.isNotEmpty == true &&
+          if ((med['dosage']?.isNotEmpty ?? false) &&
               med['dosage'] != 'Not mentioned')
             summary.write(' ${med['dosage']}');
-          if (med['frequency']?.isNotEmpty == true &&
+          if ((med['frequency']?.isNotEmpty ?? false) &&
               med['frequency'] != 'Not mentioned')
             summary.write(' (${med['frequency']})');
-          if (med['duration']?.isNotEmpty == true &&
+          if ((med['duration']?.isNotEmpty ?? false) &&
               med['duration'] != 'Not mentioned')
             summary.write(' - ${med['duration']}');
           if ((med['remarks']?.isNotEmpty ?? false) &&

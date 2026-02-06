@@ -5,15 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
+import 'package:saber/components/intake_form/patient_registration_wizard.dart';
 import 'package:saber/components/navbar/responsive_navbar.dart';
+import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
-import 'package:saber/components/theming/premium_confirmation_dialog.dart';
-import 'package:saber/components/intake_form/patient_registration_wizard.dart';
 
 /// Patient-centric browse page showing patients and their documents
 class PatientBrowsePage extends StatefulWidget {
@@ -112,7 +112,8 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
       context: context,
       builder: (context) => PremiumConfirmationDialog(
         title: 'Delete Patients',
-        content: 'Are you sure you want to delete ${_selectedPatientIds.length} patients? '
+        content:
+            'Are you sure you want to delete ${_selectedPatientIds.length} patients? '
             'This will permanently delete all their records and documents.',
         confirmLabel: 'Delete',
         isDestructive: true,

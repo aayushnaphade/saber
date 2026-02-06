@@ -11,7 +11,7 @@ class NetworkErrorBanner extends StatefulWidget {
 }
 
 class _NetworkErrorBannerState extends State<NetworkErrorBanner> {
-  bool _showBackOnline = false;
+  var _showBackOnline = false;
   Timer? _backOnlineTimer;
 
   @override

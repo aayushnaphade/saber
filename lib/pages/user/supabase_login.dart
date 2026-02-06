@@ -1,14 +1,15 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logging/logging.dart';
+import 'package:saber/components/misc/flowing_gradient_background.dart';
 import 'package:saber/data/api/error_handler.dart';
+import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_auth_service.dart';
 import 'package:saber/pages/home/home.dart';
-import 'package:saber/data/prefs.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:saber/components/misc/flowing_gradient_background.dart';
 
 /// Supabase authentication login page with Material 3 design
 class SupabaseLoginPage extends StatefulWidget {
@@ -27,7 +28,7 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
   final _otpController = TextEditingController();
 
   var _isLoading = false;
-  var _obscurePassword = true;
+  final _obscurePassword = true;
   var _showOtpInput = false;
   late final StreamSubscription<AuthState> _authStateSubscription;
 
@@ -305,7 +306,7 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
   }) {
     return Column(
       children: [
-        Container(
+        SizedBox(
           width: size * 0.5,
           height: size * 0.5,
           child: Center(

@@ -171,6 +171,7 @@ dependencies:
   signature: ^6.3.0
   animated_theme_switcher: ^2.0.10
   palette_generator: ^0.3.3+7
+  fl_chart: ^1.1.1
 
 dev_dependencies:
   flutter_test:

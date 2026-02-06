@@ -493,13 +493,13 @@ class _SupabaseProfileState extends State<SupabaseProfile> {
                       Text(
                         _emailController.text.isNotEmpty
                             ? _emailController.text
-                            : (user?.email ?? ''),
+                            : (user.email ?? ''),
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       if (_emailController.text.isNotEmpty &&
-                          user?.email != null &&
+                          user.email != null &&
                           _emailController.text.trim() != user.email)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),

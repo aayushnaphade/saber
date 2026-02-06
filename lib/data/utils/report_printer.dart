@@ -265,11 +265,11 @@ class ReportPrinter {
                                   patient.registrationNumber!.isNotEmpty)
                               ? 'Reg No: ${patient.registrationNumber}'
                               : (reportData['registration_number'] != null &&
-                                      reportData['registration_number']
-                                          .toString()
-                                          .isNotEmpty)
-                                  ? 'Reg No: ${reportData['registration_number']}'
-                                  : 'Reg No: Not defined',
+                                    reportData['registration_number']
+                                        .toString()
+                                        .isNotEmpty)
+                              ? 'Reg No: ${reportData['registration_number']}'
+                              : 'Reg No: Not defined',
                           style: const pw.TextStyle(
                             fontSize: 8,
                             color: PdfColors.grey600,

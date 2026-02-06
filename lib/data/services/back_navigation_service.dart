@@ -5,7 +5,7 @@ import 'package:saber/data/routes.dart';
 import 'package:saber/pages/home/home.dart';
 
 /// A service that handles back navigation logic for the ShellRoute architecture.
-/// 
+///
 /// This service determines the correct navigation behavior for back gestures
 /// by analyzing the current route path and deciding whether to:
 /// - Navigate to a parent route within the same "space" (e.g., Patient Profile -> Patient Browse)
@@ -19,7 +19,7 @@ class BackNavigationService {
   static const _exitConfirmationDuration = Duration(seconds: 2);
 
   /// Determines the result of a back navigation action.
-  /// 
+  ///
   /// Returns a [BackNavigationResult] indicating what action should be taken.
   static BackNavigationResult getBackNavigationResult({
     required String currentPath,
@@ -61,7 +61,7 @@ class BackNavigationService {
   }
 
   /// Gets the parent route within the patient space hierarchy.
-  /// 
+  ///
   /// Hierarchy:
   /// - /home/patients/:patientId/sessions/:sessionNumber -> /home/patients/:patientId
   /// - /home/patients/:patientId/:documentType -> /home/patients/:patientId
@@ -81,9 +81,7 @@ class BackNavigationService {
     }
 
     // Pattern: /home/patients/:patientId/:documentType
-    final patientDocumentsPattern = RegExp(
-      r'^/home/patients/([^/]+)/([^/]+)$',
-    );
+    final patientDocumentsPattern = RegExp(r'^/home/patients/([^/]+)/([^/]+)$');
     if (patientDocumentsPattern.hasMatch(path)) {
       final match = patientDocumentsPattern.firstMatch(path);
       if (match != null) {
@@ -97,9 +95,7 @@ class BackNavigationService {
     }
 
     // Pattern: /home/patients/:patientId (patient profile)
-    final patientProfilePattern = RegExp(
-      r'^/home/patients/([^/]+)$',
-    );
+    final patientProfilePattern = RegExp(r'^/home/patients/([^/]+)$');
     if (patientProfilePattern.hasMatch(path)) {
       // Go back to patient browse list
       return RoutePaths.patients;
@@ -127,13 +123,13 @@ class BackNavigationService {
   /// Handles the double-back-to-exit pattern.
   static BackNavigationResult _handleExitConfirmation() {
     final now = DateTime.now();
-    
+
     if (_lastBackPressTime == null ||
         now.difference(_lastBackPressTime!) > _exitConfirmationDuration) {
       _lastBackPressTime = now;
       return BackNavigationResult.showExitConfirmation();
     }
-    
+
     // User pressed back twice within the time window
     _lastBackPressTime = null;
     return BackNavigationResult.exitApp();
@@ -180,8 +176,10 @@ class BackNavigationService {
 enum BackNavigationAction {
   /// Navigate to a specific route.
   navigateTo,
+
   /// Show the "swipe again to exit" confirmation.
   showExitConfirmation,
+
   /// Exit the application.
   exitApp,
 }
@@ -191,10 +189,7 @@ class BackNavigationResult {
   final BackNavigationAction action;
   final String? targetRoute;
 
-  const BackNavigationResult._({
-    required this.action,
-    this.targetRoute,
-  });
+  const BackNavigationResult._({required this.action, this.targetRoute});
 
   factory BackNavigationResult.navigateTo(String route) {
     return BackNavigationResult._(
@@ -210,8 +205,6 @@ class BackNavigationResult {
   }
 
   factory BackNavigationResult.exitApp() {
-    return const BackNavigationResult._(
-      action: BackNavigationAction.exitApp,
-    );
+    return const BackNavigationResult._(action: BackNavigationAction.exitApp);
   }
 }
