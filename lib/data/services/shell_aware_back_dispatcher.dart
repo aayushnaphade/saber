@@ -25,37 +25,51 @@ class ShellAwareBackButtonDispatcher extends RootBackButtonDispatcher {
   Future<bool> didPopRoute() async {
     // Get the current location from the router
     final currentLocation = router.routerDelegate.currentConfiguration.uri.path;
+    print('🔄 [DEBUG] ShellAwareBackButtonDispatcher.didPopRoute() called');
+    print('   Location: $currentLocation');
 
     // Determine the current subpage based on the path
     final subpage = _getSubpageFromPath(currentLocation);
 
     // Check if we're within the shell (home) routes
     if (_isInShellRoute(currentLocation)) {
+      print('   ℹ️ [DEBUG] In shell route, using BackNavigationService...');
       // Get the navigation result from our service
       final navResult = BackNavigationService.getBackNavigationResult(
         currentPath: currentLocation,
         currentSubpage: subpage,
       );
 
+      print('   🎯 [DEBUG] NavResult action: ${navResult.action}');
+
       switch (navResult.action) {
         case BackNavigationAction.navigateTo:
           if (navResult.targetRoute != null) {
-            router.go(navResult.targetRoute!);
+            final target = navResult.targetRoute!;
+            print(
+              '   🚀 [DEBUG] ShellDispatcher calling router.go("$target") via microtask',
+            );
+            // Use a microtask to return true to the platform FIRST
+            // This prevents JNI detachment during the back gesture animation
+            Future.microtask(() => router.go(target));
           }
           return true; // We handled the back event
 
         case BackNavigationAction.showExitConfirmation:
+          print('   🏠 [DEBUG] ShellDispatcher showing exit confirmation');
           // Show the exit confirmation snackbar
           _showExitConfirmationSnackbar();
           return true; // We handled the back event
 
         case BackNavigationAction.exitApp:
+          print('   🛑 [DEBUG] ShellDispatcher calling SystemNavigator.pop()');
           // Exit the app
           SystemNavigator.pop();
           return true;
       }
     }
 
+    print('   ⏭️ [DEBUG] Not in shell route or handled. Letting super handle.');
     // For routes outside the shell (login, editor, etc.), let GoRouter handle it
     return super.didPopRoute();
   }
@@ -79,7 +93,10 @@ class ShellAwareBackButtonDispatcher extends RootBackButtonDispatcher {
   /// Determines the subpage from the current path
   String _getSubpageFromPath(String path) {
     if (path.contains('/patients')) {
-      return HomePage.browseSubpage;
+      return 'patients';
+    }
+    if (path.contains('/recent') || path.contains('/calendar')) {
+      return 'calendar';
     }
 
     // Match /home/:subpage pattern

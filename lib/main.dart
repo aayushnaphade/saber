@@ -266,10 +266,11 @@ class App extends StatefulWidget {
         navigatorKey: App.shellNavigatorKey,
         builder: (context, state, child) {
           var subpage = state.pathParameters['subpage'];
+          final uri = state.uri.path;
+          App.log.info('🐚 [DEBUG] ShellRoute builder called for path: $uri');
 
           // Fallback subpage detection for routes without :subpage parameter
           if (subpage == null) {
-            final uri = state.uri.path;
             if (uri.contains('/patients')) {
               subpage = HomePage.browseSubpage;
             } else {
@@ -344,11 +345,13 @@ class App extends StatefulWidget {
               );
               final extra = state.extra as Map<String, dynamic>;
               final allSessions = extra['allSessions'] as List<SessionInfo>;
+              final viewOnlyNotes = extra['viewOnlyNotes'] as bool? ?? false;
 
               return SessionViewerPage(
                 patientId: patientId,
                 initialSessionNumber: sessionNumber,
                 allSessions: allSessions,
+                viewOnlyNotes: viewOnlyNotes,
               );
             },
           ),

@@ -25,30 +25,54 @@ class BackNavigationService {
     required String currentPath,
     required String currentSubpage,
   }) {
+    print('🔙 [DEBUG] BackNavigationService.getBackNavigationResult()');
+    print('   Path: $currentPath');
+    print('   Subpage: $currentSubpage');
+
     // 1. Handle patient space navigation hierarchy
     if (_isInPatientSpace(currentPath)) {
+      print('   ℹ️ [DEBUG] In patient space, checking parent route...');
       final parentRoute = _getPatientSpaceParentRoute(currentPath);
       if (parentRoute != null) {
+        print('   ✅ [DEBUG] Navigating to parent: $parentRoute');
         return BackNavigationResult.navigateTo(parentRoute);
       }
     }
 
     // 2. Handle session viewer -> patient profile navigation
     if (_isSessionViewer(currentPath)) {
+      print('   ℹ️ [DEBUG] In session viewer, extracting patient route...');
       final patientRoute = _extractPatientProfileRoute(currentPath);
       if (patientRoute != null) {
+        print('   ✅ [DEBUG] Navigating to patient profile: $patientRoute');
         return BackNavigationResult.navigateTo(patientRoute);
       }
     }
 
     // 3. If on a sidebar page that is NOT Dashboard, navigate back to Dashboard
-    if (HomePage.subpages.contains(currentSubpage) &&
-        currentSubpage != HomePage.dashboardSubpage) {
-      return BackNavigationResult.navigateTo(HomeRoutes.getRoute(0));
+    final isKnownSubpage = HomePage.subpages.contains(currentSubpage);
+    final isDashboard = currentSubpage == HomePage.dashboardSubpage;
+    print(
+      '   ℹ️ [DEBUG] Sidebar check: isKnownSubpage=$isKnownSubpage, isDashboard=$isDashboard',
+    );
+
+    if (isKnownSubpage && !isDashboard) {
+      final dashboardRoute = HomeRoutes.getRoute(0);
+      print(
+        '   ✅ [DEBUG] Navigating from sidebar to Dashboard: $dashboardRoute',
+      );
+      return BackNavigationResult.navigateTo(dashboardRoute);
     }
 
     // 4. On Dashboard - handle double-back-to-exit
-    return _handleExitConfirmation();
+    print('   ℹ️ [DEBUG] On Dashboard, handling exit confirmation...');
+    final result = _handleExitConfirmation();
+    if (result.action == BackNavigationAction.showExitConfirmation) {
+      print('   ⚠️ [DEBUG] Showing "press back again to exit" toast');
+    } else {
+      print('   ❌ [DEBUG] Allowing app exit');
+    }
+    return result;
   }
 
   /// Checks if the current path is within the patient space.
@@ -148,16 +172,27 @@ class BackNavigationService {
     BackNavigationResult result,
     String exitMessage,
   ) {
+    print('🔙 [DEBUG] BackNavigationService.executeBackNavigation() starting');
+    print('   Action: ${result.action}');
+    print('   Target Route: ${result.targetRoute}');
+
     // Safety check: verify context is still valid before performing operations
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      print('   ❌ [DEBUG] Context is NOT mounted! Skipping execution.');
+      return;
+    }
 
     switch (result.action) {
       case BackNavigationAction.navigateTo:
         if (result.targetRoute != null && context.mounted) {
-          context.go(result.targetRoute!);
+          final target = result.targetRoute!;
+          print('   🚀 [DEBUG] Calling context.go("$target")');
+          context.go(target);
+          print('   ✅ [DEBUG] context.go("$target") completed');
         }
       case BackNavigationAction.showExitConfirmation:
         if (context.mounted) {
+          print('   🏠 [DEBUG] Showing exit confirmation snackbar');
           ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -168,6 +203,7 @@ class BackNavigationService {
           );
         }
       case BackNavigationAction.exitApp:
+        print('   🛑 [DEBUG] Calling SystemNavigator.pop()');
         SystemNavigator.pop();
     }
   }

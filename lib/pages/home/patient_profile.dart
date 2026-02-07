@@ -16,6 +16,7 @@ import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/document_sync_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
+import 'package:saber/data/supabase/supabase_consultation_service.dart';
 import 'package:saber/data/supabase/supabase_intake_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
@@ -275,37 +276,89 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   }
 
   Future<List<SessionInfo>> _loadSessions(Patient patient) async {
-    // Load session folders from session_notes directory
-    final sessionPath = patient.documentFolderPath(DocumentType.sessionNote);
-    final children = await FileManager.getChildrenOfDirectory(sessionPath);
+    _log.info('📁 [DEBUG] _loadSessions called for patient: ${patient.id}');
 
-    if (children == null || children.directories.isEmpty) {
-      return [];
-    }
+    // NEW APPROACH: Load from database reports instead of filesystem
+    // This ensures completed sessions (with saved reports) always appear,
+    // even after temporary session directories are cleaned up
+    try {
+      final allReports = await SupabaseReportService.getReportsForPatient(
+        patient.id,
+      );
+      _log.info('📊 [DEBUG] Found ${allReports.length} reports in database');
 
-    final sessionsList = <SessionInfo>[];
-    for (final dir in children.directories) {
-      // Session folders are named like "session_1", "session_2", etc.
-      final sessionNumber = _extractSessionNumber(dir);
-      if (sessionNumber != null) {
-        // Check if session has files
-        final sessionFiles = await FileManager.getChildrenOfDirectory(
-          '$sessionPath/$dir',
+      final sessionsSet = <SessionInfo>{}; // Use Set to avoid duplicates
+
+      for (final report in allReports) {
+        final sourcePath = report.sourceDocumentPath;
+        if (sourcePath == null) {
+          _log.warning('   ⚠️ [DEBUG] Report has no source path, skipping');
+          continue;
+        }
+
+        // Extract session folder name from path (e.g., "session_2" from path)
+        final sessionMatch = RegExp(r'session_(\d+)').firstMatch(sourcePath);
+        if (sessionMatch == null) {
+          _log.warning(
+            '   ⚠️ [DEBUG] Could not extract session number from: $sourcePath',
+          );
+          continue;
+        }
+
+        final sessionNumber = int.parse(sessionMatch.group(1)!);
+        final folderName = 'session_$sessionNumber';
+
+        _log.info(
+          '   📋 [DEBUG] Report session_$sessionNumber (from database)',
         );
-        sessionsList.add(
+
+        // Check if session directory still exists on filesystem (for file count)
+        final sessionPath = patient.documentFolderPath(
+          DocumentType.sessionNote,
+        );
+        final sessionDirPath = '$sessionPath/$folderName';
+        final sessionFiles = await FileManager.getChildrenOfDirectory(
+          sessionDirPath,
+        );
+        int fileCount = sessionFiles?.files.length ?? 0;
+
+        // If local file count is 0, session directory might have been deleted after completion.
+        // Fallback to checking Supabase storage for the actual page count.
+        if (fileCount == 0) {
+          _log.info(
+            '   ☁️ [DEBUG] Local files not found, checking cloud storage for session_$sessionNumber',
+          );
+          fileCount = await SupabaseConsultationService.getSessionPageCount(
+            patient.id,
+            sessionNumber,
+          );
+          _log.info(
+            '   📊 [DEBUG] Found $fileCount pages in cloud for session_$sessionNumber',
+          );
+        }
+
+        sessionsSet.add(
           SessionInfo(
             sessionNumber: sessionNumber,
-            folderName: dir,
-            fileCount: sessionFiles?.files.length ?? 0,
-            createdDate: DateTime.now(), // TODO: Get actual creation date
+            folderName: folderName,
+            fileCount: fileCount,
+            createdDate: report.createdAt?.toLocal() ?? DateTime.now(),
           ),
         );
       }
-    }
 
-    // Sort by session number descending (newest first)
-    sessionsList.sort((a, b) => b.sessionNumber.compareTo(a.sessionNumber));
-    return sessionsList;
+      // Convert Set to List and sort
+      final sortedSessions = sessionsSet.toList()
+        ..sort((a, b) => b.sessionNumber.compareTo(a.sessionNumber));
+
+      _log.info(
+        '✅ [DEBUG] _loadSessions returning ${sortedSessions.length} sessions from database',
+      );
+      return sortedSessions;
+    } catch (e) {
+      _log.severe('❌ [DEBUG] Error loading sessions from database: $e');
+      return [];
+    }
   }
 
   int? _extractSessionNumber(String folderName) {
@@ -503,16 +556,32 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
 
       // Navigate to editor with new document
       if (mounted && context.mounted) {
+        _log.info('🚀 [DEBUG] Navigating to Editor with path: $documentPath');
+        _log.info('📂 [DEBUG] Session folder: $sessionFolderName');
         await context.push(
           RoutePaths.editFilePath(documentPath, consultationId: consultationId),
         );
+        _log.info('🔙 [DEBUG] Returned from Editor');
         if (mounted && context.mounted) {
+          _log.info('📊 [DEBUG] Reloading patient data and sessions...');
           // Reload BOTH patient data and sessions
           await _loadPatientData();
+          _log.info('✅ [DEBUG] Patient data loaded');
           final updatedSessions = await _loadSessions(patient!);
+          _log.info(
+            '📋 [DEBUG] Found ${updatedSessions.length} sessions after reload',
+          );
+          for (final session in updatedSessions) {
+            _log.info(
+              '   - Session ${session.sessionNumber}: ${session.folderName}, ${session.fileCount} files',
+            );
+          }
           setState(() {
             sessions = updatedSessions;
           });
+          _log.info('🎨 [DEBUG] UI updated with ${sessions.length} sessions');
+        } else {
+          _log.warning('⚠️ [DEBUG] Context not mounted after Editor return');
         }
       }
     } catch (e) {
@@ -1631,25 +1700,67 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                         DateFormat.yMMMd().format(session.createdDate),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
-                      const SizedBox(width: 12),
-                      const Icon(
-                        Icons.description_outlined,
-                        size: 12,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${session.fileCount} pages',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
+                      if (session.fileCount > 0) ...[
+                        const SizedBox(width: 12),
+                        const Icon(
+                          Icons.description_outlined,
+                          size: 12,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${session.fileCount} pages',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
                     ],
                   ),
                   trailing: _isSelectionMode
                       ? null
-                      : const Row(
+                      : Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.chevron_right, color: Colors.grey),
+                            // View Notes button (read-only)
+                            Material(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .secondaryContainer
+                                  .withOpacity(0.35),
+                              borderRadius: BorderRadius.circular(10),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(10),
+                                onTap: () => _openSessionReadOnly(session),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.outline.withOpacity(0.35),
+                                      width: 1.2,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.visibility_outlined,
+                                        size: 22,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSecondaryContainer,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.chevron_right, color: Colors.grey),
                           ],
                         ),
                 ),
@@ -1661,14 +1772,24 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     );
   }
 
-  void _openSession(SessionInfo session) {
+  void _openSession(SessionInfo session, {bool viewOnlyNotes = false}) {
     if (patient == null) return;
 
     final route = RoutePaths.sessionViewer
         .replaceAll(':patientId', patient!.id)
         .replaceAll(':sessionNumber', session.sessionNumber.toString());
 
-    context.push(route, extra: {'allSessions': sessions});
+    context.push(
+      route,
+      extra: {'allSessions': sessions, 'viewOnlyNotes': viewOnlyNotes},
+    );
+  }
+
+  void _openSessionReadOnly(SessionInfo session) {
+    // Both normal click and eye icon now use SessionViewerPage
+    // which handles local/cloud fallback and shows report + handwritten notes
+    // For eye icon, we pass viewOnlyNotes: true
+    _openSession(session, viewOnlyNotes: true);
   }
 
   String _getStatusDisplayName(PatientStatus status) {

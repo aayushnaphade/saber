@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/models/dashboard_models.dart';
+import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/design_system/spacing.dart';
@@ -443,6 +444,69 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   _getStatusChip(consultation.status, context),
+                  // View Notes button (read-only)
+                  Material(
+                    color: colorScheme.secondaryContainer.withValues(
+                      alpha: 0.7,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: consultation.sessionNumber == null
+                          ? null
+                          : () {
+                              // Correctly navigate to SessionViewerPage for this consultation
+                              final route = RoutePaths.sessionViewer
+                                  .replaceAll(
+                                    ':patientId',
+                                    consultation.patientId,
+                                  )
+                                  .replaceAll(
+                                    ':sessionNumber',
+                                    consultation.sessionNumber.toString(),
+                                  );
+
+                              context.push(
+                                route,
+                                extra: {
+                                  'allSessions': [
+                                    SessionInfo(
+                                      folderName:
+                                          'session_${consultation.sessionNumber}',
+                                      createdDate: consultation.time,
+                                      sessionNumber:
+                                          consultation.sessionNumber!,
+                                      fileCount: 0, // will be updated by viewer
+                                    ),
+                                  ],
+                                  'viewOnlyNotes': true,
+                                },
+                              );
+                            },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: colorScheme.outline.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.visibility_outlined,
+                              size: 18,
+                              color: colorScheme.primary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Icon(
                     Icons.chevron_right,

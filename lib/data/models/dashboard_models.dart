@@ -14,6 +14,7 @@ class Appointment {
   final String? gender;
   final int? age;
   final String? registrationNumber;
+  final int? sessionNumber;
 
   const Appointment({
     required this.id,
@@ -27,6 +28,7 @@ class Appointment {
     this.gender,
     this.age,
     this.registrationNumber,
+    this.sessionNumber,
   });
 
   bool get isScheduled => appointmentType == 'scheduled';

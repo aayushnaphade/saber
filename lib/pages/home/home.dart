@@ -7,7 +7,6 @@ import 'package:saber/components/settings/update_manager.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/data/services/back_navigation_service.dart';
 import 'package:saber/data/session_manager.dart';
-import 'package:saber/i18n/strings.g.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -35,12 +34,20 @@ class HomePage extends StatefulWidget {
   static const teamManagementSubpage = 'team';
   static const professionalSubpage = 'professional';
   static const appSettingsSubpage = 'app_settings';
+
   static const subpages = [
     dashboardSubpage,
     recentSubpage,
     browseSubpage,
     whiteboardSubpage,
     settingsSubpage,
+    historySubpage,
+    teamManagementSubpage,
+    professionalSubpage,
+    appSettingsSubpage,
+    'calendar',
+    'patients',
+    'profile',
   ];
 }
 
@@ -86,58 +93,31 @@ class _HomePageState extends State<HomePage> {
             body: widget.child,
           );
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
+    return Stack(
+      children: [
+        child,
+        Positioned(
+          left: 16,
+          right: 16,
+          bottom: 24,
+          child: ListenableBuilder(
+            listenable: SessionManager(),
+            builder: (context, _) {
+              final sessionManager = SessionManager();
+              final bool isVisible =
+                  sessionManager.hasActiveSession && sessionManager.isMinimized;
 
-        final path = widget.currentPath ?? GoRouterState.of(context).uri.path;
-
-        // Use BackNavigationService to determine the correct navigation action
-        final navResult = BackNavigationService.getBackNavigationResult(
-          currentPath: path,
-          currentSubpage: widget.subpage,
-        );
-        debugPrint(
-          'HomePage: PopScope triggered. Path: $path, Subpage: ${widget.subpage}',
-        );
-        debugPrint(
-          'HomePage: BackNavigationService result: ${navResult.action}, Target: ${navResult.targetRoute}',
-        );
-
-        BackNavigationService.executeBackNavigation(
-          context,
-          navResult,
-          t.common.backAgainToExit,
-        );
-      },
-      child: Stack(
-        children: [
-          child,
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 24,
-            child: ListenableBuilder(
-              listenable: SessionManager(),
-              builder: (context, _) {
-                final sessionManager = SessionManager();
-                final bool isVisible =
-                    sessionManager.hasActiveSession &&
-                    sessionManager.isMinimized;
-
-                if (isVisible) {
-                  return MinimizedSessionOverlay(
-                    key: const ValueKey('session_bar'),
-                    router: GoRouter.of(context),
-                  );
-                }
-                return const SizedBox.shrink(key: ValueKey('empty_bar'));
-              },
-            ),
+              if (isVisible) {
+                return MinimizedSessionOverlay(
+                  key: const ValueKey('session_bar'),
+                  router: GoRouter.of(context),
+                );
+              }
+              return const SizedBox.shrink(key: ValueKey('empty_bar'));
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

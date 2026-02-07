@@ -407,6 +407,36 @@ class SupabaseConsultationService {
       rethrow; // Vital: let the caller handle/log this visibility
     }
   }
+
+  /// Get the page count for a specific session from cloud storage
+  static Future<int> getSessionPageCount(
+    String patientId,
+    int sessionNumber,
+  ) async {
+    try {
+      final doctorId = supabase.auth.currentUser?.id;
+      if (doctorId == null) return 0;
+
+      final cloudPrefix =
+          '$doctorId/$patientId/session_notes/session_$sessionNumber';
+      final files = await supabase.storage
+          .from('medical_notes')
+          .list(path: cloudPrefix);
+
+      // Count files that appear to be page assets (session_note.sbn.0, session_note.sbn.1, etc.)
+      // Also include the primary .sbn file if we consider that a page
+      final pageFiles = files.where((f) {
+        final name = f.name;
+        return (name.contains('.sbn') || name.contains('.sbn2')) &&
+            !name.endsWith('.p');
+      });
+
+      return pageFiles.length;
+    } catch (e) {
+      log.severe('Error fetching session page count: $e');
+      return 0;
+    }
+  }
 }
 
 /// Model for patient consultation data

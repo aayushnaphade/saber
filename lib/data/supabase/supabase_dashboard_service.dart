@@ -192,6 +192,7 @@ class SupabaseDashboardService {
           age: age,
           gender: gender,
           registrationNumber: registrationNumber,
+          sessionNumber: item['session_number'] as int?,
         );
       }).toList();
     } catch (e) {
@@ -483,6 +484,7 @@ class SupabaseDashboardService {
           appointmentType: appointmentTypeStr ?? 'walk-in',
           age: age,
           gender: gender,
+          sessionNumber: item['session_number'] as int?,
         );
       }).toList();
     } catch (e) {
@@ -546,6 +548,7 @@ class SupabaseDashboardService {
           age: age,
           gender: gender,
           registrationNumber: registrationNumber,
+          sessionNumber: item['session_number'] as int?,
         );
       }).toList();
     } catch (e) {

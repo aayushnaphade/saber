@@ -19,12 +19,14 @@ class SessionViewerPage extends StatefulWidget {
   final String patientId;
   final int initialSessionNumber;
   final List<SessionInfo> allSessions;
+  final bool viewOnlyNotes;
 
   const SessionViewerPage({
     super.key,
     required this.patientId,
     required this.initialSessionNumber,
     required this.allSessions,
+    this.viewOnlyNotes = false,
   });
 
   @override
@@ -216,7 +218,9 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
         extendBodyBehindAppBar: true,
         appBar: AppBar(
           title: Text(
-            'Session $_currentSessionNumber Records',
+            widget.viewOnlyNotes
+                ? 'Session $_currentSessionNumber Notes'
+                : 'Session $_currentSessionNumber Records',
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           backgroundColor: Colors.transparent,
@@ -259,7 +263,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
                   : null,
               tooltip: 'Older Session',
             ),
-            if (_currentReport != null)
+            if (_currentReport != null && !widget.viewOnlyNotes)
               IconButton(
                 icon: const Icon(Icons.print),
                 onPressed: () => ReportPrinter.printReport(
@@ -353,7 +357,8 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
                               const SizedBox(height: 32),
 
                               // Bottom: AI Report
-                              if (_currentReport != null)
+                              if (_currentReport != null &&
+                                  !widget.viewOnlyNotes)
                                 SizedBox(
                                   height:
                                       500, // Give fixed height in portrait scroll
@@ -362,7 +367,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
                                     isPortrait: true,
                                   ),
                                 )
-                              else
+                              else if (!widget.viewOnlyNotes)
                                 _buildNoReportState(theme),
 
                               const SizedBox(height: 100), // Bottom padding
@@ -396,14 +401,15 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
                             const SizedBox(width: 32),
 
                             // Right: AI Report
-                            Expanded(
-                              child: _currentReport != null
-                                  ? _buildReportSection(
-                                      theme,
-                                      isPortrait: false,
-                                    )
-                                  : _buildNoReportState(theme),
-                            ),
+                            if (!widget.viewOnlyNotes)
+                              Expanded(
+                                child: _currentReport != null
+                                    ? _buildReportSection(
+                                        theme,
+                                        isPortrait: false,
+                                      )
+                                    : _buildNoReportState(theme),
+                              ),
                           ],
                         );
                       }

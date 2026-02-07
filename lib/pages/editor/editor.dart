@@ -249,6 +249,14 @@ class EditorState extends State<Editor> {
     super.initState();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Capture theme data for thumbnail generation
+    // This ensures theme is always available, even if saveToFile is called during dispose
+    _capturedThemeData = Theme.of(context);
+  }
+
   void _initAsync() async {
     debugPrint('Editor: _initAsync started');
     try {
@@ -1118,12 +1126,15 @@ class EditorState extends State<Editor> {
   }
 
   Future<void> saveToFile() async {
-    // Capture theme data immediately while context is likely valid
-    if (mounted) {
-      _capturedThemeData = Theme.of(context);
-    }
+    log.info('💾 [DEBUG] saveToFile() called for: ${coreInfo.filePath}');
+    // Theme data is captured in didChangeDependencies() to avoid unsafe context access during dispose
 
-    if (coreInfo.readOnly || _isTerminating) return;
+    if (coreInfo.readOnly || _isTerminating) {
+      log.info(
+        '⏭️ [DEBUG] Skipping save: readOnly=${coreInfo.readOnly}, isTerminating=$_isTerminating',
+      );
+      return;
+    }
 
     switch (savingState.value) {
       case .saved:
