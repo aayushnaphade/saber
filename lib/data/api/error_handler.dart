@@ -17,7 +17,7 @@ class ErrorHandler {
 
     final errorString = error.toString().toLowerCase();
 
-    // Check for network-related error strings
+    // Check for network-related error strings (including within AuthException)
     if (errorString.contains('socketexception') ||
         errorString.contains('connection timed out') ||
         errorString.contains('connection failed') ||
@@ -25,7 +25,9 @@ class ErrorHandler {
         errorString.contains('timed out') ||
         errorString.contains('connection refused') ||
         errorString.contains('network') ||
-        errorString.contains('clientexception')) {
+        errorString.contains('clientexception') ||
+        errorString.contains('fetch error') ||
+        errorString.contains('failed to fetch')) {
       return 'No internet connection. Please check your connection and try again.';
     }
 
@@ -41,6 +43,16 @@ class ErrorHandler {
         errorString.contains('oauth2') ||
         errorString.contains('vertex ai')) {
       return 'Unable to connect to Google AI services. Please check your internet connection or network firewall settings.';
+    }
+
+    // Generic AuthException cleanup
+    if (errorString.contains('invalid login credentials')) {
+      return 'Invalid email or password. Please try again.';
+    }
+
+    // If it's an AuthException, just return the message part instead of the whole toString()
+    if (errorString.startsWith('authexception:')) {
+      return error.toString().substring('AuthException:'.length).trim();
     }
 
     return error.toString();

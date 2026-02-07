@@ -64,36 +64,37 @@ class _PatientProgressCardState extends State<PatientProgressCard> {
           else
             Row(
               children: [
-                SizedBox(
-                  height: 120,
-                  width: 120,
-                  child: PieChart(
-                    PieChartData(
-                      sectionsSpace: 0,
-                      centerSpaceRadius: 40,
-                      sections: [
-                        if (improving > 0)
-                          PieChartSectionData(
-                            color: Colors.green,
-                            value: improving.toDouble(),
-                            title: '',
-                            radius: 12,
-                          ),
-                        if (stable > 0)
-                          PieChartSectionData(
-                            color: Colors.orange,
-                            value: stable.toDouble(),
-                            title: '',
-                            radius: 12,
-                          ),
-                        if (deteriorating > 0)
-                          PieChartSectionData(
-                            color: Colors.red,
-                            value: deteriorating.toDouble(),
-                            title: '',
-                            radius: 12,
-                          ),
-                      ],
+                Expanded(
+                  child: SizedBox(
+                    height: 120,
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 0,
+                        centerSpaceRadius: 35,
+                        sections: [
+                          if (improving > 0)
+                            PieChartSectionData(
+                              color: Colors.green,
+                              value: improving.toDouble(),
+                              title: '',
+                              radius: 12,
+                            ),
+                          if (stable > 0)
+                            PieChartSectionData(
+                              color: Colors.orange,
+                              value: stable.toDouble(),
+                              title: '',
+                              radius: 12,
+                            ),
+                          if (deteriorating > 0)
+                            PieChartSectionData(
+                              color: Colors.red,
+                              value: deteriorating.toDouble(),
+                              title: '',
+                              radius: 12,
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -140,8 +141,14 @@ class _PatientProgressCardState extends State<PatientProgressCard> {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 8),
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-        const Spacer(),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
         Text('$count', style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(width: 4),
         Text(

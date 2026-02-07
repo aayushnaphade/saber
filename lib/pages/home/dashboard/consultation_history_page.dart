@@ -169,12 +169,12 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
                           _buildFilterChip('Today', _HistoryFilter.today),
                           const SizedBox(width: AppSpacing.sm),
                           _buildFilterChip(
-                            'Last 7 Days',
+                            'This Week',
                             _HistoryFilter.lastWeek,
                           ),
                           const SizedBox(width: AppSpacing.sm),
                           _buildFilterChip(
-                            'Last 30 Days',
+                            'This Month',
                             _HistoryFilter.lastMonth,
                           ),
                         ],

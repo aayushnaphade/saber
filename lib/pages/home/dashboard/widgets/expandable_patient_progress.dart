@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:saber/data/supabase/supabase_consultation_service.dart';
-import 'package:saber/design_system/radius.dart';
-import 'package:saber/design_system/spacing.dart';
 
 class ExpandablePatientProgress extends StatefulWidget {
   const ExpandablePatientProgress({super.key});
@@ -17,6 +15,7 @@ class _ExpandablePatientProgressState extends State<ExpandablePatientProgress>
   bool _isExpanded = false;
   Map<String, int> _stats = {'improving': 0, 'stable': 0, 'deteriorating': 0};
   bool _isLoading = true;
+  Offset _offset = const Offset(24, 24); // Bottom-right initial offset
 
   @override
   void initState() {
@@ -50,38 +49,62 @@ class _ExpandablePatientProgressState extends State<ExpandablePatientProgress>
     final deteriorating = _stats['deteriorating'] ?? 0;
     final total = improving + stable + deteriorating;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOutQuart,
-      width: _isExpanded ? 320 : 64,
-      height: _isExpanded ? 400 : 64,
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(_isExpanded ? 24 : 32),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
+    return Positioned(
+      right: _offset.dx,
+      bottom: _offset.dy,
+      child: GestureDetector(
+        onPanUpdate: (details) {
+          if (!_isExpanded) {
             setState(() {
-              _isExpanded = !_isExpanded;
+              _offset = Offset(
+                (_offset.dx - details.delta.dx).clamp(
+                  16.0,
+                  MediaQuery.of(context).size.width - 80.0,
+                ),
+                (_offset.dy - details.delta.dy).clamp(
+                  16.0,
+                  MediaQuery.of(context).size.height - 80.0,
+                ),
+              );
             });
-            if (_isExpanded && _isLoading) {
-              _loadStats();
-            }
-          },
-          borderRadius: BorderRadius.circular(_isExpanded ? 24 : 32),
-          child: _isExpanded
-              ? _buildExpandedContent(total)
-              : _buildCollapsedContent(),
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOutQuart,
+          width: _isExpanded ? 320 : 64,
+          height: _isExpanded ? 400 : 64,
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(_isExpanded ? 24 : 32),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+            ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  _isExpanded = !_isExpanded;
+                });
+                if (_isExpanded && _isLoading) {
+                  _loadStats();
+                }
+              },
+              borderRadius: BorderRadius.circular(_isExpanded ? 24 : 32),
+              child: _isExpanded
+                  ? _buildExpandedContent(total)
+                  : _buildCollapsedContent(),
+            ),
+          ),
         ),
       ),
     );
@@ -124,11 +147,13 @@ class _ExpandablePatientProgressState extends State<ExpandablePatientProgress>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Patient Progress',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              const Expanded(
+                child: Text(
+                  'Patient Progress',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 20),
@@ -217,8 +242,14 @@ class _ExpandablePatientProgressState extends State<ExpandablePatientProgress>
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 12),
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-        const Spacer(),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
         Text('$count', style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(width: 4),
         Text(

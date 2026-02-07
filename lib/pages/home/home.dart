@@ -98,6 +98,12 @@ class _HomePageState extends State<HomePage> {
           currentPath: path,
           currentSubpage: widget.subpage,
         );
+        debugPrint(
+          'HomePage: PopScope triggered. Path: $path, Subpage: ${widget.subpage}',
+        );
+        debugPrint(
+          'HomePage: BackNavigationService result: ${navResult.action}, Target: ${navResult.targetRoute}',
+        );
 
         BackNavigationService.executeBackNavigation(
           context,

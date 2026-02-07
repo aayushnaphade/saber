@@ -41,8 +41,9 @@ class BackNavigationService {
       }
     }
 
-    // 3. If not on Dashboard, navigate back to Dashboard
-    if (currentSubpage != HomePage.dashboardSubpage) {
+    // 3. If on a sidebar page that is NOT Dashboard, navigate back to Dashboard
+    if (HomePage.subpages.contains(currentSubpage) &&
+        currentSubpage != HomePage.dashboardSubpage) {
       return BackNavigationResult.navigateTo(HomeRoutes.getRoute(0));
     }
 

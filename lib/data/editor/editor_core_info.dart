@@ -349,7 +349,10 @@ class EditorCoreInfo {
     bool readOnly = false,
     bool onlyFirstPage = false,
   }) async {
-    final bsonBytes = await FileManager.readFile(path + Editor.extension);
+    final fullPath = path.endsWith(Editor.extension)
+        ? path
+        : path + Editor.extension;
+    final bsonBytes = await FileManager.readFile(fullPath);
 
     final String? jsonString;
     if (bsonBytes != null) {

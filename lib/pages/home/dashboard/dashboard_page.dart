@@ -578,11 +578,7 @@ class _DashboardPageState extends State<DashboardPage> {
             builder: (context) {
               final width = MediaQuery.of(context).size.width;
               if (width < 1100) {
-                return const Positioned(
-                  right: 24,
-                  bottom: 24,
-                  child: ExpandablePatientProgress(),
-                );
+                return const ExpandablePatientProgress();
               }
               return const SizedBox.shrink();
             },
@@ -601,13 +597,13 @@ class _DashboardPageState extends State<DashboardPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: isBusy
-            ? theme.colorScheme.errorContainer.withOpacity(0.3)
-            : const Color(0xFFD1FAE5).withOpacity(0.5),
+            ? theme.colorScheme.errorContainer.withValues(alpha: 0.3)
+            : const Color(0xFFD1FAE5).withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isBusy
-              ? theme.colorScheme.error.withOpacity(0.2)
-              : const Color(0xFF10B981).withOpacity(0.2),
+              ? theme.colorScheme.error.withValues(alpha: 0.2)
+              : const Color(0xFF10B981).withValues(alpha: 0.2),
         ),
       ),
       child: Row(
@@ -622,7 +618,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   ? null
                   : [
                       BoxShadow(
-                        color: const Color(0xFF10B981).withOpacity(0.5),
+                        color: const Color(0xFF10B981).withValues(alpha: 0.5),
                         blurRadius: 8,
                         spreadRadius: 2,
                       ),
@@ -648,8 +644,10 @@ class _DashboardPageState extends State<DashboardPage> {
                     : 'Ready for next patient',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: isBusy
-                      ? theme.colorScheme.onErrorContainer.withOpacity(0.7)
-                      : const Color(0xFF047857).withOpacity(0.8),
+                      ? theme.colorScheme.onErrorContainer.withValues(
+                          alpha: 0.7,
+                        )
+                      : const Color(0xFF047857).withValues(alpha: 0.8),
                 ),
               ),
             ],
@@ -772,10 +770,12 @@ class _DashboardPageState extends State<DashboardPage> {
       builder: (context) {
         final width = MediaQuery.of(context).size.width;
         final useVertical = width < 480;
-        final showProgressInGrid = width >= 1100;
+        final isDesktop = width >= 1100;
+        final showProgressInGrid = isDesktop;
 
-        if (useVertical) {
+        if (useVertical || isDesktop) {
           return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               StatCard(
                 label: 'Consultations Done',
@@ -796,14 +796,14 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
               const SizedBox(height: 12),
               StatCard(
-                label: 'All Patients',
-                value: 'View Directory',
-                icon: Icons.people_alt_outlined,
+                label: 'Consultation History',
+                value: 'View History',
+                icon: Icons.history_rounded,
                 color: Colors.blue,
-                onTap: () => context.go('/home/browse'),
+                onTap: () => context.go('/home/history'),
               ),
               if (showProgressInGrid) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 24),
                 const PatientProgressCard(),
               ],
             ],
@@ -836,11 +836,11 @@ class _DashboardPageState extends State<DashboardPage> {
             const SizedBox(width: 12),
             Expanded(
               child: StatCard(
-                label: 'All Patients',
-                value: 'View Directory',
-                icon: Icons.people_alt_outlined,
+                label: 'Consultation History',
+                value: 'View History',
+                icon: Icons.history_rounded,
                 color: Colors.blue,
-                onTap: () => context.go('/home/browse'),
+                onTap: () => context.go('/home/history'),
               ),
             ),
             if (showProgressInGrid) ...[

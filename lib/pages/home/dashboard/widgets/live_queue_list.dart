@@ -149,7 +149,6 @@ class LiveQueueList extends StatelessWidget {
 
   Widget _buildQueueItem(BuildContext context, QueueItem item, int index) {
     final theme = Theme.of(context);
-    final isFirst = index == 0;
 
     // Determine status color
     Color statusColor;
@@ -180,7 +179,7 @@ class LiveQueueList extends StatelessWidget {
             const SizedBox(width: 16),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
@@ -241,20 +240,27 @@ class LiveQueueList extends StatelessWidget {
                 ],
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: statusColor.withOpacity(0.2)),
-              ),
-              child: Text(
-                item.patientType,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: statusColor,
-                  fontWeight: FontWeight.bold,
+            const SizedBox(width: 8),
+            Flexible(
+              flex: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
                 ),
-                overflow: TextOverflow.ellipsis,
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.2)),
+                ),
+                child: Text(
+                  item.patientType,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -310,10 +316,10 @@ class LiveQueueList extends StatelessWidget {
     Color textColor;
 
     if (lowerGender == 'male' || lowerGender == 'm') {
-      backgroundColor = Colors.blue.withOpacity(0.1);
+      backgroundColor = Colors.blue.withValues(alpha: 0.1);
       textColor = Colors.blue.shade700;
     } else if (lowerGender == 'female' || lowerGender == 'f') {
-      backgroundColor = Colors.pink.withOpacity(0.1);
+      backgroundColor = Colors.pink.withValues(alpha: 0.1);
       textColor = Colors.pink.shade700;
     } else {
       backgroundColor = theme.colorScheme.surfaceContainerHighest;

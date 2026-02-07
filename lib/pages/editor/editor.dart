@@ -654,7 +654,7 @@ class EditorState extends State<Editor> {
             );
           }
           for (final image in item.images) {
-            image.dstRect = .fromLTRB(
+            image.dstRect = ui.Rect.fromLTRB(
               image.dstRect.left - item.offset!.left,
               image.dstRect.top - item.offset!.top,
               image.dstRect.right - item.offset!.right,
@@ -699,7 +699,7 @@ class EditorState extends State<Editor> {
       case .move:
         undo(
           item.copyWith(
-            offset: .fromLTRB(
+            offset: ui.Rect.fromLTRB(
               -item.offset!.left,
               -item.offset!.top,
               -item.offset!.right,
@@ -736,11 +736,11 @@ class EditorState extends State<Editor> {
 
   /// The position of the previous draw gesture event.
   /// Used to move a selection.
-  Offset previousPosition = .zero;
+  Offset previousPosition = ui.Offset.zero;
 
   /// The total offset of the current move gesture.
   /// Used to record a move in the history.
-  Offset moveOffset = .zero;
+  Offset moveOffset = ui.Offset.zero;
 
   var isHovering = true;
   int? dragPageIndex;
@@ -823,7 +823,7 @@ class EditorState extends State<Editor> {
     }
 
     previousPosition = position;
-    moveOffset = .zero;
+    moveOffset = ui.Offset.zero;
 
     if (currentTool is! Select) {
       Select.currentSelect.unselect();
@@ -916,7 +916,7 @@ class EditorState extends State<Editor> {
           ),
         );
       } else if (currentTool is Select) {
-        if (moveOffset == .zero) return;
+        if (moveOffset == ui.Offset.zero) return;
         final select = currentTool as Select;
         if (select.doneSelecting) {
           history.recordChange(
@@ -925,7 +925,7 @@ class EditorState extends State<Editor> {
               pageIndex: dragPageIndex!,
               strokes: select.selectResult.strokes,
               images: select.selectResult.images,
-              offset: .fromLTRB(
+              offset: ui.Rect.fromLTRB(
                 moveOffset.dx,
                 moveOffset.dy,
                 moveOffset.dx,
@@ -997,7 +997,7 @@ class EditorState extends State<Editor> {
     }
   }
 
-  void onMoveImage(EditorImage image, Rect offset) {
+  void onMoveImage(EditorImage image, ui.Rect offset) {
     history.recordChange(
       EditorHistoryItem(
         type: .move,
@@ -1118,6 +1118,11 @@ class EditorState extends State<Editor> {
   }
 
   Future<void> saveToFile() async {
+    // Capture theme data immediately while context is likely valid
+    if (mounted) {
+      _capturedThemeData = Theme.of(context);
+    }
+
     if (coreInfo.readOnly || _isTerminating) return;
 
     switch (savingState.value) {
@@ -1137,7 +1142,10 @@ class EditorState extends State<Editor> {
 
     await _renameFileNow();
 
-    final filePath = coreInfo.filePath + Editor.extension;
+    final filePath = coreInfo.filePath.endsWith(Editor.extension)
+        ? coreInfo.filePath
+        : coreInfo.filePath + Editor.extension;
+
     final Uint8List bson;
     final OrderedAssetCache assets;
     coreInfo.assetCache.allowRemovingAssets = false;
@@ -1174,65 +1182,81 @@ class EditorState extends State<Editor> {
       savingState.value = .waitingToSave;
       if (kDebugMode) rethrow;
       return;
-    }
-
-    if (!mounted) return;
-
-    // Safety check: ensure there are pages before accessing them
-    if (coreInfo.pages.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: HeroMode(
-              enabled: false,
-              child: Text('No pages available for thumbnail generation'),
-            ),
-            duration: Duration(seconds: 2),
-          ),
-        );
+    } finally {
+      if (savingState.value == .saved) {
+        log.info('saveToFile() completed successfully. File: $filePath');
+      } else {
+        log.warning('saveToFile() finished with state: ${savingState.value}');
       }
-      return;
     }
 
-    final screenshotter = ScreenshotController();
-    final page = coreInfo.pages.first;
-    final previewHeight = page.previewHeight(lineHeight: coreInfo.lineHeight);
-    final thumbnailSize = Size(720, 720 * previewHeight / page.size.width);
-    final thumbnail = await screenshotter.captureFromWidget(
-      Theme(
-        data: ThemeData(
-          brightness: .light,
-          colorScheme: const ColorScheme.light(
-            primary: EditorExporter.primaryColor,
-            secondary: EditorExporter.secondaryColor,
-          ),
-        ),
-        child: Localizations.override(
-          context: context,
-          child: SizedBox(
-            width: thumbnailSize.width,
-            height: thumbnailSize.height,
-            child: FittedBox(
-              child: pageBuilderForScreenshot(
-                context,
-                pageIndex: 0,
-                previewHeight: previewHeight,
+    // Move thumbnail generation to run regardless of mounted state (best effort)
+    // We use the captured theme data if available, or fall back to defaults
+    try {
+      if (coreInfo.pages.isNotEmpty) {
+        final screenshotter = ScreenshotController();
+        final page = coreInfo.pages.first;
+        final previewHeight = page.previewHeight(
+          lineHeight: coreInfo.lineHeight,
+        );
+        final thumbnailSize = ui.Size(
+          720,
+          720 * previewHeight / page.size.width,
+        );
+
+        // Use a sane default theme if we can't capture one (though we should have caught it early)
+        final themeData =
+            _capturedThemeData ??
+            ThemeData.light().copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: EditorExporter.primaryColor,
+                secondary: EditorExporter.secondaryColor,
+              ),
+            );
+
+        final thumbnail = await screenshotter.captureFromWidget(
+          Theme(
+            data: themeData,
+            child: Directionality(
+              // Maintain directionality
+              textDirection: ui.TextDirection.ltr,
+              child: Localizations.override(
+                context:
+                    context, // ScreenshotController handles this gracefully usually
+                child: SizedBox(
+                  width: thumbnailSize.width,
+                  height: thumbnailSize.height,
+                  child: FittedBox(
+                    child: Builder(
+                      // Use Builder to get a context for the page builder if needed
+                      builder: (ctx) => pageBuilderForScreenshot(
+                        ctx,
+                        pageIndex: 0,
+                        previewHeight: previewHeight,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-      ),
-      pixelRatio: 1,
-      context: context,
-      targetSize: thumbnailSize,
-    );
-    await FileManager.writeFile(
-      // Note that this ends with .sbn2.p
-      '$filePath.p',
-      thumbnail,
-      awaitWrite: true,
-    );
+          pixelRatio: 1,
+          // Context is optional in newer ScreenshotController but we provide it for safety
+          // if it's still mounted, otherwise null/ignored
+          context: mounted ? context : null,
+          targetSize: thumbnailSize,
+        );
+
+        await FileManager.writeFile('$filePath.p', thumbnail, awaitWrite: true);
+        log.info('Thumbnail saved to $filePath.p');
+      }
+    } catch (e) {
+      log.warning('Failed to generate thumbnail: $e');
+    }
   }
+
+  // Helper field to capture theme before async ops
+  ThemeData? _capturedThemeData;
 
   Future<void> _promptProgressStatus() async {
     // 0. Cache Check: If we already have a status, don't ask again.
@@ -3675,9 +3699,14 @@ class EditorState extends State<Editor> {
                     .join('\n'),
                 imageBytesList: imageBytesList,
                 onVerify: () async {
-                  setState(() {
-                    _isTerminating = true;
-                  });
+                  // Force a final save before terminating to ensure local persistence and thumbnail generation
+                  await saveToFile();
+
+                  if (mounted) {
+                    setState(() {
+                      _isTerminating = true;
+                    });
+                  }
                   try {
                     // Convert to Markdown
                     final sb = StringBuffer();
@@ -3891,7 +3920,11 @@ class EditorState extends State<Editor> {
 
                     // Only try to write file if directory exists
                     if (await Directory(p.dirname(filePath)).exists()) {
-                      await File(reportPath).writeAsString(sb.toString());
+                      await FileManager.writeFile(
+                        reportPath,
+                        Uint8List.fromList(utf8.encode(sb.toString())),
+                        awaitWrite: true,
+                      );
 
                       if (context.mounted) {
                         Navigator.pop(context); // Close dialog

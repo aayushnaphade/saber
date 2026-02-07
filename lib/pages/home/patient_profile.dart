@@ -19,7 +19,9 @@ import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_intake_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
+import 'package:saber/pages/editor/editor.dart';
 import 'package:saber/design_system/colors.dart';
+
 import 'package:saber/design_system/radius.dart';
 import 'package:saber/design_system/spacing.dart';
 
@@ -240,9 +242,14 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
       }
 
       // Load AI reports from Supabase
+      _log.info('Fetching all reports for patient ${loadedPatient.id}');
       final reportsList = await SupabaseReportService.getReportsForPatient(
         loadedPatient.id,
       );
+      _log.info('Found ${reportsList.length} total reports for this patient');
+      if (reportsList.isNotEmpty) {
+        _log.info('First report path: ${reportsList.first.sourceDocumentPath}');
+      }
       debugPrint('PatientProfile: Reports loaded: ${reportsList.length}');
 
       setState(() {
@@ -418,7 +425,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
 
       // Create blank Saber document for this session
       final documentName = 'session_${nextSessionNumber}_notes';
-      final documentPath = '$sessionPath/$documentName.sbn';
+      final documentPath = '$sessionPath/$documentName${Editor.extension}';
 
       // Create or find consultation record
       String? consultationId;
@@ -500,7 +507,12 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
           RoutePaths.editFilePath(documentPath, consultationId: consultationId),
         );
         if (mounted && context.mounted) {
-          _loadPatientData();
+          // Reload BOTH patient data and sessions
+          await _loadPatientData();
+          final updatedSessions = await _loadSessions(patient!);
+          setState(() {
+            sessions = updatedSessions;
+          });
         }
       }
     } catch (e) {
@@ -529,7 +541,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Patient status updated to $_getStatusDisplayName($newStatus)',
+              'Patient status updated to $_getStatusDisplayName(newStatus)',
             ),
           ),
         );
@@ -595,173 +607,182 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     }
   }
 
+  void _handleBackNavigation() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      // Check if there's a returnPath query parameter
+      final uri = GoRouterState.of(context).uri;
+      final returnPath = uri.queryParameters['returnPath'];
+      if (returnPath != null && returnPath.isNotEmpty) {
+        context.go(returnPath);
+      } else {
+        // Fallback: if we can't pop and no return path,
+        // go back to the browse page
+        context.go('/home/browse');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // Transparent app bar for immersive design
-      appBar: _isSelectionMode
-          ? AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () {
-                  setState(() {
-                    _isSelectionMode = false;
-                    _selectedSessionIds.clear();
-                  });
-                },
-              ),
-              title: Text('${_selectedSessionIds.length} selected'),
-              backgroundColor: Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: _deleteSelectedSessions,
-                  tooltip: 'Delete selected',
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        _handleBackNavigation();
+      },
+      child: Scaffold(
+        // Transparent app bar for immersive design
+        appBar: _isSelectionMode
+            ? AppBar(
+                leading: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () {
+                    setState(() {
+                      _isSelectionMode = false;
+                      _selectedSessionIds.clear();
+                    });
+                  },
                 ),
-              ],
-            )
-          : AppBar(
-              centerTitle: false,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () {
-                  if (context.canPop()) {
-                    context.pop();
-                  } else {
-                    // Check if there's a returnPath query parameter
-                    final uri = GoRouterState.of(context).uri;
-                    final returnPath = uri.queryParameters['returnPath'];
-                    if (returnPath != null && returnPath.isNotEmpty) {
-                      context.go(returnPath);
-                    } else {
-                      // Fallback: if we can't pop and no return path,
-                      // go back to the browse page
-                      context.go('/home/browse');
-                    }
-                  }
-                },
-                tooltip: 'Back',
-              ),
-              title: const Text(
-                'Patient Profile',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              actions: [
-                if (patient != null) ...[
-                  // Cloud sync indicator - shows background sync status
-                  if (isSyncing)
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Tooltip(
-                        message: 'Syncing documents...',
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    IconButton(
-                      icon: const Icon(Icons.cloud_outlined),
-                      onPressed: _syncDocuments,
-                      tooltip: 'Sync to cloud',
-                    ),
-                  // Quick actions menu
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert),
-                    tooltip: 'More options',
-                    onSelected: (value) {
-                      switch (value) {
-                        case 'edit':
-                          _editDemographics();
-                        case 'intake':
-                          _showIntakeForm();
-                        case 'share':
-                          _sharePatientProfile();
-                        case 'export':
-                          _exportRecords();
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: ListTile(
-                          leading: Icon(Icons.edit_outlined),
-                          title: Text('Edit Demographics'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'intake',
-                        child: ListTile(
-                          leading: Icon(
-                            _patientIntake != null
-                                ? Icons.assignment_turned_in_outlined
-                                : Icons.assignment_outlined,
-                          ),
-                          title: Text(
-                            _patientIntake != null
-                                ? 'View/Edit Intake Form'
-                                : 'Fill Intake Form',
-                          ),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'share',
-                        child: ListTile(
-                          leading: Icon(Icons.share_outlined),
-                          title: Text('Share Profile'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'export',
-                        child: ListTile(
-                          leading: Icon(Icons.file_download_outlined),
-                          title: Text('Export Records'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                    ],
+                title: Text('${_selectedSessionIds.length} selected'),
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: _deleteSelectedSessions,
+                    tooltip: 'Delete selected',
                   ),
                 ],
-              ],
-            ),
-      body: isLoading
-          ? _buildLoadingSkeleton()
-          : error != null
-          ? Center(
-              child: EmptyState(
-                icon: Icons.error_outline,
-                title: 'Failed to Load Patient',
-                message: error!,
-                actionLabel: 'Retry',
-                onAction: _loadPatientData,
+              )
+            : AppBar(
+                centerTitle: false,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: _handleBackNavigation,
+                  tooltip: 'Back',
+                ),
+                title: const Text(
+                  'Patient Profile',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                actions: [
+                  if (patient != null) ...[
+                    // Cloud sync indicator - shows background sync status
+                    if (isSyncing)
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Tooltip(
+                          message: 'Syncing documents...',
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      IconButton(
+                        icon: const Icon(Icons.cloud_outlined),
+                        onPressed: _syncDocuments,
+                        tooltip: 'Sync to cloud',
+                      ),
+                    // Quick actions menu
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert),
+                      tooltip: 'More options',
+                      onSelected: (value) {
+                        switch (value) {
+                          case 'edit':
+                            _editDemographics();
+                          case 'intake':
+                            _showIntakeForm();
+                          case 'share':
+                            _sharePatientProfile();
+                          case 'export':
+                            _exportRecords();
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: ListTile(
+                            leading: Icon(Icons.edit_outlined),
+                            title: Text('Edit Demographics'),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'intake',
+                          child: ListTile(
+                            leading: Icon(
+                              _patientIntake != null
+                                  ? Icons.assignment_turned_in_outlined
+                                  : Icons.assignment_outlined,
+                            ),
+                            title: Text(
+                              _patientIntake != null
+                                  ? 'View/Edit Intake Form'
+                                  : 'Fill Intake Form',
+                            ),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'share',
+                          child: ListTile(
+                            leading: Icon(Icons.share_outlined),
+                            title: Text('Share Profile'),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'export',
+                          child: ListTile(
+                            leading: Icon(Icons.file_download_outlined),
+                            title: Text('Export Records'),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
               ),
-            )
-          : OrientationBuilder(
-              builder: (context, orientation) {
-                return orientation == Orientation.portrait
-                    ? _buildPortraitLayout()
-                    : _buildLandscapeLayout();
-              },
-            ),
-      floatingActionButton: patient != null
-          ? FloatingActionButton.extended(
-              onPressed: _confirmAndStartNewSession,
-              icon: const Icon(Icons.add),
-              label: const Text('Start Session'),
-            )
-          : null,
+        body: isLoading
+            ? _buildLoadingSkeleton()
+            : error != null
+            ? Center(
+                child: EmptyState(
+                  icon: Icons.error_outline,
+                  title: 'Failed to Load Patient',
+                  message: error!,
+                  actionLabel: 'Retry',
+                  onAction: _loadPatientData,
+                ),
+              )
+            : OrientationBuilder(
+                builder: (context, orientation) {
+                  return orientation == Orientation.portrait
+                      ? _buildPortraitLayout()
+                      : _buildLandscapeLayout();
+                },
+              ),
+        floatingActionButton: patient != null
+            ? FloatingActionButton.extended(
+                onPressed: _confirmAndStartNewSession,
+                icon: const Icon(Icons.add),
+                label: const Text('Start Session'),
+              )
+            : null,
+      ),
     );
   }
 
@@ -2063,6 +2084,7 @@ class _SyncConflictDialogState extends State<_SyncConflictDialog> {
                 itemCount: widget.fileNames.length,
                 itemBuilder: (context, index) {
                   final fileName = widget.fileNames[index];
+                  debugPrint('Processing sync conflict for file: $fileName');
                   final isRestore = _selections[fileName] ?? true;
                   return CheckboxListTile(
                     title: Text(fileName),

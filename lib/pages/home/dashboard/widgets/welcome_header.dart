@@ -236,10 +236,14 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: isOnline
-            ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5)
-            : Theme.of(context).colorScheme.errorContainer.withOpacity(0.5),
+            ? Theme.of(
+                context,
+              ).colorScheme.primaryContainer.withValues(alpha: 0.5)
+            : Theme.of(
+                context,
+              ).colorScheme.errorContainer.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: statusColor.withOpacity(0.2)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -252,7 +256,7 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
               boxShadow: isOnline
                   ? [
                       BoxShadow(
-                        color: statusColor.withOpacity(0.5),
+                        color: statusColor.withValues(alpha: 0.5),
                         blurRadius: 6,
                         spreadRadius: 2,
                       ),

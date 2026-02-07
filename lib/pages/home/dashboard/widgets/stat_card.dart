@@ -60,7 +60,7 @@ class _StatCardState extends State<StatCard> {
               borderRadius: AppRadius.xxlRadius,
               boxShadow: [
                 BoxShadow(
-                  color: theme.shadowColor.withOpacity(0.06),
+                  color: theme.shadowColor.withValues(alpha: 0.06),
                   blurRadius: 24,
                   offset: const Offset(0, 8),
                 ),
@@ -78,7 +78,7 @@ class _StatCardState extends State<StatCard> {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: baseColor.withOpacity(0.08),
+                        color: baseColor.withValues(alpha: 0.08),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -90,7 +90,7 @@ class _StatCardState extends State<StatCard> {
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        color: baseColor.withOpacity(0.08),
+                        color: baseColor.withValues(alpha: 0.08),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -111,7 +111,7 @@ class _StatCardState extends State<StatCard> {
                                 AppSpacing.iconPadding,
                               ),
                               decoration: BoxDecoration(
-                                color: baseColor.withOpacity(0.1),
+                                color: baseColor.withValues(alpha: 0.1),
                                 borderRadius: AppRadius.mdRadius,
                               ),
                               child: Icon(
@@ -132,9 +132,9 @@ class _StatCardState extends State<StatCard> {
                                   decoration: BoxDecoration(
                                     color: widget.isPositiveTrend
                                         ? MedicalColors.positiveMetric
-                                              .withOpacity(0.08)
+                                              .withValues(alpha: 0.08)
                                         : MedicalColors.negativeMetric
-                                              .withOpacity(0.08),
+                                              .withValues(alpha: 0.08),
                                     borderRadius: AppRadius.pillRadius,
                                   ),
                                   child: Row(

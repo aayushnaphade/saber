@@ -10,6 +10,9 @@ import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/data/utils/report_printer.dart';
 import 'package:saber/pages/editor/report_view.dart';
+import 'dart:io';
+import 'package:saber/data/file_manager/file_manager.dart';
+import 'package:saber/pages/editor/editor.dart'; // For Editor.extension
 // import 'package:saber/data/models/patient.dart'; // SessionInfo already imported
 
 class SessionViewerPage extends StatefulWidget {
@@ -69,10 +72,14 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
 
       // Robust fetch: get all reports for patient and filter in Dart
       // to handle potential path mismatch or extension variation (.sbn vs .sbn2)
+      log.info('Fetching all reports for patient ${widget.patientId}');
       final allReports = await SupabaseReportService.getReportsForPatient(
         widget.patientId,
       );
       log.info('Found ${allReports.length} total reports for this patient');
+      if (allReports.isNotEmpty) {
+        log.info('First report path: ${allReports.first.sourceDocumentPath}');
+      }
 
       ClinicalReport? report;
       try {
@@ -97,10 +104,60 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
 
       // 2. Fetch Handwritten Note Preview
       // Use efficient single-fetch instead of loading all historic notes
-      final note = await SupabaseConsultationService.getSessionNote(
-        widget.patientId,
-        _currentSessionNumber,
-      );
+      PreviousSessionNote? note;
+
+      // Try local file first (Offline / Faster / "Saved Locally" perception)
+      try {
+        final documentsDir = FileManager.documentsDirectory;
+        final patientId = widget.patientId;
+        final sessionFolderName = session.folderName;
+        // /patients/{id}/session_notes/{session_folder}/{session_folder}_notes.sbn2.p
+        final sessionPath =
+            '$documentsDir/patients/$patientId/session_notes/$sessionFolderName';
+
+        final expectedNoteName =
+            '${sessionFolderName}_notes${Editor.extension}.p';
+        final localNotePath = '$sessionPath/$expectedNoteName';
+
+        log.info('Checking local note at: $localNotePath');
+        final file = File(localNotePath);
+        if (await file.exists()) {
+          log.info('Found local note preview at $localNotePath');
+          note = PreviousSessionNote(
+            imageUrl: localNotePath,
+            sessionNumber: _currentSessionNumber,
+            createdAt: await file.lastModified(),
+            fileName: expectedNoteName,
+          );
+        } else {
+          // Try fallback for older .sbn.p
+          final olderNotePath = localNotePath.replaceAll('.sbn2.p', '.sbn.p');
+          final olderFile = File(olderNotePath);
+          final olderFileExists = await olderFile.exists();
+          log.info(
+            'Checking older local note at: $olderNotePath. Exists: $olderFileExists',
+          );
+
+          if (olderFileExists) {
+            log.info('Found older local note preview at $olderNotePath');
+            note = PreviousSessionNote(
+              imageUrl: olderNotePath,
+              sessionNumber: _currentSessionNumber,
+              createdAt: await olderFile.lastModified(),
+              fileName: olderNotePath.split('/').last,
+            );
+          }
+        }
+      } catch (e) {
+        log.warning('Error checking local note: $e');
+      }
+
+      if (note == null) {
+        note = await SupabaseConsultationService.getSessionNote(
+          widget.patientId,
+          _currentSessionNumber,
+        );
+      }
 
       // 3. Fetch Patient Info
       final patient = await SupabasePatientService.getPatient(widget.patientId);
@@ -375,24 +432,39 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
         borderRadius: BorderRadius.circular(12),
         child: InteractiveViewer(
           maxScale: 5.0,
-          child: Image.network(
-            _currentNote!.imageUrl,
-            fit: BoxFit.contain,
-            loadingBuilder: (context, child, loading) {
-              if (loading == null) return child;
-              return const Center(child: CircularProgressIndicator());
-            },
-            errorBuilder: (context, error, stack) => const Center(
-              child: Icon(Icons.broken_image, size: 64, color: Colors.grey),
-            ),
-          ),
+          child: _currentNote!.imageUrl.startsWith('http')
+              ? Image.network(
+                  _currentNote!.imageUrl,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (context, child, loading) {
+                    if (loading == null) return child;
+                    return const Center(child: CircularProgressIndicator());
+                  },
+                  errorBuilder: (context, error, stack) => const Center(
+                    child: Icon(
+                      Icons.broken_image,
+                      size: 64,
+                      color: Colors.grey,
+                    ),
+                  ),
+                )
+              : Image.file(
+                  File(_currentNote!.imageUrl),
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stack) => const Center(
+                    child: Icon(
+                      Icons.broken_image,
+                      size: 64,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
         ),
       ),
     );
   }
 
   Widget _buildReportSection(ThemeData theme, {required bool isPortrait}) {
-    final isDark = theme.brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
