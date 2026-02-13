@@ -94,6 +94,34 @@ class DocumentSyncService {
     }
   }
 
+  /// Ensure a document is local, downloading it if missing
+  static Future<void> syncDownIfMissing({
+    required String localPath,
+    String? doctorId,
+  }) async {
+    final file = FileManager.getFile(localPath);
+    if (await file.exists()) return;
+
+    final effectiveDoctorId = doctorId ?? supabase.auth.currentUser?.id;
+    if (effectiveDoctorId == null) return;
+
+    // Convert local path to cloud path
+    String cleanPath = localPath;
+    if (cleanPath.startsWith('/')) cleanPath = cleanPath.substring(1);
+    if (cleanPath.startsWith('patients/')) {
+      cleanPath = cleanPath.substring('patients/'.length);
+    }
+
+    final cloudPath = '$effectiveDoctorId/$cleanPath';
+
+    try {
+      await downloadDocument(cloudPath, localPath);
+    } catch (e) {
+      log.warning('Sync down if missing failed for $cloudPath: $e');
+      // No rethrow, as editor can still open (empty) if sync fails
+    }
+  }
+
   /// Delete a document file from Supabase Storage
   static Future<void> deleteDocument(String localPath) async {
     try {

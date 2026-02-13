@@ -12,8 +12,9 @@ import 'package:saber/data/utils/report_printer.dart';
 import 'package:saber/pages/editor/report_view.dart';
 import 'dart:io';
 import 'package:saber/data/file_manager/file_manager.dart';
-import 'package:saber/pages/editor/editor.dart'; // For Editor.extension
-// import 'package:saber/data/models/patient.dart'; // SessionInfo already imported
+import 'package:saber/pages/editor/editor.dart';
+import 'package:go_router/go_router.dart';
+import 'package:saber/data/routes.dart';
 
 class SessionViewerPage extends StatefulWidget {
   final String patientId;
@@ -158,6 +159,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
         note = await SupabaseConsultationService.getSessionNote(
           widget.patientId,
           _currentSessionNumber,
+          doctorId: report?.doctorId, // Pass the doctorId from the report
         );
       }
 

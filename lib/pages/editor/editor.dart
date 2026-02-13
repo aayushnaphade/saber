@@ -37,7 +37,7 @@ import 'package:saber/components/theming/adaptive_icon.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/components/toolbar/color_bar.dart';
-import 'package:saber/components/editor/patient_progress_dialog.dart';
+
 import 'package:saber/components/toolbar/editor_bottom_sheet.dart';
 import 'package:saber/components/toolbar/editor_page_manager.dart';
 import 'package:saber/components/toolbar/toolbar.dart';
@@ -211,7 +211,6 @@ class EditorState extends State<Editor> {
   String? _patientId;
   String? _patientName;
   Patient? _patient;
-  String? _patientProgressStatus;
 
   // Previous Session Notes overlay state
   var _showPreviousNotesOverlay = false;
@@ -1268,57 +1267,6 @@ class EditorState extends State<Editor> {
 
   // Helper field to capture theme before async ops
   ThemeData? _capturedThemeData;
-
-  Future<void> _promptProgressStatus() async {
-    // 0. Cache Check: If we already have a status, don't ask again.
-    if (_patientProgressStatus != null) return;
-
-    // Only prompt if we have a consultation ID to save it to
-    if (widget.consultationId == null) return;
-
-    // Check if there are previous completed sessions to establish a baseline
-    if (_patientId != null) {
-      try {
-        final history =
-            await SupabaseConsultationService.getPatientConsultations(
-              _patientId!,
-            );
-        // Filter out the current session ID to see if there are ACTUAL prior sessions
-        final hasPriorHistory = history.any(
-          (c) => c.status == 'completed' && c.id != widget.consultationId,
-        );
-
-        debugPrint(
-          'Progress Dialog: Patient $_patientId, History Count: ${history.length}, Has Prior: $hasPriorHistory',
-        );
-
-        if (!hasPriorHistory) {
-          debugPrint(
-            'Progress Dialog: First session detected. Skipping prompt.',
-          );
-          // It's the first session, so we don't need to ask for progress
-          return;
-        }
-      } catch (e) {
-        log.warning('Failed to check patient history for progress prompt: $e');
-        // Fail safe: show prompt or skip?
-        // Safer to skip to avoid confusion if we aren't sure.
-        return;
-      }
-    }
-
-    final status = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const PatientProgressDialog(),
-    );
-
-    if (mounted && status != null) {
-      setState(() {
-        _patientProgressStatus = status;
-      });
-    }
-  }
 
   late final _filenameFormKey = GlobalKey<FormState>();
   late final filenameTextEditingController = TextEditingController();
@@ -2469,7 +2417,6 @@ class EditorState extends State<Editor> {
                             ? null
                             : () async {
                                 // Parallel Execution: Prompt for status AND check/generate report
-                                final progressFuture = _promptProgressStatus();
 
                                 // First, check if a report already exists for this session
                                 log.info(
@@ -2495,20 +2442,6 @@ class EditorState extends State<Editor> {
                                     'Failed to check for existing report: $e',
                                   );
                                 }
-
-                                // Wait for progress prompt to complete (it's quick usually)
-                                // or finding existing report.
-                                // We await the prompt here to ensure we have the status before showing the report dialog
-                                // (because the user might want to cancel/skip).
-                                // However, to be truly parallel visually, we let it run.
-                                // But we need the result before _verifyAndSaveReport is called.
-                                // Since _verifyAndSaveReport is called FROM the report dialog,
-                                // and the report dialog is shown AFTER this block...
-
-                                // Let's await the prompt here. It might delay showing the existing report slightly
-                                // but ensures data integrity.
-                                // User flow: Click Finish -> Status Dialog -> Report Dialog.
-                                await progressFuture;
 
                                 if (existingReport != null) {
                                   // Show existing report without confirmation
@@ -3908,10 +3841,9 @@ class EditorState extends State<Editor> {
                         try {
                           await SupabaseConsultationService.completeConsultation(
                             widget.consultationId!,
-                            progressStatus: _patientProgressStatus,
                           );
                           log.info(
-                            'Consultation ${widget.consultationId} marked as completed with status: $_patientProgressStatus',
+                            'Consultation ${widget.consultationId} marked as completed',
                           );
                         } catch (e) {
                           log.warning(

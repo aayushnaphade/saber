@@ -16,10 +16,8 @@ import 'package:saber/data/session_manager.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/pages/home/dashboard/dashboard_skeleton.dart';
-import 'package:saber/pages/home/dashboard/widgets/expandable_patient_progress.dart';
 import 'package:saber/pages/home/dashboard/widgets/live_queue_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/live_queue_list.dart';
-import 'package:saber/pages/home/dashboard/widgets/patient_progress_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/stat_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/welcome_header.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -573,16 +571,6 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ),
           ),
-          // Floating Expandable Progress Card (Portrait/Mobile Only)
-          Builder(
-            builder: (context) {
-              final width = MediaQuery.of(context).size.width;
-              if (width < 1100) {
-                return const ExpandablePatientProgress();
-              }
-              return const SizedBox.shrink();
-            },
-          ),
         ],
       ),
     );
@@ -771,7 +759,6 @@ class _DashboardPageState extends State<DashboardPage> {
         final width = MediaQuery.of(context).size.width;
         final useVertical = width < 480;
         final isDesktop = width >= 1100;
-        final showProgressInGrid = isDesktop;
 
         if (useVertical || isDesktop) {
           return Column(
@@ -802,10 +789,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 color: Colors.blue,
                 onTap: () => context.go('/home/history'),
               ),
-              if (showProgressInGrid) ...[
-                const SizedBox(height: 24),
-                const PatientProgressCard(),
-              ],
             ],
           );
         }
@@ -843,10 +826,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 onTap: () => context.go('/home/history'),
               ),
             ),
-            if (showProgressInGrid) ...[
-              const SizedBox(width: 12),
-              const Expanded(flex: 2, child: PatientProgressCard()),
-            ],
           ],
         );
       },

@@ -1,6 +1,5 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:saber/data/supabase/supabase_consultation_service.dart';
 
 class PatientProgressCard extends StatefulWidget {
   const PatientProgressCard({super.key});
@@ -20,7 +19,7 @@ class _PatientProgressCardState extends State<PatientProgressCard> {
   }
 
   Future<void> _loadStats() async {
-    try {
+    /* try {
       final stats = await SupabaseConsultationService.getPatientProgressStats();
       if (mounted) {
         setState(() {
@@ -32,6 +31,9 @@ class _PatientProgressCardState extends State<PatientProgressCard> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    } */
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
 

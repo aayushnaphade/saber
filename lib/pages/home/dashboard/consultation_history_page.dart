@@ -3,10 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/models/dashboard_models.dart';
-import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
+import 'package:saber/data/supabase/document_sync_service.dart';
 import 'package:saber/design_system/spacing.dart';
+import 'package:saber/pages/editor/editor.dart';
 
 class ConsultationHistoryPage extends StatefulWidget {
   const ConsultationHistoryPage({super.key});
@@ -446,42 +447,41 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
                   _getStatusChip(consultation.status, context),
                   // View Notes button (read-only)
                   Material(
-                    color: colorScheme.secondaryContainer.withValues(
-                      alpha: 0.7,
-                    ),
+                    color: const Color(0xFF50B9E8).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
                       onTap: consultation.sessionNumber == null
                           ? null
-                          : () {
-                              // Correctly navigate to SessionViewerPage for this consultation
-                              final route = RoutePaths.sessionViewer
-                                  .replaceAll(
-                                    ':patientId',
-                                    consultation.patientId,
-                                  )
-                                  .replaceAll(
-                                    ':sessionNumber',
-                                    consultation.sessionNumber.toString(),
-                                  );
+                          : () async {
+                              // Use the high-fidelity Editor in read-only mode for handwritten notes
+                              final sessionFolder =
+                                  'session_${consultation.sessionNumber}';
+                              final fileNameBase = '${sessionFolder}_notes';
+                              final basePath =
+                                  '/patients/${consultation.patientId}/session_notes/$sessionFolder/$fileNameBase';
 
-                              context.push(
-                                route,
-                                extra: {
-                                  'allSessions': [
-                                    SessionInfo(
-                                      folderName:
-                                          'session_${consultation.sessionNumber}',
-                                      createdDate: consultation.time,
-                                      sessionNumber:
-                                          consultation.sessionNumber!,
-                                      fileCount: 0, // will be updated by viewer
-                                    ),
-                                  ],
-                                  'viewOnlyNotes': true,
-                                },
-                              );
+                              // Sync down if missing (handles the "blank document" issue)
+                              // Note: We don't have doctorId here, so we fallback to current user
+                              try {
+                                await DocumentSyncService.syncDownIfMissing(
+                                  localPath: '$basePath${Editor.extension}',
+                                );
+                                await DocumentSyncService.syncDownIfMissing(
+                                  localPath: '$basePath.sbn',
+                                );
+                              } catch (_) {}
+
+                              if (context.mounted) {
+                                context.push(
+                                  RoutePaths.editFilePath(
+                                    basePath,
+                                    readOnly: true,
+                                    patientId: consultation.patientId,
+                                    patientName: consultation.patientName,
+                                  ),
+                                );
+                              }
                             },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -491,7 +491,9 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: colorScheme.outline.withValues(alpha: 0.2),
+                            color: const Color(
+                              0xFF50B9E8,
+                            ).withValues(alpha: 0.2),
                           ),
                         ),
                         child: Row(
@@ -500,7 +502,7 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
                             Icon(
                               Icons.visibility_outlined,
                               size: 18,
-                              color: colorScheme.primary,
+                              color: const Color(0xFF50B9E8),
                             ),
                           ],
                         ),

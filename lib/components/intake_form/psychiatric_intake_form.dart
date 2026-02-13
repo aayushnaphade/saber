@@ -51,13 +51,10 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
   // Header Fields
   DateTime? _dateOfExamination = DateTime.now();
   final _residenceController = TextEditingController();
-  final _durationOfIllnessController =
-      TextEditingController();
+  final _durationOfIllnessController = TextEditingController();
   final _referredByController = TextEditingController();
-  final _precipitatingFactorController =
-      TextEditingController();
-  final _registrationNumberController =
-      TextEditingController();
+  final _precipitatingFactorController = TextEditingController();
+  final _registrationNumberController = TextEditingController();
 
   // Anxiety & Related Symptoms
   var _anxietyWorry = false;
@@ -1732,12 +1729,15 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
     required List<Widget> children,
   }) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: color.withOpacity(0.3)),
+        side: BorderSide(
+          color: isDark ? color.withOpacity(0.4) : color.withOpacity(0.3),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1746,7 +1746,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: isDark ? color.withOpacity(0.15) : color.withOpacity(0.1),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12),
                 topRight: Radius.circular(12),
@@ -1767,7 +1767,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
                   title,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: color,
+                    color: isDark ? color.withOpacity(0.9) : color,
                   ),
                 ),
               ],
@@ -1787,19 +1787,28 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
     bool isWarning = false,
     bool isDanger = false,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     Color? textColor;
     Color? backgroundColor;
 
     if (value) {
       if (isDanger) {
-        textColor = MedicalColors.critical;
-        backgroundColor = MedicalColors.criticalBg.withOpacity(0.7);
+        textColor = isDark ? const Color(0xFFFFB4AB) : MedicalColors.critical;
+        backgroundColor = isDark
+            ? theme.colorScheme.errorContainer.withOpacity(0.4)
+            : MedicalColors.criticalBg.withOpacity(0.7);
       } else if (isWarning) {
-        textColor = MedicalColors.warning;
-        backgroundColor = MedicalColors.warningBg.withOpacity(0.7);
+        textColor = isDark ? const Color(0xFFFFB871) : MedicalColors.warning;
+        backgroundColor = isDark
+            ? Colors.orange.withOpacity(0.2)
+            : MedicalColors.warningBg.withOpacity(0.7);
       } else {
-        textColor = MedicalColors.info;
-        backgroundColor = MedicalColors.infoBg.withOpacity(0.5);
+        textColor = isDark ? theme.colorScheme.primary : MedicalColors.info;
+        backgroundColor = isDark
+            ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+            : MedicalColors.infoBg.withOpacity(0.5);
       }
     }
 

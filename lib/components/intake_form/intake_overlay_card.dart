@@ -268,23 +268,33 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: MedicalColors.criticalBg,
+                color: theme.brightness == Brightness.dark
+                    ? theme.colorScheme.errorContainer.withOpacity(0.3)
+                    : MedicalColors.criticalBg,
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: MedicalColors.criticalBorder),
+                border: Border.all(
+                  color: theme.brightness == Brightness.dark
+                      ? theme.colorScheme.error.withOpacity(0.5)
+                      : MedicalColors.criticalBorder,
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.warning_amber_rounded,
                     size: 12,
-                    color: MedicalColors.critical,
+                    color: theme.brightness == Brightness.dark
+                        ? theme.colorScheme.error
+                        : MedicalColors.critical,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     'Suicidal Risk',
                     style: theme.textTheme.labelSmall?.copyWith(
-                      color: MedicalColors.critical,
+                      color: theme.brightness == Brightness.dark
+                          ? theme.colorScheme.error
+                          : MedicalColors.critical,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -416,9 +426,15 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: MedicalColors.infoBg,
+                  color: theme.brightness == Brightness.dark
+                      ? theme.colorScheme.primaryContainer.withOpacity(0.2)
+                      : MedicalColors.infoBg,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: MedicalColors.infoBorder),
+                  border: Border.all(
+                    color: theme.brightness == Brightness.dark
+                        ? theme.colorScheme.primary.withOpacity(0.5)
+                        : MedicalColors.infoBorder,
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -426,7 +442,9 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
                     Text(
                       'Provisional Diagnosis',
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: MedicalColors.info,
+                        color: theme.brightness == Brightness.dark
+                            ? theme.colorScheme.primary
+                            : MedicalColors.info,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -448,9 +466,15 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: MedicalColors.criticalBg,
+                  color: theme.brightness == Brightness.dark
+                      ? theme.colorScheme.errorContainer.withOpacity(0.3)
+                      : MedicalColors.criticalBg,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: MedicalColors.criticalBorder),
+                  border: Border.all(
+                    color: theme.brightness == Brightness.dark
+                        ? theme.colorScheme.error.withOpacity(0.5)
+                        : MedicalColors.criticalBorder,
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -467,7 +491,9 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
                           Text(
                             'SUICIDAL RISK ALERT',
                             style: theme.textTheme.labelSmall?.copyWith(
-                              color: MedicalColors.critical,
+                              color: theme.brightness == Brightness.dark
+                                  ? theme.colorScheme.error
+                                  : MedicalColors.critical,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -478,7 +504,9 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
                               if (widget.intake.suicidalAttempts) 'Attempts',
                             ].join(' • '),
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: MedicalColors.critical,
+                              color: theme.brightness == Brightness.dark
+                                  ? theme.colorScheme.onErrorContainer
+                                  : MedicalColors.critical,
                             ),
                           ),
                         ],

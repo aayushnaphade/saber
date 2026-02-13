@@ -1518,14 +1518,6 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         final session = sessions[index];
         final isSelected = _selectedSessionIds.contains(session.folderName);
 
-        // Check if there's a corresponding report
-        // Logic: ClinicalReport.sourceDocumentPath contains folderName
-        final hasReport = reports.any(
-          (r) =>
-              r.sourceDocumentPath?.contains('/${session.folderName}/') ??
-              false,
-        );
-
         return Dismissible(
           key: Key(session.folderName),
           direction: _isSelectionMode
@@ -1645,48 +1637,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                           ),
                         ),
                   title: Row(
-                    children: [
-                      Text(
-                        'Session ${session.sessionNumber}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      if (hasReport) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: Colors.orange.withOpacity(0.3),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.auto_awesome_rounded,
-                                size: 10,
-                                color: Colors.orange,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                'AI REPORT',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orange,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
+                    children: [Text('Session ${session.sessionNumber}')],
                   ),
                   subtitle: Row(
                     children: [
@@ -1722,10 +1673,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                           children: [
                             // View Notes button (read-only)
                             Material(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .secondaryContainer
-                                  .withOpacity(0.35),
+                              color: const Color(0xFF50B9E8).withOpacity(0.12),
                               borderRadius: BorderRadius.circular(10),
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(10),
@@ -1738,9 +1686,9 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.outline.withOpacity(0.35),
+                                      color: const Color(
+                                        0xFF50B9E8,
+                                      ).withOpacity(0.2),
                                       width: 1.2,
                                     ),
                                   ),
@@ -1750,9 +1698,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                                       Icon(
                                         Icons.visibility_outlined,
                                         size: 22,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSecondaryContainer,
+                                        color: const Color(0xFF50B9E8),
                                       ),
                                     ],
                                   ),
@@ -1785,11 +1731,47 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     );
   }
 
-  void _openSessionReadOnly(SessionInfo session) {
-    // Both normal click and eye icon now use SessionViewerPage
-    // which handles local/cloud fallback and shows report + handwritten notes
-    // For eye icon, we pass viewOnlyNotes: true
-    _openSession(session, viewOnlyNotes: true);
+  Future<void> _openSessionReadOnly(SessionInfo session) async {
+    if (patient == null) return;
+
+    // Use the high-fidelity Editor in read-only mode for handwritten notes
+    // Path format: /patients/{patient_id}/session_notes/session_X/session_X_notes
+    final sessionFolder = 'session_${session.sessionNumber}';
+    final fileNameBase = '${sessionFolder}_notes';
+    final basePath =
+        '/patients/${patient!.id}/session_notes/$sessionFolder/$fileNameBase';
+
+    // To prevent the "blank document" issue, we ensure the file is synced down if missing
+    // We check reports to see which doctor owned this session
+    final report = reports.cast<ClinicalReport?>().firstWhere(
+      (r) => r?.sourceDocumentPath?.contains('/$sessionFolder/') ?? false,
+      orElse: () => null,
+    );
+
+    // Attempt to sync down both possible extensions
+    try {
+      await DocumentSyncService.syncDownIfMissing(
+        localPath: '$basePath${Editor.extension}',
+        doctorId: report?.doctorId,
+      );
+      await DocumentSyncService.syncDownIfMissing(
+        localPath: '$basePath.sbn',
+        doctorId: report?.doctorId,
+      );
+    } catch (e) {
+      _log.warning('Note sync failed, proceeding to editor: $e');
+    }
+
+    if (mounted) {
+      context.push(
+        RoutePaths.editFilePath(
+          basePath,
+          readOnly: true,
+          patientId: patient!.id,
+          patientName: patient!.fullName,
+        ),
+      );
+    }
   }
 
   String _getStatusDisplayName(PatientStatus status) {
