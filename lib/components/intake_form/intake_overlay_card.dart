@@ -101,12 +101,14 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
             ],
-            border: Border.all(color: MedicalColors.info.withOpacity(0.3)),
+            border: Border.all(
+              color: MedicalColors.info.withValues(alpha: 0.3),
+            ),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -132,7 +134,7 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: MedicalColors.info.withOpacity(0.1),
+        color: MedicalColors.info.withValues(alpha: 0.1),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(12),
           topRight: Radius.circular(12),
@@ -269,12 +271,12 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: theme.brightness == Brightness.dark
-                    ? theme.colorScheme.errorContainer.withOpacity(0.3)
+                    ? theme.colorScheme.errorContainer.withValues(alpha: 0.3)
                     : MedicalColors.criticalBg,
                 borderRadius: BorderRadius.circular(4),
                 border: Border.all(
                   color: theme.brightness == Brightness.dark
-                      ? theme.colorScheme.error.withOpacity(0.5)
+                      ? theme.colorScheme.error.withValues(alpha: 0.5)
                       : MedicalColors.criticalBorder,
                 ),
               ),
@@ -427,12 +429,14 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: theme.brightness == Brightness.dark
-                      ? theme.colorScheme.primaryContainer.withOpacity(0.2)
+                      ? theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.2,
+                        )
                       : MedicalColors.infoBg,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: theme.brightness == Brightness.dark
-                        ? theme.colorScheme.primary.withOpacity(0.5)
+                        ? theme.colorScheme.primary.withValues(alpha: 0.5)
                         : MedicalColors.infoBorder,
                   ),
                 ),
@@ -467,12 +471,12 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: theme.brightness == Brightness.dark
-                      ? theme.colorScheme.errorContainer.withOpacity(0.3)
+                      ? theme.colorScheme.errorContainer.withValues(alpha: 0.3)
                       : MedicalColors.criticalBg,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: theme.brightness == Brightness.dark
-                        ? theme.colorScheme.error.withOpacity(0.5)
+                        ? theme.colorScheme.error.withValues(alpha: 0.5)
                         : MedicalColors.criticalBorder,
                   ),
                 ),
@@ -578,9 +582,9 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         '$category ($count)',
@@ -608,7 +612,7 @@ class _IntakeOverlayCardState extends State<IntakeOverlayCard>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(

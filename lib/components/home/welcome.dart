@@ -44,8 +44,8 @@ class Welcome extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: RadialGradient(
                   colors: [
-                    colorScheme.primaryContainer.withOpacity(0.3),
-                    colorScheme.secondaryContainer.withOpacity(0.2),
+                    colorScheme.primaryContainer.withValues(alpha: 0.3),
+                    colorScheme.secondaryContainer.withValues(alpha: 0.2),
                     Colors.transparent,
                   ],
                 ),
@@ -65,8 +65,8 @@ class Welcome extends StatelessWidget {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            colorScheme.primary.withOpacity(0.2),
-                            colorScheme.tertiary.withOpacity(0.2),
+                            colorScheme.primary.withValues(alpha: 0.2),
+                            colorScheme.tertiary.withValues(alpha: 0.2),
                           ],
                         ),
                       ),
@@ -88,7 +88,7 @@ class Welcome extends StatelessWidget {
                       height: 40,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: colorScheme.secondary.withOpacity(0.3),
+                        color: colorScheme.secondary.withValues(alpha: 0.3),
                       ),
                     ),
                   ),
@@ -100,7 +100,7 @@ class Welcome extends StatelessWidget {
                       height: 50,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: colorScheme.tertiary.withOpacity(0.3),
+                        color: colorScheme.tertiary.withValues(alpha: 0.3),
                       ),
                     ),
                   ),
@@ -110,7 +110,7 @@ class Welcome extends StatelessWidget {
                     left: 120,
                     child: Icon(
                       Icons.auto_awesome,
-                      color: colorScheme.primary.withOpacity(0.5),
+                      color: colorScheme.primary.withValues(alpha: 0.5),
                       size: 24,
                     ),
                   ),
@@ -119,7 +119,7 @@ class Welcome extends StatelessWidget {
                     right: 80,
                     child: Icon(
                       Icons.stars_rounded,
-                      color: colorScheme.secondary.withOpacity(0.5),
+                      color: colorScheme.secondary.withValues(alpha: 0.5),
                       size: 28,
                     ),
                   ),
@@ -156,7 +156,9 @@ class Welcome extends StatelessWidget {
                       Text(
                         email,
                         style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                       ),
                     ],

@@ -175,7 +175,7 @@ class _ReportViewState extends State<ReportView> {
                       ? Colors.orange.shade800
                       : Colors.orange.shade600,
                   elevation: 2,
-                  shadowColor: Colors.orange.withOpacity(0.5),
+                  shadowColor: Colors.orange.withValues(alpha: 0.5),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -281,12 +281,12 @@ class _ReportViewState extends State<ReportView> {
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: colorScheme.outlineVariant.withOpacity(0.5),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 25,
               offset: const Offset(0, 10),
             ),
@@ -369,7 +369,7 @@ class _ReportViewState extends State<ReportView> {
                 child: Icon(
                   Icons.south_east_rounded,
                   size: 16,
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
               ),
             ),
@@ -390,7 +390,7 @@ class _ReportViewState extends State<ReportView> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -470,27 +470,27 @@ class _ReportViewState extends State<ReportView> {
 
     // Bento Colors (Light/Dark variants)
     final diagnosisColor = isDark
-        ? Colors.deepPurple.shade900.withOpacity(0.3)
+        ? Colors.deepPurple.shade900.withValues(alpha: 0.3)
         : Colors.purple.shade50;
     final symptomsColor = isDark
-        ? Colors.blue.shade900.withOpacity(0.3)
+        ? Colors.blue.shade900.withValues(alpha: 0.3)
         : Colors.blue.shade50;
     final medicationsColor = isDark
-        ? Colors.green.shade900.withOpacity(0.3)
+        ? Colors.green.shade900.withValues(alpha: 0.3)
         : Colors.green.shade50;
     final mseColor = isDark
-        ? Colors.teal.shade900.withOpacity(0.3)
+        ? Colors.teal.shade900.withValues(alpha: 0.3)
         : Colors.teal.shade50;
     final premorbidColor = isDark
-        ? Colors.orange.shade900.withOpacity(0.3)
+        ? Colors.orange.shade900.withValues(alpha: 0.3)
         : Colors.orange.shade50;
 
     // New Colors for History Sections
     final pastHistoryColor = isDark
-        ? Colors.amber.shade900.withOpacity(0.3)
+        ? Colors.amber.shade900.withValues(alpha: 0.3)
         : Colors.amber.shade50;
     final familyHistoryColor = isDark
-        ? Colors.pink.shade900.withOpacity(0.3)
+        ? Colors.pink.shade900.withValues(alpha: 0.3)
         : Colors.pink.shade50;
 
     // Helpers
@@ -552,7 +552,7 @@ class _ReportViewState extends State<ReportView> {
                   boxShadow: [
                     if (!isDark)
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -740,7 +740,7 @@ class _ReportViewState extends State<ReportView> {
             backgroundColor: isDark ? Colors.white10 : Colors.white,
             deleteIconColor: isDark ? Colors.white70 : null,
             elevation: isDark ? 0 : 1,
-            shadowColor: Colors.black.withOpacity(0.1),
+            shadowColor: Colors.black.withValues(alpha: 0.1),
             side: isDark ? BorderSide.none : null,
           );
         }),
@@ -921,12 +921,12 @@ class _ReportViewState extends State<ReportView> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDark
               ? Colors.white10
-              : colorScheme.outlineVariant.withOpacity(0.5),
+              : colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -1029,7 +1029,7 @@ class _ReportViewState extends State<ReportView> {
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: colorScheme.outlineVariant.withOpacity(0.5),
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.5),
                   ),
                 ),
               ),
@@ -1070,7 +1070,9 @@ class _ReportViewState extends State<ReportView> {
                       Text(
                         'Reg No: ${widget.patient?.registrationNumber ?? 'Not defined'}',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.7,
+                          ),
                           fontSize: 10,
                         ),
                       ),
@@ -1121,7 +1123,7 @@ class _BentoCard extends StatelessWidget {
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),

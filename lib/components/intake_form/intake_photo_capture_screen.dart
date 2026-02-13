@@ -267,7 +267,7 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
                 color: colorScheme.surface,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, -2),
                   ),
@@ -315,7 +315,7 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: colorScheme.outline.withOpacity(0.3)),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -358,7 +358,7 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
                 color: colorScheme.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: colorScheme.outline.withOpacity(0.2),
+                  color: colorScheme.outline.withValues(alpha: 0.2),
                   style: BorderStyle.solid,
                   width: 2,
                 ),
@@ -375,16 +375,16 @@ class _IntakePhotoCaptureScreenState extends State<IntakePhotoCaptureScreen> {
                           Icon(
                             Icons.add_photo_alternate_outlined,
                             size: 48,
-                            color: colorScheme.onSurfaceVariant.withOpacity(
-                              0.5,
+                            color: colorScheme.onSurfaceVariant.withValues(
+                              alpha: 0.5,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'No photo captured',
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant.withOpacity(
-                                0.7,
+                              color: colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.7,
                               ),
                             ),
                           ),

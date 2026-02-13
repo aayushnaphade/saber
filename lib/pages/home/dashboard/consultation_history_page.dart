@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:saber/components/misc/saber_avatar.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/routes.dart';
-import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/data/supabase/document_sync_service.dart';
+import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/design_system/spacing.dart';
 import 'package:saber/pages/editor/editor.dart';
 
@@ -289,7 +290,7 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
           Icon(
             Icons.history_toggle_off_outlined,
             size: 64,
-            color: Theme.of(context).colorScheme.outline.withOpacity(0.5),
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
@@ -324,7 +325,9 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
       color: colorScheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.3)),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
       ),
       child: InkWell(
         onTap: () {
@@ -347,18 +350,10 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  CircleAvatar(
+                  SaberAvatar(
+                    url: consultation.avatarUrl,
                     radius: 20,
                     backgroundColor: colorScheme.primaryContainer,
-                    child: Text(
-                      consultation.patientName.isNotEmpty
-                          ? consultation.patientName[0].toUpperCase()
-                          : '?',
-                      style: TextStyle(
-                        color: colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
                   ),
                 ],
               ),
@@ -496,13 +491,13 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
                             ).withValues(alpha: 0.2),
                           ),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               Icons.visibility_outlined,
                               size: 18,
-                              color: const Color(0xFF50B9E8),
+                              color: Color(0xFF50B9E8),
                             ),
                           ],
                         ),
@@ -546,7 +541,7 @@ class _ConsultationHistoryPageState extends State<ConsultationHistoryPage> {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.4),
+            color: color.withValues(alpha: 0.4),
             blurRadius: 4,
             spreadRadius: 1,
           ),

@@ -46,6 +46,7 @@ class QueueItem {
   final DateTime registeredTime;
   final String patientType;
   final String? registrationNumber;
+  final String? avatarUrl;
 
   const QueueItem({
     required this.id,
@@ -59,6 +60,7 @@ class QueueItem {
     required this.registeredTime,
     required this.patientType,
     this.registrationNumber,
+    this.avatarUrl,
   });
 }
 

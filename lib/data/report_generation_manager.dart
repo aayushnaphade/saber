@@ -1,9 +1,19 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 import 'package:saber/data/api/report_generator.dart';
 import 'package:saber/data/models/patient.dart';
+import 'package:saber/data/services/offline_report_queue.dart';
 
-enum ReportGenerationStatus { idle, capturing, processing, completed, error }
+enum ReportGenerationStatus {
+  idle,
+  capturing,
+  processing,
+  completed,
+  error,
+  queued,
+}
 
 class ReportGenerationManager extends ChangeNotifier {
   static final _log = Logger('ReportGenerationManager');
@@ -32,6 +42,12 @@ class ReportGenerationManager extends ChangeNotifier {
   String? _rawNotes;
   String? get rawNotes => _rawNotes;
 
+  String? _queuedReportId;
+  String? get queuedReportId => _queuedReportId;
+
+  String? _consultationId;
+  String? get consultationId => _consultationId;
+
   var _currentMessage = 'Synapse AI is thinking...';
   String get currentMessage => _currentMessage;
 
@@ -40,6 +56,7 @@ class ReportGenerationManager extends ChangeNotifier {
     required Patient? patient,
     required String? filePath,
     String? rawNotes,
+    String? consultationId,
   }) async {
     if (_status == ReportGenerationStatus.processing ||
         _status == ReportGenerationStatus.capturing) {
@@ -57,6 +74,8 @@ class ReportGenerationManager extends ChangeNotifier {
     _status = ReportGenerationStatus.processing;
     _errorMessage = null;
     _reportData = null;
+    _queuedReportId = null;
+    _consultationId = consultationId;
     _currentMessage = 'Synapse AI is thinking...';
     notifyListeners();
 
@@ -72,11 +91,38 @@ class ReportGenerationManager extends ChangeNotifier {
       _log.info('Async report generation completed successfully');
       notifyListeners();
     } catch (e) {
-      _errorMessage = e.toString();
-      _status = ReportGenerationStatus.error;
-      _currentMessage = 'Generation failed';
-      _log.severe('Async report generation failed: $e');
-      notifyListeners();
+      if (_isNetworkError(e)) {
+        // Queue for later generation instead of showing an error
+        _log.warning('Network error during report generation, queuing...');
+        try {
+          final reportId = await OfflineReportQueue.saveForLater(
+            imageBytesList: _imageBytesList,
+            patientId: _patient?.id ?? '',
+            consultationId: consultationId ?? '',
+            sourceFilePath: _filePath,
+            registrationNumber: _patient?.registrationNumber,
+            patientName: _patient?.fullName,
+          );
+          _queuedReportId = reportId;
+          _status = ReportGenerationStatus.queued;
+          _currentMessage =
+              'Report queued — will generate when internet is stable';
+          _log.info('Report queued with ID: $reportId');
+          notifyListeners();
+        } catch (queueError) {
+          _errorMessage = 'Failed to queue report: $queueError';
+          _status = ReportGenerationStatus.error;
+          _currentMessage = 'Generation failed';
+          _log.severe('Failed to queue report: $queueError');
+          notifyListeners();
+        }
+      } else {
+        _errorMessage = e.toString();
+        _status = ReportGenerationStatus.error;
+        _currentMessage = 'Generation failed';
+        _log.severe('Async report generation failed: $e');
+        notifyListeners();
+      }
     }
   }
 
@@ -93,7 +139,27 @@ class ReportGenerationManager extends ChangeNotifier {
     _patient = null;
     _filePath = null;
     _rawNotes = null;
+    _queuedReportId = null;
+    _consultationId = null;
     _currentMessage = 'Synapse AI is thinking...';
     notifyListeners();
+  }
+
+  static bool _isNetworkError(Object e) {
+    final msg = e.toString();
+    return e is SocketException ||
+        msg.contains('SocketException') ||
+        msg.contains('Connection timed out') ||
+        msg.contains('connection abort') ||
+        msg.contains('Failed host lookup') ||
+        msg.contains('Network is unreachable') ||
+        msg.contains('Network error') ||
+        msg.contains('TimeoutException') ||
+        msg.contains('ClientException') ||
+        msg.contains('HandshakeException') ||
+        msg.contains('HttpException') ||
+        msg.contains('CERTIFICATE_VERIFY_FAILED') ||
+        msg.contains('Connection refused') ||
+        msg.contains('Connection reset');
   }
 }

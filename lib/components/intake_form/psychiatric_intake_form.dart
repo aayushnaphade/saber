@@ -1027,10 +1027,12 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
 
     return Card(
       elevation: 0,
-      color: theme.colorScheme.secondaryContainer.withOpacity(0.05),
+      color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.05),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.1)),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withValues(alpha: 0.1),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1069,7 +1071,9 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2)),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1620,7 +1624,9 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2)),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1686,7 +1692,9 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2)),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1736,7 +1744,9 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isDark ? color.withOpacity(0.4) : color.withOpacity(0.3),
+          color: isDark
+              ? color.withValues(alpha: 0.4)
+              : color.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -1746,7 +1756,9 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: isDark ? color.withOpacity(0.15) : color.withOpacity(0.1),
+              color: isDark
+                  ? color.withValues(alpha: 0.15)
+                  : color.withValues(alpha: 0.1),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12),
                 topRight: Radius.circular(12),
@@ -1767,7 +1779,7 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
                   title,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: isDark ? color.withOpacity(0.9) : color,
+                    color: isDark ? color.withValues(alpha: 0.9) : color,
                   ),
                 ),
               ],
@@ -1797,18 +1809,18 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
       if (isDanger) {
         textColor = isDark ? const Color(0xFFFFB4AB) : MedicalColors.critical;
         backgroundColor = isDark
-            ? theme.colorScheme.errorContainer.withOpacity(0.4)
-            : MedicalColors.criticalBg.withOpacity(0.7);
+            ? theme.colorScheme.errorContainer.withValues(alpha: 0.4)
+            : MedicalColors.criticalBg.withValues(alpha: 0.7);
       } else if (isWarning) {
         textColor = isDark ? const Color(0xFFFFB871) : MedicalColors.warning;
         backgroundColor = isDark
-            ? Colors.orange.withOpacity(0.2)
-            : MedicalColors.warningBg.withOpacity(0.7);
+            ? Colors.orange.withValues(alpha: 0.2)
+            : MedicalColors.warningBg.withValues(alpha: 0.7);
       } else {
         textColor = isDark ? theme.colorScheme.primary : MedicalColors.info;
         backgroundColor = isDark
-            ? theme.colorScheme.primaryContainer.withOpacity(0.3)
-            : MedicalColors.infoBg.withOpacity(0.5);
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+            : MedicalColors.infoBg.withValues(alpha: 0.5);
       }
     }
 
@@ -1864,9 +1876,11 @@ class _PsychiatricIntakeFormState extends State<PsychiatricIntakeForm> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+        ),
       ),
       child: Row(
         children: [

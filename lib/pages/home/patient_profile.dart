@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:saber/components/empty_state/empty_state.dart';
 import 'package:saber/components/intake_form/psychiatric_intake_form.dart';
 import 'package:saber/components/loading/skeleton_loader.dart';
+import 'package:saber/components/misc/saber_avatar.dart';
 import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
@@ -20,11 +21,10 @@ import 'package:saber/data/supabase/supabase_consultation_service.dart';
 import 'package:saber/data/supabase/supabase_intake_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
-import 'package:saber/pages/editor/editor.dart';
 import 'package:saber/design_system/colors.dart';
-
 import 'package:saber/design_system/radius.dart';
 import 'package:saber/design_system/spacing.dart';
+import 'package:saber/pages/editor/editor.dart';
 
 /// Patient profile page with demographics, session management, and history
 class PatientProfilePage extends StatefulWidget {
@@ -342,7 +342,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
             sessionNumber: sessionNumber,
             folderName: folderName,
             fileCount: fileCount,
-            createdDate: report.createdAt?.toLocal() ?? DateTime.now(),
+            createdDate: report.createdAt.toLocal() ?? DateTime.now(),
           ),
         );
       }
@@ -1039,21 +1039,13 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                 // Avatar
                 Hero(
                   tag: 'patient_avatar_${patient!.id}',
-                  child: CircleAvatar(
+                  child: SaberAvatar(
+                    url: patient!.avatarUrl,
                     radius: 32,
                     backgroundColor: MedicalColors.getStatusColor(
                       patient!.status.name,
-                    ).withOpacity(0.2),
-                    child: Text(
-                      patient!.fullName[0].toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 28,
-                        color: MedicalColors.getStatusColor(
-                          patient!.status.name,
-                        ),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    ).withValues(alpha: 0.2),
+                    fallbackIcon: Icons.person_outline,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -1083,21 +1075,21 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                   _buildInfoChip(
                     Icons.cake_outlined,
                     '${patient!.age} years',
-                    color: Colors.blue.withOpacity(0.1),
+                    color: Colors.blue.withValues(alpha: 0.1),
                     contentColor: Colors.blue,
                   ),
                 if (patient!.gender != null)
                   _buildInfoChip(
                     Icons.person_outline,
                     patient!.gender!,
-                    color: Colors.purple.withOpacity(0.1),
+                    color: Colors.purple.withValues(alpha: 0.1),
                     contentColor: Colors.purple,
                   ),
                 if (patient!.phoneNumber != null)
                   _buildInfoChip(
                     Icons.phone_outlined,
                     patient!.phoneNumber!,
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     contentColor: Colors.green,
                   ),
                 if (patient!.lastVisit != null)
@@ -1292,12 +1284,14 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         color: isEmpty
             ? Theme.of(
                 context,
-              ).colorScheme.surfaceContainerHighest.withOpacity(0.3)
+              ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
             : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: isEmpty
             ? Border.all(
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                color: Theme.of(
+                  context,
+                ).colorScheme.outline.withValues(alpha: 0.3),
               )
             : null,
       ),
@@ -1308,7 +1302,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
             decoration: BoxDecoration(
               color: isEmpty
                   ? Theme.of(context).colorScheme.surface
-                  : MedicalColors.medicalPrimary.withOpacity(0.15),
+                  : MedicalColors.medicalPrimary.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -1366,7 +1360,9 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         ),
       ),
       color: hasIntake
-          ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.1)
+          ? Theme.of(
+              context,
+            ).colorScheme.primaryContainer.withValues(alpha: 0.1)
           : null,
       child: InkWell(
         onTap: _showIntakeForm,
@@ -1379,7 +1375,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: hasIntake
-                      ? MedicalColors.info.withOpacity(0.2)
+                      ? MedicalColors.info.withValues(alpha: 0.2)
                       : theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -1432,8 +1428,9 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                                   color: theme.colorScheme.surface,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: theme.colorScheme.outline
-                                        .withOpacity(0.3),
+                                    color: theme.colorScheme.outline.withValues(
+                                      alpha: 0.3,
+                                    ),
                                   ),
                                 ),
                                 child: Text(
@@ -1587,14 +1584,14 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               side: BorderSide(
                 color: isSelected
                     ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).dividerColor.withOpacity(0.1),
+                    : Theme.of(context).dividerColor.withValues(alpha: 0.1),
                 width: isSelected ? 2 : 1,
               ),
             ),
             color: isSelected
                 ? Theme.of(
                     context,
-                  ).colorScheme.primaryContainer.withOpacity(0.3)
+                  ).colorScheme.primaryContainer.withValues(alpha: 0.3)
                 : Theme.of(context).colorScheme.surface,
             child: InkWell(
               onLongPress: () {
@@ -1623,9 +1620,10 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                       : Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primaryContainer.withOpacity(0.5),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primaryContainer
+                                .withValues(alpha: 0.5),
                             shape: BoxShape.circle,
                           ),
                           child: Text(
@@ -1673,7 +1671,9 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                           children: [
                             // View Notes button (read-only)
                             Material(
-                              color: const Color(0xFF50B9E8).withOpacity(0.12),
+                              color: const Color(
+                                0xFF50B9E8,
+                              ).withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(10),
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(10),
@@ -1688,17 +1688,17 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                                     border: Border.all(
                                       color: const Color(
                                         0xFF50B9E8,
-                                      ).withOpacity(0.2),
+                                      ).withValues(alpha: 0.2),
                                       width: 1.2,
                                     ),
                                   ),
-                                  child: Row(
+                                  child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
                                         Icons.visibility_outlined,
                                         size: 22,
-                                        color: const Color(0xFF50B9E8),
+                                        color: Color(0xFF50B9E8),
                                       ),
                                     ],
                                   ),
@@ -1912,7 +1912,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                           fillColor: Theme.of(context)
                               .colorScheme
                               .surfaceContainerHighest
-                              .withOpacity(0.3),
+                              .withValues(alpha: 0.3),
                           border: const OutlineInputBorder(),
                         ),
                         validator: (value) {
@@ -1935,7 +1935,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                                 fillColor: Theme.of(context)
                                     .colorScheme
                                     .surfaceContainerHighest
-                                    .withOpacity(0.3),
+                                    .withValues(alpha: 0.3),
                                 border: const OutlineInputBorder(),
                               ),
                               keyboardType: TextInputType.number,
@@ -1952,7 +1952,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                                 fillColor: Theme.of(context)
                                     .colorScheme
                                     .surfaceContainerHighest
-                                    .withOpacity(0.3),
+                                    .withValues(alpha: 0.3),
                                 border: const OutlineInputBorder(),
                               ),
                               items: const [
@@ -1988,7 +1988,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                                 fillColor: Theme.of(context)
                                     .colorScheme
                                     .surfaceContainerHighest
-                                    .withOpacity(0.3),
+                                    .withValues(alpha: 0.3),
                                 border: const OutlineInputBorder(),
                               ),
                               keyboardType: TextInputType.phone,
@@ -2005,7 +2005,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                                 fillColor: Theme.of(context)
                                     .colorScheme
                                     .surfaceContainerHighest
-                                    .withOpacity(0.3),
+                                    .withValues(alpha: 0.3),
                                 border: const OutlineInputBorder(),
                               ),
                               keyboardType: TextInputType.emailAddress,
@@ -2041,7 +2041,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                                 fillColor: Theme.of(context)
                                     .colorScheme
                                     .surfaceContainerHighest
-                                    .withOpacity(0.3),
+                                    .withValues(alpha: 0.3),
                               ),
                               keyboardType:
                                   const TextInputType.numberWithOptions(
@@ -2063,7 +2063,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                           fillColor: Theme.of(context)
                               .colorScheme
                               .surfaceContainerHighest
-                              .withOpacity(0.3),
+                              .withValues(alpha: 0.3),
                         ),
                         maxLines: 2,
                       ),
@@ -2076,7 +2076,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                           border: const OutlineInputBorder(),
                           prefixIcon: const Icon(Icons.warning_amber_outlined),
                           filled: true,
-                          fillColor: Colors.red.withOpacity(0.05),
+                          fillColor: Colors.red.withValues(alpha: 0.05),
                         ),
                         maxLines: 3,
                       ),

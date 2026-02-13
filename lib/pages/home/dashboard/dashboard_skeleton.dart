@@ -105,11 +105,13 @@ class DashboardSkeleton extends StatelessWidget {
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3),
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.3),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -170,7 +172,9 @@ class DashboardSkeleton extends StatelessWidget {
         color: Theme.of(context).colorScheme.surface,
         borderRadius: AppRadius.xxlRadius,
         border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3),
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -233,11 +237,11 @@ class DashboardSkeleton extends StatelessWidget {
               border: Border.all(
                 color: Theme.of(
                   context,
-                ).colorScheme.outlineVariant.withOpacity(0.3),
+                ).colorScheme.outlineVariant.withValues(alpha: 0.3),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),

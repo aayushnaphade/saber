@@ -22,6 +22,7 @@ class Patient {
   final String? address;
   final String? referencedBy;
   final String? registrationNumber;
+  final String? avatarUrl;
 
   const Patient({
     required this.id,
@@ -42,6 +43,7 @@ class Patient {
     this.address,
     this.referencedBy,
     this.registrationNumber,
+    this.avatarUrl,
   });
 
   /// Create Patient from Supabase JSON
@@ -71,6 +73,7 @@ class Patient {
       address: json['address']?.toString(),
       referencedBy: json['referenced_by']?.toString(),
       registrationNumber: _parseRegistrationNumber(json),
+      avatarUrl: json['avatar_url']?.toString(),
     );
   }
 
@@ -105,6 +108,7 @@ class Patient {
       'address': address,
       'referenced_by': referencedBy,
       'registration_number': registrationNumber,
+      'avatar_url': avatarUrl,
     };
   }
 
@@ -126,6 +130,7 @@ class Patient {
       'allergies': allergies,
       'address': address,
       'referenced_by': referencedBy,
+      'avatar_url': avatarUrl,
     };
   }
 
@@ -157,6 +162,7 @@ class Patient {
     String? address,
     String? referencedBy,
     String? registrationNumber,
+    String? avatarUrl,
   }) {
     return Patient(
       id: id ?? this.id,
@@ -176,6 +182,7 @@ class Patient {
       address: address ?? this.address,
       referencedBy: referencedBy ?? this.referencedBy,
       registrationNumber: registrationNumber ?? this.registrationNumber,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
     );
   }
 
@@ -248,4 +255,14 @@ class SessionInfo {
     required this.fileCount,
     required this.createdDate,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SessionInfo &&
+          runtimeType == other.runtimeType &&
+          sessionNumber == other.sessionNumber;
+
+  @override
+  int get hashCode => sessionNumber.hashCode;
 }

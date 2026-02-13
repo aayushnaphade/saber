@@ -10,6 +10,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:mesh_gradient/mesh_gradient.dart';
+import 'package:saber/components/misc/saber_avatar.dart';
 import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/session_manager.dart';
 import 'package:saber/design_system/radius.dart';
@@ -161,7 +162,7 @@ class _LiveQueueCardState extends State<LiveQueueCard>
 
         final canHero = !SessionManager().hasActiveSession;
 
-        Widget cardDecoration = DecoratedBox(
+        final Widget cardDecoration = DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: AppRadius.xlRadius,
             boxShadow: [
@@ -329,18 +330,11 @@ class _LiveQueueCardState extends State<LiveQueueCard>
               const SizedBox(height: 8),
               Row(
                 children: [
-                  CircleAvatar(
+                  SaberAvatar(
+                    url: widget.currentPatient!.avatarUrl,
                     radius: 24,
                     backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-                    child: Text(
-                      widget.currentPatient!.patientName.isNotEmpty
-                          ? widget.currentPatient!.patientName[0].toUpperCase()
-                          : '?',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    fallbackIcon: Icons.person_outline,
                   ),
                   const SizedBox(width: 16),
                   Expanded(

@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
 
 class ExpandablePatientProgress extends StatefulWidget {
   const ExpandablePatientProgress({super.key});
@@ -11,10 +11,10 @@ class ExpandablePatientProgress extends StatefulWidget {
 
 class _ExpandablePatientProgressState extends State<ExpandablePatientProgress>
     with SingleTickerProviderStateMixin {
-  bool _isExpanded = false;
-  Map<String, int> _stats = {'improving': 0, 'stable': 0, 'deteriorating': 0};
-  bool _isLoading = true;
-  Offset _offset = const Offset(24, 24); // Bottom-right initial offset
+  var _isExpanded = false;
+  final _stats = <String, int>{'improving': 0, 'stable': 0, 'deteriorating': 0};
+  var _isLoading = true;
+  var _offset = const Offset(24, 24); // Bottom-right initial offset
 
   @override
   void initState() {
@@ -81,7 +81,7 @@ class _ExpandablePatientProgressState extends State<ExpandablePatientProgress>
             borderRadius: BorderRadius.circular(_isExpanded ? 24 : 32),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.15),
+                color: Colors.black.withValues(alpha: 0.15),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),

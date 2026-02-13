@@ -93,12 +93,12 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
           ],
-          border: Border.all(color: Colors.pink.withOpacity(0.3)),
+          border: Border.all(color: Colors.pink.withValues(alpha: 0.3)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -107,7 +107,7 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.pink.withOpacity(0.1),
+                color: Colors.pink.withValues(alpha: 0.1),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(12),
                   topRight: Radius.circular(12),
@@ -155,7 +155,9 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
                   Icon(
                     Icons.monitor_heart_outlined,
                     size: 48,
-                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.3),
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.3,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -186,12 +188,12 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
             ],
-            border: Border.all(color: Colors.pink.withOpacity(0.3)),
+            border: Border.all(color: Colors.pink.withValues(alpha: 0.3)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -210,7 +212,7 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.pink.withOpacity(0.1),
+        color: Colors.pink.withValues(alpha: 0.1),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(12),
           topRight: Radius.circular(12),
@@ -349,7 +351,7 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
                   painter: TrendsPainter(
                     vitals: trendData,
                     color: Colors.pink,
-                    type: _TrendType.bloodPressure,
+                    type: TrendType.bloodPressure,
                   ),
                 ),
               ),
@@ -368,7 +370,7 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
                   painter: TrendsPainter(
                     vitals: trendData,
                     color: Colors.blue,
-                    type: _TrendType.weight,
+                    type: TrendType.weight,
                   ),
                 ),
               ),
@@ -394,7 +396,7 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: theme.dividerColor.withOpacity(0.5)),
+          bottom: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
         ),
       ),
       child: Row(
@@ -432,12 +434,12 @@ class _VitalsOverlayCardState extends State<VitalsOverlayCard>
   }
 }
 
-enum _TrendType { bloodPressure, weight }
+enum TrendType { bloodPressure, weight }
 
 class TrendsPainter extends CustomPainter {
   final List<Vitals> vitals;
   final Color color;
-  final _TrendType type;
+  final TrendType type;
 
   TrendsPainter({
     required this.vitals,
@@ -450,7 +452,7 @@ class TrendsPainter extends CustomPainter {
     if (vitals.isEmpty) return;
 
     final paintStroke = Paint()
-      ..color = color.withOpacity(0.5)
+      ..color = color.withValues(alpha: 0.5)
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
@@ -459,12 +461,12 @@ class TrendsPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final paintFill = Paint()
-      ..color = color.withOpacity(0.1)
+      ..color = color.withValues(alpha: 0.1)
       ..style = PaintingStyle.fill;
 
     // Filter valid data points based on type
     final validVitals = vitals.where((v) {
-      if (type == _TrendType.bloodPressure) {
+      if (type == TrendType.bloodPressure) {
         return v.systolic != null && v.diastolic != null;
       } else {
         return v.weight != null;
@@ -475,7 +477,7 @@ class TrendsPainter extends CustomPainter {
 
     // Calculate Y-axis range
     double minVal, maxVal;
-    if (type == _TrendType.bloodPressure) {
+    if (type == TrendType.bloodPressure) {
       final allValues = [
         ...validVitals.map((v) => v.systolic!),
         ...validVitals.map((v) => v.diastolic!),
@@ -502,7 +504,7 @@ class TrendsPainter extends CustomPainter {
         size.width / (validVitals.length > 1 ? validVitals.length - 1 : 1);
 
     // Draw logic
-    if (type == _TrendType.bloodPressure) {
+    if (type == TrendType.bloodPressure) {
       _drawBPGraph(
         canvas,
         size,

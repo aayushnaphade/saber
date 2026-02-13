@@ -6,6 +6,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 import 'package:saber/components/intake_form/patient_registration_wizard.dart';
+import 'package:saber/components/misc/saber_avatar.dart';
 import 'package:saber/components/navbar/responsive_navbar.dart';
 import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/data/api/error_handler.dart';
@@ -430,19 +431,13 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
                       value: isSelected,
                       onChanged: (value) => _toggleSelection(patient.id),
                     )
-                  : CircleAvatar(
+                  : SaberAvatar(
+                      url: patient.avatarUrl,
+                      radius: 20,
                       backgroundColor: Theme.of(
                         context,
                       ).colorScheme.primaryContainer,
-                      child: Text(
-                        patient.fullName[0].toUpperCase(),
-                        style: TextStyle(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      fallbackIcon: Icons.person_outline,
                     ),
               title: Text(patient.fullName),
               subtitle: _buildPatientMetadata(patient: patient),
@@ -507,19 +502,13 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
                     children: [
                       Row(
                         children: [
-                          CircleAvatar(
+                          SaberAvatar(
+                            url: patient.avatarUrl,
+                            radius: 20,
                             backgroundColor: Theme.of(
                               context,
                             ).colorScheme.primaryContainer,
-                            child: Text(
-                              patient.fullName[0].toUpperCase(),
-                              style: TextStyle(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onPrimaryContainer,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            fallbackIcon: Icons.person_outline,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -774,10 +763,10 @@ class _PatientBrowsePageState extends State<PatientBrowsePage> {
     Color textColor;
 
     if (lowerGender == 'male' || lowerGender == 'm') {
-      backgroundColor = Colors.blue.withOpacity(0.1);
+      backgroundColor = Colors.blue.withValues(alpha: 0.1);
       textColor = Colors.blue.shade700;
     } else if (lowerGender == 'female' || lowerGender == 'f') {
-      backgroundColor = Colors.pink.withOpacity(0.1);
+      backgroundColor = Colors.pink.withValues(alpha: 0.1);
       textColor = Colors.pink.shade700;
     } else {
       backgroundColor = Theme.of(context).colorScheme.surfaceContainerHighest;

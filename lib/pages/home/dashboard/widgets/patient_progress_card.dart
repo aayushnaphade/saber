@@ -9,8 +9,8 @@ class PatientProgressCard extends StatefulWidget {
 }
 
 class _PatientProgressCardState extends State<PatientProgressCard> {
-  Map<String, int> _stats = {'improving': 0, 'stable': 0, 'deteriorating': 0};
-  bool _isLoading = true;
+  final _stats = <String, int>{'improving': 0, 'stable': 0, 'deteriorating': 0};
+  var _isLoading = true;
 
   @override
   void initState() {

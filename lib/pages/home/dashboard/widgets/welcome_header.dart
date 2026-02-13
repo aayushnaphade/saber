@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:saber/components/misc/saber_avatar.dart';
 import 'package:saber/data/prefs.dart';
 
 class WelcomeHeader extends StatefulWidget {
@@ -84,20 +85,7 @@ class _WelcomeHeaderState extends State<WelcomeHeader> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // 1. Always show user avatar on the left
-        if (widget.avatarUrl != null)
-          CircleAvatar(
-            radius: 28,
-            backgroundImage: NetworkImage(widget.avatarUrl!),
-          )
-        else
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-            child: Icon(
-              Icons.person,
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
-          ),
+        SaberAvatar(url: widget.avatarUrl, radius: 28),
 
         const SizedBox(width: 16),
 

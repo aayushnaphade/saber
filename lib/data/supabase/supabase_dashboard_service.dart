@@ -1,14 +1,37 @@
+import 'dart:io';
+
 import 'package:logging/logging.dart';
 import 'package:saber/data/models/dashboard_models.dart';
+import 'package:saber/data/services/offline_dashboard_cache.dart';
+import 'package:saber/data/services/sync_outbox.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseDashboardService {
   static final log = Logger('SupabaseDashboardService');
 
-  /// Fetches the currently active consultation (in_progress)
-  /// Returns null if no session is active
-  static Future<QueueItem?> getActiveConsultation() async {
+  /// Returns true if the error is a network/connectivity issue.
+  static bool _isNetworkError(Object e) {
+    final msg = e.toString();
+    return e is SocketException ||
+        msg.contains('SocketException') ||
+        msg.contains('Connection timed out') ||
+        msg.contains('connection abort') ||
+        msg.contains('Failed host lookup') ||
+        msg.contains('Network is unreachable') ||
+        msg.contains('TimeoutException') ||
+        msg.contains('ClientException') ||
+        msg.contains('HandshakeException') ||
+        msg.contains('HttpException') ||
+        msg.contains('CERTIFICATE_VERIFY_FAILED') ||
+        msg.contains('Connection refused') ||
+        msg.contains('Connection reset');
+  }
+
+  /// Fetches all active consultations (in_progress) for the user.
+  /// Typically returns 1 item, but can return multiple if sync issues caused
+  /// stale in_progress records.
+  static Future<List<QueueItem>> getActiveConsultations() async {
     try {
       final response = await supabase
           .from('consultations')
@@ -16,20 +39,27 @@ class SupabaseDashboardService {
             '*, patients(full_name, gender, age, visit_type, registration_number)',
           )
           .eq('status', 'in_progress')
-          .limit(1)
-          .maybeSingle();
+          .limit(5); // Fetch up to 5 to handle stuck records
 
-      if (response == null) return null;
-
-      return _mapToQueueItem(response, 0); // Position 0 for active
+      final items = <QueueItem>[];
+      for (final item in response as List) {
+        try {
+          // Use position 0 for all active ones for now
+          items.add(_mapToQueueItem(item, 0));
+        } catch (e) {
+          log.warning('Error mapping active consultation: $e');
+        }
+      }
+      return items;
     } catch (e, stack) {
-      log.severe('Error fetching active consultation: $e', e, stack);
-      return null;
+      log.severe('Error fetching active consultations: $e', e, stack);
+      return [];
     }
   }
 
-  /// Fetches the current live queue (waiting consultations ONLY)
-  static Future<List<QueueItem>> getLiveQueue() async {
+  /// Fetches the current live queue (waiting consultations ONLY).
+  /// Returns a record with the queue items and whether the data is stale.
+  static Future<({List<QueueItem> items, bool isStale})> getLiveQueue() async {
     try {
       // Auto-cleanup past pending sessions
       await cancelPastPendingSessions();
@@ -54,10 +84,22 @@ class SupabaseDashboardService {
         }
       }
 
-      return queue;
+      // Cache on success
+      await OfflineDashboardCache.saveQueue(queue);
+
+      return (items: queue, isStale: false);
     } catch (e, stack) {
       log.severe('Error fetching live queue: $e', e, stack);
-      return [];
+
+      // On network error, try cached data
+      if (_isNetworkError(e)) {
+        final cached = await OfflineDashboardCache.loadQueue();
+        if (cached != null) {
+          log.info('Returning ${cached.length} cached queue items');
+          return (items: cached, isStale: true);
+        }
+      }
+      return (items: <QueueItem>[], isStale: false);
     }
   }
 
@@ -122,8 +164,10 @@ class SupabaseDashboardService {
     }
   }
 
-  /// Fetches today's appointments (all consultations created today)
-  static Future<List<Appointment>> getTodayAppointments() async {
+  /// Fetches today's appointments (all consultations created today).
+  /// Returns a record with the appointments and whether the data is stale.
+  static Future<({List<Appointment> items, bool isStale})>
+  getTodayAppointments() async {
     try {
       // Auto-cleanup past pending sessions
       await cancelPastPendingSessions();
@@ -152,7 +196,7 @@ class SupabaseDashboardService {
           .lte('scheduled_time', endOfDay)
           .order('scheduled_time', ascending: true);
 
-      return (response as List).map((item) {
+      final appointments = (response as List).map((item) {
         final patient = item['patients'];
         final patientName = patient != null ? patient['full_name'] : 'Unknown';
         final visitType = patient != null ? patient['visit_type'] : null;
@@ -195,14 +239,29 @@ class SupabaseDashboardService {
           sessionNumber: item['session_number'] as int?,
         );
       }).toList();
+
+      // Cache on success
+      await OfflineDashboardCache.saveAppointments(appointments);
+
+      return (items: appointments, isStale: false);
     } catch (e) {
       log.severe('Error fetching appointments: $e');
-      return [];
+
+      // On network error, try cached data
+      if (_isNetworkError(e)) {
+        final cached = await OfflineDashboardCache.loadAppointments();
+        if (cached != null) {
+          log.info('Returning ${cached.length} cached appointments');
+          return (items: cached, isStale: true);
+        }
+      }
+      return (items: <Appointment>[], isStale: false);
     }
   }
 
-  /// Fetches dashboard statistics
-  static Future<DashboardStats> getStats() async {
+  /// Fetches dashboard statistics.
+  /// Returns a record with the stats and whether the data is stale.
+  static Future<({DashboardStats stats, bool isStale})> getStats() async {
     try {
       final now = DateTime.now();
       final startOfDay = DateTime(now.year, now.month, now.day).toUtc();
@@ -327,7 +386,7 @@ class SupabaseDashboardService {
           .or('scheduled_time.gte.$startOfDayStr,created_at.gte.$startOfDayStr')
           .lte('created_at', endOfDayStr);
 
-      return DashboardStats(
+      final stats = DashboardStats(
         consultationsToday: completedSessions,
         pendingConsultations: pendingCount,
         completedSessions: completedSessions,
@@ -335,15 +394,32 @@ class SupabaseDashboardService {
         consultationsTrend: consultationsTrend,
         timeTrend: timeTrend,
       );
+
+      // Cache on success
+      await OfflineDashboardCache.saveStats(stats);
+
+      return (stats: stats, isStale: false);
     } catch (e, stack) {
       log.severe('Error fetching stats: $e', e, stack);
-      return const DashboardStats(
-        consultationsToday: 0,
-        pendingConsultations: 0,
-        completedSessions: 0,
-        totalConsultationMinutes: 0,
-        consultationsTrend: 0.0,
-        timeTrend: 0.0,
+
+      // On network error, try cached data
+      if (_isNetworkError(e)) {
+        final cached = await OfflineDashboardCache.loadStats();
+        if (cached != null) {
+          log.info('Returning cached dashboard stats');
+          return (stats: cached, isStale: true);
+        }
+      }
+      return (
+        stats: const DashboardStats(
+          consultationsToday: 0,
+          pendingConsultations: 0,
+          completedSessions: 0,
+          totalConsultationMinutes: 0,
+          consultationsTrend: 0.0,
+          timeTrend: 0.0,
+        ),
+        isStale: false,
       );
     }
   }
@@ -377,18 +453,33 @@ class SupabaseDashboardService {
     }
   }
 
-  /// Completes a consultation session
+  /// Completes a consultation session.
+  /// If offline, queues the operation for later sync.
   static Future<void> completeConsultation(String consultationId) async {
+    final endTime = DateTime.now().toUtc().toIso8601String();
     try {
       await supabase
           .from('consultations')
-          .update({
-            'status': 'completed',
-            'session_end_time': DateTime.now().toUtc().toIso8601String(),
-          })
+          .update({'status': 'completed', 'session_end_time': endTime})
           .eq('id', consultationId);
       log.info('Consultation $consultationId marked as completed');
     } catch (e) {
+      if (_isNetworkError(e)) {
+        log.warning(
+          'Network error completing consultation $consultationId, '
+          'queuing for later sync',
+        );
+        await SyncOutbox.enqueue(
+          OutboxEntry(
+            operation: 'complete_consultation',
+            payload: {
+              'consultation_id': consultationId,
+              'session_end_time': endTime,
+            },
+          ),
+        );
+        return; // Succeed silently — will sync when online
+      }
       log.severe('Error completing consultation: $e');
       rethrow;
     }

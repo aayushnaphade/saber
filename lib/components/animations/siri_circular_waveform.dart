@@ -79,8 +79,8 @@ class _SiriCircularWaveformPainter extends CustomPainter {
       center: Alignment.center,
       radius: 1.0,
       colors: [
-        colors[1].withOpacity(0.8), // Inner transition
-        colors[0].withOpacity(1.0), // Deep navy at edge
+        colors[1].withValues(alpha: 0.8), // Inner transition
+        colors[0].withValues(alpha: 1.0), // Deep navy at edge
       ],
       stops: const [0.4, 1.0],
     );
@@ -119,8 +119,8 @@ class _SiriCircularWaveformPainter extends CustomPainter {
       final blobPaint = Paint()
         ..shader = RadialGradient(
           colors: [
-            color.withOpacity(0.55), // Vibrant center
-            color.withOpacity(0.0), // Soft edge
+            color.withValues(alpha: 0.55), // Vibrant center
+            color.withValues(alpha: 0.0), // Soft edge
           ],
           stops: const [0.2, 1.0],
         ).createShader(Rect.fromCircle(center: blobCenter, radius: blobRadius))
@@ -134,8 +134,8 @@ class _SiriCircularWaveformPainter extends CustomPainter {
       center: Alignment.center,
       radius: 0.4,
       colors: [
-        Colors.white.withOpacity(0.85),
-        colors[2].withOpacity(0.4), // Sky Blue aura
+        Colors.white.withValues(alpha: 0.85),
+        colors[2].withValues(alpha: 0.4), // Sky Blue aura
         Colors.transparent,
       ],
       stops: const [0.0, 0.4, 1.0],
@@ -153,7 +153,7 @@ class _SiriCircularWaveformPainter extends CustomPainter {
       center + Offset(0, -radius * 0.4),
       radius * 0.3,
       Paint()
-        ..color = Colors.white.withOpacity(0.15)
+        ..color = Colors.white.withValues(alpha: 0.15)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * 0.2),
     );
 
@@ -174,7 +174,7 @@ class _SiriCircularWaveformPainter extends CustomPainter {
     final glowPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 6.0
-      ..color = colors[2].withOpacity(0.3)
+      ..color = colors[2].withValues(alpha: 0.3)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
 
     canvas.drawCircle(center, radius - 1, glowPaint);

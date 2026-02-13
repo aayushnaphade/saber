@@ -160,14 +160,14 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: theme.colorScheme.outlineVariant.withOpacity(
-                            0.5,
+                          color: theme.colorScheme.outlineVariant.withValues(
+                            alpha: 0.5,
                           ),
                           width: 1,
                         ),
                         color: expanded
                             ? theme.colorScheme.surfaceContainerHighest
-                                  .withOpacity(0.3)
+                                  .withValues(alpha: 0.3)
                             : Colors.transparent,
                       ),
                       child: AnimatedRotation(
@@ -326,7 +326,7 @@ class _VerticalNavbarState extends State<VerticalNavbar> {
     final colorScheme = theme.colorScheme;
 
     final iconWidget = isSelected
-        ? (destination.selectedIcon ?? destination.icon)
+        ? destination.selectedIcon ?? destination.icon
         : destination.icon;
 
     final baseStyle = isSelected

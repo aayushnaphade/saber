@@ -61,12 +61,14 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
         ],
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         children: [
@@ -88,7 +90,7 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(16),
           topRight: Radius.circular(16),
@@ -137,7 +139,9 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
               ? theme.colorScheme.primary
               : theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.3),
+          ),
         ),
         child: Text(
           label.toUpperCase(),
@@ -249,7 +253,7 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.outline.withOpacity(0.1),
+                        color: theme.colorScheme.outline.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -352,7 +356,9 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
       child: Container(
         width: segmentWidth,
         decoration: BoxDecoration(
-          color: theme.colorScheme.primary.withOpacity(isActive ? 0.6 : 0.3),
+          color: theme.colorScheme.primary.withValues(
+            alpha: isActive ? 0.6 : 0.3,
+          ),
           borderRadius: BorderRadius.circular(4),
         ),
       ),
@@ -383,7 +389,10 @@ class _MedicationHistoryOverlayState extends State<MedicationHistoryOverlay> {
             shape: BoxShape.circle,
             border: Border.all(color: event.color, width: 2),
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 4,
+              ),
             ],
           ),
           child: Icon(event.icon, size: 14, color: event.color),

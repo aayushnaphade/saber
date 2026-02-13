@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:saber/data/prefs.dart';
@@ -7,18 +8,35 @@ import 'package:saber/data/supabase/supabase_auth_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class ConnectivityService {
+class ConnectivityService with WidgetsBindingObserver {
   static final log = Logger('ConnectivityService');
   static Timer? _connectivityTimer;
   static var _isChecking = false;
 
+  // Singleton instance to handle lifecycle observer
+  static final _instance = ConnectivityService._();
+  ConnectivityService._();
+
   static void initialize() {
+    WidgetsBinding.instance.addObserver(_instance);
+
     _checkConnectivity();
     // Check connectivity every 20 seconds to be less intrusive
     _connectivityTimer = Timer.periodic(
       const Duration(seconds: 20),
       (_) => _checkConnectivity(),
     );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      log.info('App resumed, triggering delayed connectivity check');
+      // Give the OS 2 seconds to re-establish WiFi/Cellular after wake-up
+      Future.delayed(const Duration(seconds: 2), () {
+        _checkConnectivity();
+      });
+    }
   }
 
   static Future<void> _checkConnectivity() async {
@@ -42,7 +60,7 @@ class ConnectivityService {
             .from('profiles')
             .select('id')
             .limit(1)
-            .timeout(const Duration(seconds: 10));
+            .timeout(const Duration(seconds: 8)); // Slightly shorter timeout
 
         if (!stows.isOnline.value) {
           log.info('Internet connection restored (Supabase reachable)');
@@ -63,7 +81,16 @@ class ConnectivityService {
 
         // It might be a network error (SocketException, TimeoutException, etc.).
         // Let's verify with a neutral global ping.
-        final globallyOnline = await _verifyGlobalConnectivity();
+        var globallyOnline = await _verifyGlobalConnectivity();
+
+        // RESILIENCE: If global ping fails and we think we were online,
+        // retry once after a small delay before declaring we are offline.
+        // This handles cases where the device just woke up and the network is laggy.
+        if (!globallyOnline && stows.isOnline.value) {
+          log.info('Global ping failed, retrying in 3 seconds...');
+          await Future.delayed(const Duration(seconds: 3));
+          globallyOnline = await _verifyGlobalConnectivity();
+        }
 
         if (globallyOnline) {
           if (!stows.isOnline.value) {
@@ -107,6 +134,7 @@ class ConnectivityService {
   }
 
   static void dispose() {
+    WidgetsBinding.instance.removeObserver(_instance);
     _connectivityTimer?.cancel();
   }
 }

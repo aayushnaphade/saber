@@ -1,4 +1,9 @@
+import 'dart:io';
+
+import 'package:logging/logging.dart';
+import 'package:saber/data/services/sync_outbox.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
+import 'package:uuid/uuid.dart';
 
 class ClinicalReport {
   final String id;
@@ -49,6 +54,10 @@ class ClinicalReport {
 }
 
 class SupabaseReportService {
+  static final _log = Logger('SupabaseReportService');
+
+  /// Creates a clinical report.
+  /// If offline, queues the insert for later sync and returns a local placeholder.
   static Future<ClinicalReport> createReport({
     required String patientId,
     required Map<String, dynamic> structuredData,
@@ -58,20 +67,58 @@ class SupabaseReportService {
     final user = supabase.auth.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
-    final response = await supabase
-        .from('clinical_reports')
-        .insert({
-          'patient_id': patientId,
-          'doctor_id': user.id,
-          'session_date': DateTime.now().toIso8601String().split('T')[0],
-          'source_document_path': sourceDocumentPath,
-          'structured_data': structuredData,
-          'markdown_content': markdownContent,
-        })
-        .select()
-        .single();
+    final insertPayload = {
+      'patient_id': patientId,
+      'doctor_id': user.id,
+      'session_date': DateTime.now().toIso8601String().split('T')[0],
+      'source_document_path': sourceDocumentPath,
+      'structured_data': structuredData,
+      'markdown_content': markdownContent,
+    };
 
-    return ClinicalReport.fromJson(response);
+    try {
+      final response = await supabase
+          .from('clinical_reports')
+          .insert(insertPayload)
+          .select()
+          .single();
+
+      return ClinicalReport.fromJson(response);
+    } catch (e) {
+      if (_isNetworkError(e)) {
+        _log.warning(
+          'Network error creating report for patient $patientId, '
+          'queuing for later sync',
+        );
+        await SyncOutbox.enqueue(
+          OutboxEntry(operation: 'create_report', payload: insertPayload),
+        );
+        // Return a local placeholder so the UI flow is unblocked
+        return ClinicalReport(
+          id: const Uuid().v4(),
+          patientId: patientId,
+          doctorId: user.id,
+          createdAt: DateTime.now(),
+          sessionDate: DateTime.now(),
+          sourceDocumentPath: sourceDocumentPath,
+          structuredData: structuredData,
+          markdownContent: markdownContent,
+        );
+      }
+      rethrow;
+    }
+  }
+
+  static bool _isNetworkError(Object e) {
+    final msg = e.toString();
+    return e is SocketException ||
+        msg.contains('SocketException') ||
+        msg.contains('Connection timed out') ||
+        msg.contains('connection abort') ||
+        msg.contains('Failed host lookup') ||
+        msg.contains('Network is unreachable') ||
+        msg.contains('TimeoutException') ||
+        msg.contains('ClientException');
   }
 
   static Future<List<ClinicalReport>> getReportsForPatient(

@@ -216,6 +216,9 @@ class _AsyncReportCardState extends State<_AsyncReportCard>
                               : widget.manager.status ==
                                     ReportGenerationStatus.completed
                               ? 'REPORT READY'
+                              : widget.manager.status ==
+                                    ReportGenerationStatus.queued
+                              ? 'QUEUED FOR LATER'
                               : 'AI PROCESSING',
                           style: theme.textTheme.labelSmall?.copyWith(
                             color:
@@ -242,10 +245,19 @@ class _AsyncReportCardState extends State<_AsyncReportCard>
                   ),
                   if (widget.manager.status ==
                           ReportGenerationStatus.completed ||
-                      widget.manager.status == ReportGenerationStatus.error)
+                      widget.manager.status == ReportGenerationStatus.error ||
+                      widget.manager.status == ReportGenerationStatus.queued)
                     IconButton(
                       icon: const Icon(Icons.close_rounded, size: 20),
-                      onPressed: () => _showCancelConfirmation(context),
+                      onPressed: () {
+                        if (widget.manager.status ==
+                            ReportGenerationStatus.queued) {
+                          // Non-destructive close when already queued
+                          widget.manager.reset();
+                        } else {
+                          _showCancelConfirmation(context);
+                        }
+                      },
                     ),
                 ],
               ),
@@ -261,6 +273,58 @@ class _AsyncReportCardState extends State<_AsyncReportCard>
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+              if (widget.manager.status == ReportGenerationStatus.queued) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.amber.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.cloud_off_rounded,
+                        size: 16,
+                        color: Colors.amber.shade700,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Saved locally — will sync when online',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.amber.shade700,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    icon: const Icon(Icons.check_circle_rounded, size: 18),
+                    label: const Text('Finish Session & Exit'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.amber.shade700,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => _finishAndExit(context),
+                  ),
+                ),
+              ],
               const SizedBox(height: 4),
               Text(
                 widget.manager.status == ReportGenerationStatus.processing
@@ -303,11 +367,15 @@ class _AsyncReportCardState extends State<_AsyncReportCard>
                   ? Icons.check_circle_rounded
                   : widget.manager.status == ReportGenerationStatus.error
                   ? Icons.error_rounded
+                  : widget.manager.status == ReportGenerationStatus.queued
+                  ? Icons.cloud_off_rounded
                   : Icons.auto_awesome,
               color: widget.manager.status == ReportGenerationStatus.completed
                   ? Colors.green
                   : widget.manager.status == ReportGenerationStatus.error
                   ? Colors.red
+                  : widget.manager.status == ReportGenerationStatus.queued
+                  ? Colors.amber.shade700
                   : colors[0],
               size: 32,
             ),
@@ -367,6 +435,37 @@ class _AsyncReportCardState extends State<_AsyncReportCard>
         },
       ),
     );
+  }
+
+  void _finishAndExit(BuildContext context) async {
+    final manager = widget.manager;
+    final consultationId = manager.consultationId;
+
+    try {
+      // 1. Mark consultation as completed (This will be queued if offline)
+      if (consultationId != null) {
+        await SupabaseConsultationService.completeConsultation(consultationId);
+      }
+
+      // 2. Clean up local editor session files
+      await SessionManager().deleteActiveSessionFiles();
+      SessionManager().terminate();
+
+      // 3. Clear manager state
+      manager.reset();
+
+      // 4. Return to Dashboard
+      if (context.mounted) {
+        context.go(HomeRoutes.getRoute(0));
+      }
+    } catch (e) {
+      debugPrint('Error finishing offline session: $e');
+      // Even on error, we should probably try to get them to the dashboard
+      // as the core "completion" is already in the outbox.
+      if (context.mounted) {
+        context.go(HomeRoutes.getRoute(0));
+      }
+    }
   }
 
   void _showReport(BuildContext context) {
@@ -489,6 +588,7 @@ class _AsyncReportCardState extends State<_AsyncReportCard>
                   patient: widget.manager.patient,
                   filePath: widget.manager.filePath,
                   rawNotes: widget.manager.rawNotes,
+                  consultationId: widget.manager.consultationId,
                 );
               },
             ),
@@ -528,7 +628,7 @@ class _AsyncReportCardState extends State<_AsyncReportCard>
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(

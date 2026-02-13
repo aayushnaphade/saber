@@ -1789,6 +1789,8 @@ class EditorState extends State<Editor> {
         patient: _patient,
         filePath: coreInfo.filePath,
         rawNotes: rawNotes,
+        consultationId:
+            widget.consultationId ?? SessionManager().consultationId,
       );
 
       // ignore: use_build_context_synchronously
@@ -2276,7 +2278,7 @@ class EditorState extends State<Editor> {
     final bool enableHero =
         !_isCapturingForReport && !SessionManager().isMinimized;
 
-    Widget contentWithPopScope = ValueListenableBuilder<SavingState>(
+    final Widget contentWithPopScope = ValueListenableBuilder<SavingState>(
       valueListenable: savingState,
       builder: (context, savingState, child) {
         // handle session minimization on back navigation
@@ -2802,7 +2804,7 @@ class EditorState extends State<Editor> {
                           ),
                         ),
                         style: TextButton.styleFrom(
-                          backgroundColor: Colors.blue.withOpacity(0.1),
+                          backgroundColor: Colors.blue.withValues(alpha: 0.1),
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -3239,7 +3241,7 @@ class EditorState extends State<Editor> {
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 30,
                 offset: const Offset(0, 15),
               ),
@@ -3252,7 +3254,7 @@ class EditorState extends State<Editor> {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -3412,7 +3414,7 @@ class EditorState extends State<Editor> {
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 30,
                 offset: const Offset(0, 15),
               ),
@@ -3425,7 +3427,7 @@ class EditorState extends State<Editor> {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -3613,7 +3615,7 @@ class EditorState extends State<Editor> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -4068,12 +4070,12 @@ class EditorState extends State<Editor> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
-        border: Border.all(color: colorScheme.primary.withOpacity(0.3)),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -4082,7 +4084,7 @@ class EditorState extends State<Editor> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.1),
+              color: colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12),
                 topRight: Radius.circular(12),
@@ -4128,7 +4130,7 @@ class EditorState extends State<Editor> {
                 Icon(
                   Icons.assignment_outlined,
                   size: 48,
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.3),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -4489,7 +4491,7 @@ class ParticleAbsorptionPainter extends CustomPainter {
         opacity = 1.0;
       }
 
-      paint.color = colors[i % colors.length].withOpacity(opacity * 0.5);
+      paint.color = colors[i % colors.length].withValues(alpha: opacity * 0.5);
 
       // Particle size gets slightly larger as it gets "hotter" (closer)
       final double radius = (1.0 + random.nextDouble() * 3.0) * (1.0 + p);
@@ -4499,7 +4501,7 @@ class ParticleAbsorptionPainter extends CustomPainter {
       canvas.drawCircle(
         ui.Offset(x, y),
         radius * 1.5,
-        paint..color = paint.color.withOpacity(opacity * 0.2),
+        paint..color = paint.color.withValues(alpha: opacity * 0.2),
       );
     }
   }
@@ -4517,7 +4519,7 @@ class WindPainter extends CustomPainter {
   @override
   void paint(ui.Canvas canvas, Size size) {
     final paint = ui.Paint()
-      ..color = color.withOpacity(0.3 * (1.0 - progress))
+      ..color = color.withValues(alpha: 0.3 * (1.0 - progress))
       ..strokeWidth = 3.0
       ..style = ui.PaintingStyle.stroke;
 

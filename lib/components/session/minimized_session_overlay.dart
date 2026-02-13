@@ -19,7 +19,7 @@ class MinimizedSessionOverlay extends StatelessWidget {
 
     final isHeroEnabled = sessionManager.isMinimized;
 
-    Widget content = Material(
+    final Widget content = Material(
       color: Colors.transparent,
       child: Center(
         child: Container(
@@ -30,18 +30,18 @@ class MinimizedSessionOverlay extends StatelessWidget {
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: isDark
-                  ? Colors.white.withOpacity(0.12)
-                  : colorScheme.primary.withOpacity(0.15),
+                  ? Colors.white.withValues(alpha: 0.12)
+                  : colorScheme.primary.withValues(alpha: 0.15),
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.4 : 0.12),
+                color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
                 blurRadius: 30,
                 offset: const Offset(0, 15),
               ),
               BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -173,14 +173,14 @@ class MinimizedSessionOverlay extends StatelessWidget {
           onTap();
         },
         borderRadius: BorderRadius.circular(16),
-        splashColor: color.withOpacity(0.1),
-        highlightColor: color.withOpacity(0.05),
+        splashColor: color.withValues(alpha: 0.1),
+        highlightColor: color.withValues(alpha: 0.05),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.2)),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -219,7 +219,7 @@ class MinimizedSessionOverlay extends StatelessWidget {
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 30,
                 offset: const Offset(0, 15),
               ),
@@ -232,7 +232,7 @@ class MinimizedSessionOverlay extends StatelessWidget {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(

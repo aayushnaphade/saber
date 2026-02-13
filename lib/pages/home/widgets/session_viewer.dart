@@ -1,20 +1,19 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
 import 'package:saber/data/api/error_handler.dart';
+import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/models/previous_session_note.dart';
 import 'package:saber/data/supabase/supabase_consultation_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/data/utils/report_printer.dart';
-import 'package:saber/pages/editor/report_view.dart';
-import 'dart:io';
-import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/pages/editor/editor.dart';
-import 'package:go_router/go_router.dart';
-import 'package:saber/data/routes.dart';
+import 'package:saber/pages/editor/report_view.dart';
 
 class SessionViewerPage extends StatefulWidget {
   final String patientId;
@@ -38,6 +37,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
   static final log = Logger('SessionViewerPage');
 
   late int _currentSessionNumber;
+  late List<SessionInfo> _sessions;
   ClinicalReport? _currentReport;
   PreviousSessionNote? _currentNote;
   Patient? _patient;
@@ -48,7 +48,47 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
   void initState() {
     super.initState();
     _currentSessionNumber = widget.initialSessionNumber;
+    _sessions = List.from(widget.allSessions);
     _loadSessionData();
+
+    // If we only have one session, fetch all to enable navigation
+    if (_sessions.length <= 1) {
+      _fetchAllSessions();
+    }
+  }
+
+  Future<void> _fetchAllSessions() async {
+    try {
+      final reports = await SupabaseReportService.getReportsForPatient(
+        widget.patientId,
+      );
+      final newSessions = <SessionInfo>{};
+
+      for (final report in reports) {
+        final sessionMatch = RegExp(
+          r'session_(\d+)',
+        ).firstMatch(report.sourceDocumentPath ?? '');
+        if (sessionMatch != null) {
+          final num = int.parse(sessionMatch.group(1)!);
+          newSessions.add(
+            SessionInfo(
+              sessionNumber: num,
+              folderName: 'session_$num',
+              fileCount: 0,
+              createdDate: report.createdAt,
+            ),
+          );
+        }
+      }
+
+      if (mounted && newSessions.isNotEmpty) {
+        setState(() {
+          _sessions = newSessions.toList();
+        });
+      }
+    } catch (e) {
+      log.warning('Failed to fetch all sessions for patient: $e');
+    }
   }
 
   Future<void> _loadSessionData() async {
@@ -58,7 +98,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
     });
 
     try {
-      final session = widget.allSessions.firstWhere(
+      final session = _sessions.firstWhere(
         (s) => s.sessionNumber == _currentSessionNumber,
       );
 
@@ -155,13 +195,11 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
         log.warning('Error checking local note: $e');
       }
 
-      if (note == null) {
-        note = await SupabaseConsultationService.getSessionNote(
-          widget.patientId,
-          _currentSessionNumber,
-          doctorId: report?.doctorId, // Pass the doctorId from the report
-        );
-      }
+      note ??= await SupabaseConsultationService.getSessionNote(
+        widget.patientId,
+        _currentSessionNumber,
+        doctorId: report?.doctorId, // Pass the doctorId from the report
+      );
 
       // 3. Fetch Patient Info
       final patient = await SupabasePatientService.getPatient(widget.patientId);
@@ -196,8 +234,9 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final sessionIndices = widget.allSessions
+    final sessionIndices = _sessions
         .map((s) => s.sessionNumber)
+        .toSet()
         .toList();
     sessionIndices.sort((a, b) => b.compareTo(a)); // Newest first
 
@@ -233,8 +272,8 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.white.withOpacity(0.8),
-                  Colors.white.withOpacity(0.0),
+                  Colors.white.withValues(alpha: 0.8),
+                  Colors.white.withValues(alpha: 0.0),
                 ],
               ),
             ),
@@ -430,7 +469,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),

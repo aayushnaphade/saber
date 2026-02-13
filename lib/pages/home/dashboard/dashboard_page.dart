@@ -13,6 +13,8 @@ import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/session_manager.dart';
+import 'package:saber/data/services/offline_dashboard_cache.dart';
+import 'package:saber/data/services/sync_outbox.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/pages/home/dashboard/dashboard_skeleton.dart';
@@ -48,6 +50,9 @@ class _DashboardPageState extends State<DashboardPage> {
   List<QueueItem> _queue = [];
   QueueItem? _activeConsultation;
   List<Appointment> _appointments = [];
+  var _isStaleData = false;
+  DateTime? _lastCacheTime;
+  var _pendingSyncCount = 0;
 
   @override
   void initState() {
@@ -56,6 +61,7 @@ class _DashboardPageState extends State<DashboardPage> {
     _loadDashboardData();
     _setupRealtimeSubscription();
     stows.isOnline.addListener(_onConnectivityChanged);
+    SessionManager().addListener(_onSessionStateChanged);
   }
 
   void _initAudioPlayer() {
@@ -91,10 +97,20 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  void _onSessionStateChanged() {
+    // When a session is terminated (e.g. offline "Finish & Exit"),
+    // refresh all dashboard data to clear the stale active consultation.
+    if (!SessionManager().hasActiveSession && mounted) {
+      debugPrint('Dashboard: Session terminated, refreshing data...');
+      _loadDashboardData();
+    }
+  }
+
   @override
   void dispose() {
     _audioPlayer?.dispose();
     stows.isOnline.removeListener(_onConnectivityChanged);
+    SessionManager().removeListener(_onSessionStateChanged);
     if (_consultationsSubscription != null) {
       supabase.removeChannel(_consultationsSubscription!);
     }
@@ -102,6 +118,22 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _setupRealtimeSubscription() {
+    // Clean up existing channel if any
+    if (_consultationsSubscription != null) {
+      try {
+        supabase.removeChannel(_consultationsSubscription!);
+      } catch (e) {
+        debugPrint('Dashboard: Error removing old channel: $e');
+      }
+      _consultationsSubscription = null;
+    }
+
+    // Only subscribe if we believe we are online
+    if (!stows.isOnline.value) {
+      debugPrint('Dashboard: Skipping Realtime subscription (offline)');
+      return;
+    }
+
     _consultationsSubscription = supabase
         .channel('public:consultations')
         .onPostgresChanges(
@@ -118,9 +150,26 @@ class _DashboardPageState extends State<DashboardPage> {
             debugPrint(
               'Dashboard: Realtime subscription timed out, retrying...',
             );
-            Future.delayed(const Duration(seconds: 5), () {
-              if (mounted) _setupRealtimeSubscription();
-            });
+            // Only retry if we are still online and mounted
+            if (mounted && stows.isOnline.value) {
+              Future.delayed(const Duration(seconds: 5), () {
+                if (mounted && stows.isOnline.value) {
+                  _setupRealtimeSubscription();
+                }
+              });
+            }
+          } else if (status == RealtimeSubscribeStatus.closed ||
+              status == RealtimeSubscribeStatus.channelError) {
+            debugPrint('Dashboard: Realtime status: $status. Error: $error');
+            // Improved Retry logic for channel errors
+            if (mounted && stows.isOnline.value) {
+              debugPrint('Dashboard: Retrying Realtime subscription in 10s...');
+              Future.delayed(const Duration(seconds: 10), () {
+                if (mounted && stows.isOnline.value) {
+                  _setupRealtimeSubscription();
+                }
+              });
+            }
           }
         });
   }
@@ -152,13 +201,34 @@ class _DashboardPageState extends State<DashboardPage> {
         SupabaseDashboardService.getStats(),
         SupabaseDashboardService.getLiveQueue(),
         SupabaseDashboardService.getTodayAppointments(),
-        SupabaseDashboardService.getActiveConsultation(),
+        SupabaseDashboardService.getActiveConsultations(),
       ]);
 
       if (!mounted) return;
 
-      final currentActive = results[3] as QueueItem?;
-      final isNowBusy = currentActive != null;
+      // Destructure the new record types
+      final statsResult = results[0] as ({DashboardStats stats, bool isStale});
+      final queueResult = results[1] as ({List<QueueItem> items, bool isStale});
+      final appointmentsResult =
+          results[2] as ({List<Appointment> items, bool isStale});
+
+      final activeList = (results[3] as List).cast<QueueItem>();
+
+      // Cross-reference with outbox: filter out consultations that were
+      // locally completed but not yet synced to Supabase.
+      final locallyCompleted =
+          await SyncOutbox.getLocallyCompletedConsultationIds();
+
+      QueueItem? effectiveActive;
+      // Pick the first one that is NOT locally completed
+      for (final item in activeList) {
+        if (!locallyCompleted.contains(item.id)) {
+          effectiveActive = item;
+          break; // Only support one active session at a time in UI
+        }
+      }
+
+      final isNowBusy = effectiveActive != null;
 
       // Play SFX if transitioning from Busy to Available in Reception Mode
       if (_wasBusy && !isNowBusy && stows.receptionMode.value) {
@@ -171,15 +241,54 @@ class _DashboardPageState extends State<DashboardPage> {
       }
       _wasBusy = isNowBusy;
 
+      // Determine if any data source returned stale (cached) data
+      final anyStale =
+          statsResult.isStale ||
+          queueResult.isStale ||
+          appointmentsResult.isStale;
+
+      // Filter locally completed items from the waiting queue too
+      final effectiveQueue = locallyCompleted.isEmpty
+          ? queueResult.items
+          : queueResult.items
+                .where((q) => !locallyCompleted.contains(q.id))
+                .toList();
+
+      if (locallyCompleted.isNotEmpty) {
+        debugPrint(
+          'Dashboard: Filtered ${locallyCompleted.length} locally-completed '
+          'consultations from server data',
+        );
+      }
+
       setState(() {
-        _stats = results[0] as DashboardStats;
-        _queue = results[1] as List<QueueItem>;
-        _appointments = results[2] as List<Appointment>;
-        _activeConsultation = results[3] as QueueItem?;
+        _stats = statsResult.stats;
+        _queue = effectiveQueue;
+        _appointments = appointmentsResult.items;
+        _activeConsultation = effectiveActive;
+        _isStaleData = anyStale;
       });
 
+      // Update last cache time if we're showing stale data
+      if (anyStale) {
+        final cacheTime = await OfflineDashboardCache.lastCacheTime();
+        if (mounted) {
+          setState(() => _lastCacheTime = cacheTime);
+        }
+      } else {
+        if (mounted && _isStaleData) {
+          setState(() => _isStaleData = false);
+        }
+      }
+
+      // Fetch pending outbox count
+      final pendingCount = await SyncOutbox.pendingCount();
+      if (mounted) {
+        setState(() => _pendingSyncCount = pendingCount);
+      }
       debugPrint(
-        'Dashboard: UI Update triggered with ${_queue.length} queue items',
+        'Dashboard: UI Update triggered with ${_queue.length} queue items'
+        '${anyStale ? ' (stale data)' : ''}',
       );
     } catch (e, stack) {
       debugPrint('Dashboard: Error in _fetchDashboardData: $e\n$stack');
@@ -517,6 +626,88 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  Widget _buildStaleDataBanner() {
+    String timeAgo = '';
+    if (_lastCacheTime != null) {
+      final diff = DateTime.now().difference(_lastCacheTime!);
+      if (diff.inMinutes < 1) {
+        timeAgo = 'just now';
+      } else if (diff.inMinutes < 60) {
+        timeAgo = '${diff.inMinutes} min ago';
+      } else if (diff.inHours < 24) {
+        timeAgo = '${diff.inHours}h ago';
+      } else {
+        timeAgo = '${diff.inDays}d ago';
+      }
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.amber.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.cloud_off_rounded, color: Colors.amber.shade700, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Showing cached data'
+              '${timeAgo.isNotEmpty ? ' • Last synced $timeAgo' : ''}',
+              style: TextStyle(
+                color: Colors.amber.shade800,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          InkWell(
+            onTap: _loadDashboardData,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(
+                Icons.refresh_rounded,
+                color: Colors.amber.shade700,
+                size: 18,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPendingSyncBadge() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.blue.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.sync_rounded, color: Colors.blue.shade600, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            '$_pendingSyncCount pending sync${_pendingSyncCount == 1 ? '' : 's'}',
+            style: TextStyle(
+              color: Colors.blue.shade700,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -540,6 +731,12 @@ class _DashboardPageState extends State<DashboardPage> {
                       avatarUrl: _avatarUrl,
                     ),
                     const SizedBox(height: 24),
+
+                    // Stale data indicator (offline cache)
+                    if (_isStaleData) _buildStaleDataBanner(),
+
+                    // Pending sync indicator
+                    if (_pendingSyncCount > 0) _buildPendingSyncBadge(),
 
                     // Doctor Status Indicator (for Reception Mode)
                     if (stows.receptionMode.value) ...[

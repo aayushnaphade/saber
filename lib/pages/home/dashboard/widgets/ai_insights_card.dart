@@ -69,7 +69,7 @@ class AIInsightsCard extends StatelessWidget {
         color: theme.colorScheme.surface,
         borderRadius: AppRadius.lgRadius,
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Row(
@@ -78,7 +78,7 @@ class AIInsightsCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(AppSpacing.sm + 2),
             decoration: BoxDecoration(
-              color: insight.color.withOpacity(0.1),
+              color: insight.color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(insight.icon, size: 20, color: insight.color),

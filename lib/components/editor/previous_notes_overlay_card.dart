@@ -46,16 +46,16 @@ class _PreviousNotesOverlayCardState extends State<PreviousNotesOverlayCard> {
       width: 400,
       height: 550,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withOpacity(0.95),
+        color: theme.colorScheme.surface.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
         ],
-        border: Border.all(color: Colors.purple.withOpacity(0.2)),
+        border: Border.all(color: Colors.purple.withValues(alpha: 0.2)),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -65,9 +65,11 @@ class _PreviousNotesOverlayCardState extends State<PreviousNotesOverlayCard> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.purple.withOpacity(0.08),
+                color: Colors.purple.withValues(alpha: 0.08),
                 border: Border(
-                  bottom: BorderSide(color: Colors.purple.withOpacity(0.1)),
+                  bottom: BorderSide(
+                    color: Colors.purple.withValues(alpha: 0.1),
+                  ),
                 ),
               ),
               child: Row(
@@ -75,7 +77,7 @@ class _PreviousNotesOverlayCardState extends State<PreviousNotesOverlayCard> {
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.purple.withOpacity(0.1),
+                      color: Colors.purple.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -100,7 +102,7 @@ class _PreviousNotesOverlayCardState extends State<PreviousNotesOverlayCard> {
                           dateFormat.format(currentNote.createdAt),
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant
-                                .withOpacity(0.8),
+                                .withValues(alpha: 0.8),
                           ),
                         ),
                       ],
@@ -201,7 +203,9 @@ class _PreviousNotesOverlayCardState extends State<PreviousNotesOverlayCard> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide(color: theme.dividerColor.withOpacity(0.05)),
+                  top: BorderSide(
+                    color: theme.dividerColor.withValues(alpha: 0.05),
+                  ),
                 ),
               ),
               child: Row(
@@ -216,7 +220,7 @@ class _PreviousNotesOverlayCardState extends State<PreviousNotesOverlayCard> {
                       decoration: BoxDecoration(
                         color: isCurrent
                             ? Colors.purple
-                            : Colors.purple.withOpacity(0.2),
+                            : Colors.purple.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(3),
                       ),
                     );
@@ -247,7 +251,7 @@ class _NavButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: Colors.black.withOpacity(0.3),
+        color: Colors.black.withValues(alpha: 0.3),
         shape: const CircleBorder(),
         child: InkWell(
           onTap: onPressed,

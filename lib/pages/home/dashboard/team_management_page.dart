@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:saber/components/misc/saber_avatar.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/supabase/supabase_team_service.dart';
 import 'package:saber/design_system/radius.dart';
@@ -71,7 +72,7 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
                 borderRadius: BorderRadius.circular(AppRadius.xl),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -105,7 +106,7 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
                           Container(
                             padding: const EdgeInsets.all(AppSpacing.sm),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(AppRadius.md),
                             ),
                             child: const Icon(
@@ -130,7 +131,7 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
                                 Text(
                                   'Create a new account for your team',
                                   style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: Colors.white.withOpacity(0.8),
+                                    color: Colors.white.withValues(alpha: 0.8),
                                   ),
                                 ),
                               ],
@@ -255,15 +256,15 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
                                     ),
                                     borderSide: BorderSide(
                                       color: colorScheme.outlineVariant
-                                          .withOpacity(0.5),
+                                          .withValues(alpha: 0.5),
                                     ),
                                   ),
                                   filled: true,
                                   fillColor: isDark
                                       ? colorScheme.surfaceContainerHighest
-                                            .withOpacity(0.3)
+                                            .withValues(alpha: 0.3)
                                       : colorScheme.surfaceContainerHighest
-                                            .withOpacity(0.1),
+                                            .withValues(alpha: 0.1),
                                 ),
                                 items: const [
                                   DropdownMenuItem(
@@ -439,8 +440,8 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: isDark
-            ? colorScheme.surfaceContainerHighest.withOpacity(0.3)
-            : colorScheme.surfaceContainerHighest.withOpacity(0.1),
+            ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
           borderSide: BorderSide.none,
@@ -448,7 +449,7 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
           borderSide: BorderSide(
-            color: colorScheme.outlineVariant.withOpacity(0.5),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -457,7 +458,9 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          borderSide: BorderSide(color: colorScheme.error.withOpacity(0.5)),
+          borderSide: BorderSide(
+            color: colorScheme.error.withValues(alpha: 0.5),
+          ),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -486,7 +489,7 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
               borderRadius: BorderRadius.circular(AppRadius.xl),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 30,
                   offset: const Offset(0, 15),
                 ),
@@ -499,7 +502,7 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: colorScheme.error.withOpacity(0.1),
+                    color: colorScheme.error.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -618,13 +621,13 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
             colors: isDark
                 ? [
                     colorScheme.surface,
-                    colorScheme.surface.withOpacity(0.95),
-                    colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    colorScheme.surface.withValues(alpha: 0.95),
+                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   ]
                 : [
-                    colorScheme.primaryContainer.withOpacity(0.1),
+                    colorScheme.primaryContainer.withValues(alpha: 0.1),
                     colorScheme.surface,
-                    colorScheme.secondaryContainer.withOpacity(0.1),
+                    colorScheme.secondaryContainer.withValues(alpha: 0.1),
                   ],
           ),
         ),
@@ -667,8 +670,9 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.xl),
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest
-                              .withOpacity(0.3),
+                          color: colorScheme.surfaceContainerHighest.withValues(
+                            alpha: 0.3,
+                          ),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -745,13 +749,15 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       decoration: BoxDecoration(
         color: isDark
-            ? colorScheme.surfaceContainerHighest.withOpacity(0.5)
-            : colorScheme.surface.withOpacity(0.8),
+            ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+            : colorScheme.surface.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.3)),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.05),
+            color: colorScheme.shadow.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -759,14 +765,13 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(AppSpacing.md),
-        leading: CircleAvatar(
+        leading: SaberAvatar(
+          url: member.avatarUrl,
           radius: 24,
-          backgroundColor: roleColor.withOpacity(0.1),
-          foregroundColor: roleColor,
-          child: Text(
-            member.fullName.isNotEmpty ? member.fullName[0].toUpperCase() : '?',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+          backgroundColor: roleColor.withValues(alpha: 0.1),
+          fallbackIcon: member.role == 'pharmacist'
+              ? Icons.local_pharmacy_outlined
+              : Icons.person_outline,
         ),
         title: Text(
           member.fullName,
@@ -819,9 +824,9 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: roleColor.withOpacity(0.1),
+                color: roleColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: roleColor.withOpacity(0.2)),
+                border: Border.all(color: roleColor.withValues(alpha: 0.2)),
               ),
               child: Text(
                 member.role.toUpperCase(),
@@ -837,7 +842,7 @@ class _TeamManagementPageState extends State<TeamManagementPage> {
               onPressed: () => _revokeStaffMember(member),
               icon: Icon(
                 Icons.delete_outline,
-                color: colorScheme.error.withOpacity(0.7),
+                color: colorScheme.error.withValues(alpha: 0.7),
               ),
               tooltip: 'Revoke Access',
             ),

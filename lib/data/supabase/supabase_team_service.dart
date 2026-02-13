@@ -7,6 +7,7 @@ class StaffMember {
   final String email;
   final String role;
   final DateTime createdAt;
+  final String? avatarUrl;
 
   StaffMember({
     required this.id,
@@ -14,6 +15,7 @@ class StaffMember {
     required this.email,
     required this.role,
     required this.createdAt,
+    this.avatarUrl,
   });
 
   factory StaffMember.fromMap(Map<String, dynamic> map) {
@@ -22,6 +24,7 @@ class StaffMember {
       fullName: map['full_name'] as String? ?? 'Unnamed',
       email: map['email'] as String? ?? '',
       role: map['role'] as String? ?? 'receptionist',
+      avatarUrl: map['avatar_url'] as String?,
       createdAt: DateTime.parse(map['created_at'] as String),
     );
   }

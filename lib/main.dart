@@ -23,6 +23,7 @@ import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/sentry/sentry_init.dart';
 import 'package:saber/data/services/connectivity_service.dart';
+import 'package:saber/data/services/sync_worker.dart';
 import 'package:saber/data/supabase/supabase_auth_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/tools/stroke_properties.dart';
@@ -176,8 +177,8 @@ void startSyncAfterLoaded() async {
   // wait for other prefs to load
   await Future.delayed(const Duration(milliseconds: 100));
 
-  // TODO: Implement Supabase-based sync
-  // See SYNAPSEAI_ROADMAP.md for sync infrastructure plan
+  // Initialize offline sync worker to drain the outbox when online
+  SyncWorker.initialize();
 }
 
 void setLocale() {

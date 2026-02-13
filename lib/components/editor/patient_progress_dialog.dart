@@ -81,13 +81,13 @@ class _PatientProgressDialogState extends State<PatientProgressDialog> {
       );
     }
 
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         gradient: gradient,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),

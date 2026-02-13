@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:saber/components/misc/saber_network_image.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
@@ -330,12 +331,12 @@ class _ProfessionalProfilePageState extends State<ProfessionalProfilePage> {
                     decoration: BoxDecoration(
                       color: Theme.of(
                         context,
-                      ).colorScheme.primary.withOpacity(0.08),
+                      ).colorScheme.primary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: Theme.of(
                           context,
-                        ).colorScheme.primary.withOpacity(0.15),
+                        ).colorScheme.primary.withValues(alpha: 0.15),
                       ),
                     ),
                     child: Row(
@@ -471,12 +472,12 @@ class _ProfessionalProfilePageState extends State<ProfessionalProfilePage> {
                 decoration: BoxDecoration(
                   color: Theme.of(
                     context,
-                  ).colorScheme.primaryContainer.withOpacity(0.3),
+                  ).colorScheme.primaryContainer.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: Theme.of(
                       context,
-                    ).colorScheme.primary.withOpacity(0.2),
+                    ).colorScheme.primary.withValues(alpha: 0.2),
                   ),
                 ),
                 child: Column(
@@ -563,17 +564,12 @@ class _ProfessionalProfilePageState extends State<ProfessionalProfilePage> {
       child: Column(
         children: [
           if (_logoUrl != null)
-            Container(
+            SaberNetworkImage(
+              url: _logoUrl,
               height: 120,
               width: 120,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(12),
-                image: DecorationImage(
-                  image: NetworkImage(_logoUrl!),
-                  fit: BoxFit.contain,
-                ),
-              ),
+              fit: BoxFit.contain,
+              borderRadius: BorderRadius.circular(12),
             )
           else
             Container(
@@ -581,10 +577,6 @@ class _ProfessionalProfilePageState extends State<ProfessionalProfilePage> {
               width: 120,
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
-                border: Border.all(
-                  color: Colors.grey.shade300,
-                  style: BorderStyle.none,
-                ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
@@ -623,24 +615,15 @@ class _ProfessionalProfilePageState extends State<ProfessionalProfilePage> {
           child: Column(
             children: [
               if (_signatureUrl != null)
-                Container(
+                SaberNetworkImage(
+                  url: _signatureUrl,
                   height: 80,
                   width: 240,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(8),
-                    image: DecorationImage(
-                      image: NetworkImage(_signatureUrl!),
-                      fit: BoxFit.contain,
-                      colorFilter:
-                          Theme.of(context).brightness == Brightness.dark
-                          ? const ColorFilter.mode(
-                              Colors.white,
-                              BlendMode.srcIn,
-                            )
-                          : null,
-                    ),
-                  ),
+                  fit: BoxFit.contain,
+                  borderRadius: BorderRadius.circular(8),
+                  colorFilter: Theme.of(context).brightness == Brightness.dark
+                      ? const ColorFilter.mode(Colors.white, BlendMode.srcIn)
+                      : null,
                 )
               else
                 Container(

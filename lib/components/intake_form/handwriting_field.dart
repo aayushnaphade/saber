@@ -77,10 +77,12 @@ class _HandwritingFieldState extends State<HandwritingField> {
             height: widget.height,
             width: double.infinity,
             decoration: BoxDecoration(
-              border: Border.all(color: colorScheme.outline.withOpacity(0.3)),
+              border: Border.all(
+                color: colorScheme.outline.withValues(alpha: 0.3),
+              ),
               borderRadius: BorderRadius.circular(8),
               color: widget.readOnly
-                  ? colorScheme.surfaceContainerHighest.withOpacity(0.3)
+                  ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
                   : Colors.white,
             ),
             child: ClipRRect(
@@ -140,7 +142,7 @@ class _HandwritingFieldState extends State<HandwritingField> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 20,
                           spreadRadius: 5,
                         ),
@@ -209,7 +211,7 @@ class _HandwritingFieldState extends State<HandwritingField> {
       child: Text(
         'No content',
         style: theme.textTheme.bodySmall?.copyWith(
-          color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
         ),
       ),
     );

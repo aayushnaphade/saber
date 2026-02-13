@@ -12,7 +12,9 @@ class NetworkErrorBanner extends StatefulWidget {
 
 class _NetworkErrorBannerState extends State<NetworkErrorBanner> {
   var _showBackOnline = false;
+  var _isMinimized = false;
   Timer? _backOnlineTimer;
+  Timer? _minimizeTimer;
 
   @override
   void initState() {
@@ -24,14 +26,17 @@ class _NetworkErrorBannerState extends State<NetworkErrorBanner> {
   void dispose() {
     stows.isOnline.removeListener(_onConnectivityChanged);
     _backOnlineTimer?.cancel();
+    _minimizeTimer?.cancel();
     super.dispose();
   }
 
   void _onConnectivityChanged() {
     if (stows.isOnline.value) {
       // Connection restored, show "Back Online" for 3 seconds
+      _minimizeTimer?.cancel();
       setState(() {
         _showBackOnline = true;
+        _isMinimized = false;
       });
       _backOnlineTimer?.cancel();
       _backOnlineTimer = Timer(const Duration(seconds: 3), () {
@@ -42,9 +47,18 @@ class _NetworkErrorBannerState extends State<NetworkErrorBanner> {
         }
       });
     } else {
-      // Connection lost, hide "Back Online" if it was showing
+      // Connection lost — show full banner, then minimize after 5 seconds
       setState(() {
         _showBackOnline = false;
+        _isMinimized = false;
+      });
+      _minimizeTimer?.cancel();
+      _minimizeTimer = Timer(const Duration(seconds: 5), () {
+        if (mounted) {
+          setState(() {
+            _isMinimized = true;
+          });
+        }
       });
     }
   }
@@ -76,6 +90,25 @@ class _NetworkErrorBannerState extends State<NetworkErrorBanner> {
           },
           child: !showBanner
               ? const SizedBox.shrink()
+              : isOffline && _isMinimized
+              ? GestureDetector(
+                  key: const ValueKey('offline-minimized'),
+                  onTap: () {
+                    // Tap to temporarily expand the banner
+                    setState(() => _isMinimized = false);
+                    _minimizeTimer?.cancel();
+                    _minimizeTimer = Timer(const Duration(seconds: 4), () {
+                      if (mounted && !stows.isOnline.value) {
+                        setState(() => _isMinimized = true);
+                      }
+                    });
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 4,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                )
               : Material(
                   key: ValueKey(isOffline ? 'offline' : 'online'),
                   elevation: 4,

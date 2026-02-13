@@ -63,24 +63,26 @@ class SaveIndicator extends StatelessWidget {
   Color _getBgColor(SavingState state, ColorScheme colorScheme) {
     return switch (state) {
       SavingState.waitingToSave =>
-        colorScheme.surfaceContainerHighest.withOpacity(0.4),
-      SavingState.saving => colorScheme.primary.withOpacity(0.08),
-      SavingState.saved => Colors.green.withOpacity(0.08),
+        colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+      SavingState.saving => colorScheme.primary.withValues(alpha: 0.08),
+      SavingState.saved => Colors.green.withValues(alpha: 0.08),
     };
   }
 
   Color _getBorderColor(SavingState state, ColorScheme colorScheme) {
     return switch (state) {
-      SavingState.waitingToSave => colorScheme.outlineVariant.withOpacity(0.2),
-      SavingState.saving => colorScheme.primary.withOpacity(0.2),
-      SavingState.saved => Colors.green.withOpacity(0.2),
+      SavingState.waitingToSave => colorScheme.outlineVariant.withValues(
+        alpha: 0.2,
+      ),
+      SavingState.saving => colorScheme.primary.withValues(alpha: 0.2),
+      SavingState.saved => Colors.green.withValues(alpha: 0.2),
     };
   }
 
   Color _getTextColor(SavingState state, ColorScheme colorScheme) {
     return switch (state) {
-      SavingState.waitingToSave => colorScheme.onSurfaceVariant.withOpacity(
-        0.7,
+      SavingState.waitingToSave => colorScheme.onSurfaceVariant.withValues(
+        alpha: 0.7,
       ),
       SavingState.saving => colorScheme.primary,
       SavingState.saved => Colors.green.shade700,
@@ -92,7 +94,7 @@ class SaveIndicator extends StatelessWidget {
       SavingState.waitingToSave => Icon(
         Icons.cloud_upload_outlined,
         size: 16,
-        color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
       ),
       SavingState.saving => const SizedBox(
         width: 14,

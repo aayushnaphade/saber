@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:logging/logging.dart';
 import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/models/previous_session_note.dart';
+import 'package:saber/data/services/sync_outbox.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -399,8 +402,36 @@ class SupabaseConsultationService {
       log.info('Consultation $consultationId marked as completed');
     } catch (e) {
       log.severe('Error completing consultation: $e');
+      if (_isNetworkError(e)) {
+        log.info('Queueing consultation completion for offline sync');
+        await SyncOutbox.enqueue(
+          OutboxEntry(
+            operation: 'completeConsultation',
+            payload: {'consultationId': consultationId, 'status': 'completed'},
+          ),
+        );
+        return; // Don't rethrow — operation is queued
+      }
       rethrow;
     }
+  }
+
+  static bool _isNetworkError(Object e) {
+    final msg = e.toString();
+    return e is SocketException ||
+        msg.contains('SocketException') ||
+        msg.contains('Connection timed out') ||
+        msg.contains('connection abort') ||
+        msg.contains('Failed host lookup') ||
+        msg.contains('Network is unreachable') ||
+        msg.contains('Network error') ||
+        msg.contains('TimeoutException') ||
+        msg.contains('ClientException') ||
+        msg.contains('HandshakeException') ||
+        msg.contains('HttpException') ||
+        msg.contains('CERTIFICATE_VERIFY_FAILED') ||
+        msg.contains('Connection refused') ||
+        msg.contains('Connection reset');
   }
 
   /// Get the page count for a specific session from cloud storage

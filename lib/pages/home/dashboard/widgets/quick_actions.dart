@@ -156,7 +156,9 @@ class _QuickActionButtonState extends State<_QuickActionButton> {
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.5,
+                  ),
                 ),
                 borderRadius: AppRadius.lgRadius,
               ),
@@ -166,7 +168,7 @@ class _QuickActionButtonState extends State<_QuickActionButton> {
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.sm + 2),
                     decoration: BoxDecoration(
-                      color: widget.color.withOpacity(0.1),
+                      color: widget.color.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(widget.icon, color: widget.color, size: 24),

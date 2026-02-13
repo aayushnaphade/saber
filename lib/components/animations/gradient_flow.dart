@@ -83,9 +83,9 @@ class _GradientFlowPainter extends CustomPainter {
         1.0 + math.sin(progress * math.pi) * 0.5,
       ),
       colors: [
-        colors[0].withOpacity(1.0),
-        colors[1].withOpacity(1.0),
-        colors[2].withOpacity(1.0),
+        colors[0].withValues(alpha: 1.0),
+        colors[1].withValues(alpha: 1.0),
+        colors[2].withValues(alpha: 1.0),
       ],
       stops: const [0.0, 0.6, 1.0],
     );
@@ -116,9 +116,9 @@ class _GradientFlowPainter extends CustomPainter {
         ),
         radius: radius / size.shortestSide,
         colors: [
-          colors[3].withOpacity(0.5), // Vibrant center
-          colors[1].withOpacity(0.2), // Mid tail
-          colors[0].withOpacity(0.0), // Fade out
+          colors[3].withValues(alpha: 0.5), // Vibrant center
+          colors[1].withValues(alpha: 0.2), // Mid tail
+          colors[0].withValues(alpha: 0.0), // Fade out
         ],
         stops: const [0.0, 0.2, 1.0], // Sharper leading edge
       );
@@ -134,9 +134,9 @@ class _GradientFlowPainter extends CustomPainter {
         begin: Alignment(1.5 - streakProgress * 3, -0.5),
         end: Alignment(1.0 - streakProgress * 3, 0.5),
         colors: [
-          Colors.white.withOpacity(0.0),
-          Colors.white.withOpacity(0.12),
-          Colors.white.withOpacity(0.0),
+          Colors.white.withValues(alpha: 0.0),
+          Colors.white.withValues(alpha: 0.12),
+          Colors.white.withValues(alpha: 0.0),
         ],
         stops: const [0.0, 0.45, 1.0],
       );

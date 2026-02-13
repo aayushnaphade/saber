@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:saber/components/misc/saber_avatar.dart';
 import 'package:saber/components/settings/settings_button.dart';
 import 'package:saber/components/settings/settings_dropdown.dart';
 import 'package:saber/components/settings/update_manager.dart';
@@ -488,13 +489,13 @@ class _SettingsPageState extends State<SettingsPage> {
             colors: isDark
                 ? [
                     colorScheme.surface,
-                    colorScheme.surface.withOpacity(0.95),
-                    colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    colorScheme.surface.withValues(alpha: 0.95),
+                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   ]
                 : [
-                    colorScheme.primaryContainer.withOpacity(0.1),
+                    colorScheme.primaryContainer.withValues(alpha: 0.1),
                     colorScheme.surface,
-                    colorScheme.secondaryContainer.withOpacity(0.1),
+                    colorScheme.secondaryContainer.withValues(alpha: 0.1),
                   ],
           ),
         ),
@@ -706,19 +707,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   Stack(
                     children: [
-                      CircleAvatar(
+                      SaberAvatar(
                         radius: 32,
-                        backgroundColor: colorScheme.primaryContainer,
-                        backgroundImage: _avatarUrl != null
-                            ? NetworkImage(_avatarUrl!)
-                            : null,
-                        child: _avatarUrl == null
-                            ? Icon(
-                                Icons.person,
-                                size: 32,
-                                color: colorScheme.primary,
-                              )
-                            : null,
+                        url: _avatarUrl,
+                        fallbackIcon: Icons.person,
                       ),
                       if (_profileExpanded)
                         Positioned(
@@ -904,7 +896,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               prefixIcon: const Icon(Icons.badge_outlined),
                               filled: true,
                               fillColor: colorScheme.surfaceContainerHighest
-                                  .withOpacity(0.3),
+                                  .withValues(alpha: 0.3),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -926,7 +918,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               prefixIcon: const Icon(Icons.phone_outlined),
                               filled: true,
                               fillColor: colorScheme.surfaceContainerHighest
-                                  .withOpacity(0.3),
+                                  .withValues(alpha: 0.3),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -942,7 +934,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               prefixIcon: const Icon(Icons.email_outlined),
                               filled: true,
                               fillColor: colorScheme.surfaceContainerHighest
-                                  .withOpacity(0.3),
+                                  .withValues(alpha: 0.3),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -1141,7 +1133,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ListTile(
                     leading: Icon(
                       Icons.auto_awesome,
-                      color: colorScheme.primary.withOpacity(0.6),
+                      color: colorScheme.primary.withValues(alpha: 0.6),
                     ),
                     title: Text(
                       'More AI Features',
@@ -1150,7 +1142,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     subtitle: Text(
                       'Coming soon...',
                       style: TextStyle(
-                        color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.7,
+                        ),
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -1226,23 +1220,23 @@ class _SettingsPageState extends State<SettingsPage> {
           end: Alignment.bottomRight,
           colors: isDark
               ? [
-                  colorScheme.surfaceContainerHighest.withOpacity(0.7),
-                  colorScheme.surfaceContainer.withOpacity(0.5),
+                  colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
+                  colorScheme.surfaceContainer.withValues(alpha: 0.5),
                 ]
               : [
-                  Colors.white.withOpacity(0.9),
-                  colorScheme.surfaceContainerHighest.withOpacity(0.6),
+                  Colors.white.withValues(alpha: 0.9),
+                  colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
                 ],
         ),
         border: Border.all(
           color: isDark
-              ? colorScheme.outline.withOpacity(0.2)
-              : colorScheme.outlineVariant.withOpacity(0.3),
+              ? colorScheme.outline.withValues(alpha: 0.2)
+              : colorScheme.outlineVariant.withValues(alpha: 0.3),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.1),
+            color: colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -1261,9 +1255,11 @@ class _SettingsPageState extends State<SettingsPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withOpacity(0.2),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.3)),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
       ),
       child: Row(
         children: [
@@ -1340,7 +1336,7 @@ class _SettingsPageState extends State<SettingsPage> {
               Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 16,
-                color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               ),
             ],
           ),
@@ -1368,11 +1364,11 @@ class _SettingsPageState extends State<SettingsPage> {
             colors: isDark
                 ? [
                     colorScheme.surface,
-                    colorScheme.surfaceContainerHighest.withOpacity(0.8),
+                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
                   ]
                 : [
                     colorScheme.surface,
-                    colorScheme.secondaryContainer.withOpacity(0.2),
+                    colorScheme.secondaryContainer.withValues(alpha: 0.2),
                   ],
           ),
         ),
@@ -1383,7 +1379,7 @@ class _SettingsPageState extends State<SettingsPage> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: colorScheme.onSurfaceVariant.withOpacity(0.4),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -1435,10 +1431,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: colorScheme.primaryContainer.withOpacity(0.3),
+                      color: colorScheme.primaryContainer.withValues(
+                        alpha: 0.3,
+                      ),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: colorScheme.primary.withOpacity(0.2),
+                        color: colorScheme.primary.withValues(alpha: 0.2),
                       ),
                     ),
                     child: Row(
@@ -1481,13 +1479,13 @@ class _SettingsPageState extends State<SettingsPage> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark
-            ? colorScheme.surfaceContainerHighest.withOpacity(0.4)
+            ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
             : Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: color.withOpacity(0.2), width: 1.5),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.05),
+            color: color.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1499,7 +1497,7 @@ class _SettingsPageState extends State<SettingsPage> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 24),
@@ -1513,7 +1511,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: isDark ? color.withOpacity(0.9) : color,
+                    color: isDark ? color.withValues(alpha: 0.9) : color,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1521,7 +1519,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   description,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     height: 1.4,
-                    color: colorScheme.onSurface.withOpacity(0.8),
+                    color: colorScheme.onSurface.withValues(alpha: 0.8),
                   ),
                 ),
               ],

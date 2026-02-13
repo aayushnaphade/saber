@@ -115,6 +115,6 @@ class MedicalColors {
   }
 
   static Color getStatusBackground(String status, {double opacity = 0.1}) {
-    return getStatusColor(status).withOpacity(opacity);
+    return getStatusColor(status).withValues(alpha: opacity);
   }
 }

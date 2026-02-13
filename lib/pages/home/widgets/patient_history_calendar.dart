@@ -149,11 +149,11 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
         boxShadow: [
           BoxShadow(
-            color: theme.shadowColor.withOpacity(0.05),
+            color: theme.shadowColor.withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -229,7 +229,7 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
               day,
               style: theme.textTheme.labelMedium?.copyWith(
                 color: isSunday
-                    ? Colors.red.withOpacity(0.7)
+                    ? Colors.red.withValues(alpha: 0.7)
                     : theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
@@ -276,7 +276,9 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
               color: isSelected
                   ? theme.colorScheme.primary
                   : (isToday
-                        ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+                        ? theme.colorScheme.primaryContainer.withValues(
+                            alpha: 0.3,
+                          )
                         : Colors.transparent),
               borderRadius: BorderRadius.circular(12),
               border: isToday && !isSelected
@@ -292,7 +294,7 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
                     color: isSelected
                         ? theme.colorScheme.onPrimary
                         : (isSunday
-                              ? Colors.red.withOpacity(0.8)
+                              ? Colors.red.withValues(alpha: 0.8)
                               : theme.colorScheme.onSurface),
                     fontWeight: isSelected || isToday
                         ? FontWeight.bold
@@ -377,7 +379,7 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
                     Icon(
                       Icons.free_breakfast_outlined,
                       size: 48,
-                      color: theme.colorScheme.outline.withOpacity(0.5),
+                      color: theme.colorScheme.outline.withValues(alpha: 0.5),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -416,7 +418,9 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.4)),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
       ),
       color: colorScheme.surface,
       child: InkWell(
@@ -512,9 +516,9 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(100),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -528,7 +532,7 @@ class _PatientHistoryCalendarState extends State<PatientHistoryCalendar> {
           Text(
             label,
             style: theme.textTheme.labelSmall?.copyWith(
-              color: color.withOpacity(0.9),
+              color: color.withValues(alpha: 0.9),
               fontWeight: FontWeight.w600,
             ),
           ),

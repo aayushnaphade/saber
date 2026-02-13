@@ -65,7 +65,7 @@ class LiveQueueList extends StatelessWidget {
               color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
             child: ClipRRect(
@@ -91,8 +91,8 @@ class LiveQueueList extends StatelessWidget {
                           Divider(
                             height: 1,
                             thickness: 1,
-                            color: theme.colorScheme.outlineVariant.withOpacity(
-                              0.2,
+                            color: theme.colorScheme.outlineVariant.withValues(
+                              alpha: 0.2,
                             ),
                           ),
                       ],
@@ -123,7 +123,9 @@ class LiveQueueList extends StatelessWidget {
             Icon(
               Icons.people_outline,
               size: 48,
-              color: Theme.of(context).colorScheme.outline.withOpacity(0.5),
+              color: Theme.of(
+                context,
+              ).colorScheme.outline.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
@@ -138,7 +140,7 @@ class LiveQueueList extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(
                   context,
-                ).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
             ),
           ],

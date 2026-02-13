@@ -91,7 +91,10 @@ class _SiriWaveformPainter extends CustomPainter {
     );
     final glowPaint = Paint()
       ..shader = RadialGradient(
-        colors: [colors[1].withOpacity(0.15), colors[0].withOpacity(0.0)],
+        colors: [
+          colors[1].withValues(alpha: 0.15),
+          colors[0].withValues(alpha: 0.0),
+        ],
       ).createShader(glowRect)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
     canvas.drawRect(glowRect, glowPaint);
@@ -113,8 +116,8 @@ class _SiriWaveformPainter extends CustomPainter {
       final waveProgress = (progress * 2 * math.pi);
 
       // Iridescent color shift
-      final color = colors[i % colors.length].withOpacity(
-        0.4 + 0.2 * math.sin(waveProgress + i),
+      final color = colors[i % colors.length].withValues(
+        alpha: 0.4 + 0.2 * math.sin(waveProgress + i),
       );
       wavePaint.color = color;
 
