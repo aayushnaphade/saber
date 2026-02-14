@@ -1,61 +1,13 @@
 import 'dart:io';
 
 import 'package:logging/logging.dart';
+
+import 'package:saber/data/services/offline_dashboard_cache.dart';
 import 'package:saber/data/services/sync_outbox.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:uuid/uuid.dart';
 
-class ClinicalReport {
-  final String id;
-  final String patientId;
-  final String doctorId;
-  final DateTime createdAt;
-  final DateTime sessionDate;
-  final String? sourceDocumentPath;
-  final Map<String, dynamic> structuredData;
-  final String? markdownContent;
-  final String status;
-
-  ClinicalReport({
-    required this.id,
-    required this.patientId,
-    required this.doctorId,
-    required this.createdAt,
-    required this.sessionDate,
-    this.sourceDocumentPath,
-    required this.structuredData,
-    this.markdownContent,
-    this.status = 'verified',
-  });
-
-  factory ClinicalReport.fromJson(Map<String, dynamic> json) {
-    return ClinicalReport(
-      id: json['id'] as String,
-      patientId: json['patient_id'] as String,
-      doctorId: json['doctor_id'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
-      sessionDate: DateTime.parse(json['session_date'] as String).toLocal(),
-      sourceDocumentPath: json['source_document_path'] as String?,
-      structuredData: json['structured_data'] as Map<String, dynamic>,
-      markdownContent: json['markdown_content'] as String?,
-      status: json['status'] as String? ?? 'verified',
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'patient_id': patientId,
-      'doctor_id': doctorId,
-      'created_at': createdAt.toUtc().toIso8601String(),
-      'session_date': sessionDate.toIso8601String().split('T')[0],
-      'source_document_path': sourceDocumentPath,
-      'structured_data': structuredData,
-      'markdown_content': markdownContent,
-      'status': status,
-    };
-  }
-}
+import 'package:saber/data/models/dashboard_models.dart';
 
 class SupabaseReportService {
   static final _log = Logger('SupabaseReportService');
@@ -158,5 +110,75 @@ class SupabaseReportService {
   /// Deletes a clinical report by ID
   static Future<void> deleteReport(String reportId) async {
     await supabase.from('clinical_reports').delete().eq('id', reportId);
+  }
+
+  /// Fetches reports that require doctor review (status = 'draft')
+  /// Joins with patients table to get patient name for display
+  /// Fetches reports that require doctor review (status = 'draft')
+  /// Joins with patients table to get patient name for display
+  static Future<({List<ClinicalReport> items, bool isStale})>
+  getPendingReviewReports() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return (items: <ClinicalReport>[], isStale: false);
+
+    try {
+      final response = await supabase
+          .from('clinical_reports')
+          .select(
+            'id, patient_id, doctor_id, created_at, session_date, source_document_path, structured_data, markdown_content, status, patients(full_name)',
+          )
+          .eq('doctor_id', user.id)
+          .eq('status', 'draft')
+          .order('created_at', ascending: false);
+
+      final items = (response as List)
+          .map((e) => ClinicalReport.fromJson(e))
+          .toList();
+
+      // Cache on success
+      await OfflineDashboardCache.savePendingReviews(items);
+
+      return (items: items, isStale: false);
+    } catch (e) {
+      _log.warning('Error fetching pending review reports: $e');
+
+      // On network error, try cached data
+      if (_isNetworkError(e)) {
+        final cached = await OfflineDashboardCache.loadPendingReviews();
+        if (cached != null) {
+          _log.info('Returning ${cached.length} cached pending reviews');
+          return (items: cached, isStale: true);
+        }
+      }
+
+      return (items: <ClinicalReport>[], isStale: false);
+    }
+  }
+
+  /// Updates the status of a report (e.g. 'draft' -> 'verified')
+  static Future<void> updateReportStatus(String reportId, String status) async {
+    await supabase
+        .from('clinical_reports')
+        .update({'status': status})
+        .eq('id', reportId);
+  }
+
+  /// Updates a report's content and status.
+  static Future<void> updateReport({
+    required String reportId,
+    required Map<String, dynamic> structuredData,
+    required String markdownContent,
+    String? status,
+  }) async {
+    final updatePayload = {
+      'structured_data': structuredData,
+      'markdown_content': markdownContent,
+      if (status != null) 'status': status,
+    };
+
+    await supabase
+        .from('clinical_reports')
+        .update(updatePayload)
+        .eq('id', reportId);
   }
 }

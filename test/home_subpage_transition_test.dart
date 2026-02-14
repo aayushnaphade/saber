@@ -39,7 +39,8 @@ void main() {
                 builder: (context, state) => HomePage(
                   subpage:
                       state.pathParameters['subpage'] ?? HomePage.recentSubpage,
-                  path: state.uri.queryParameters['path'],
+                  currentPath: state.uri.queryParameters['path'],
+                  child: const SizedBox(),
                 ),
               ),
             ],

@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/patient.dart';
+import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/models/previous_session_note.dart';
 import 'package:saber/data/supabase/supabase_consultation_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';

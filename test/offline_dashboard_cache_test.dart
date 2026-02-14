@@ -1,12 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
-
-import 'package:saber/data/services/offline_dashboard_cache.dart';
 import 'package:saber/data/models/dashboard_models.dart';
+import 'package:saber/data/services/offline_dashboard_cache.dart';
 
 /// Fake path_provider that returns a temp directory
 class FakePathProvider extends Fake
@@ -53,7 +51,7 @@ void main() {
           scheduledTime: DateTime(2026, 2, 13, 9, 0),
           checkInTime: DateTime(2026, 2, 13, 8, 45),
         ),
-        QueueItem(
+        const QueueItem(
           id: '2',
           patientName: 'Jane Smith',
           registrationNumber: 'REG002',
@@ -130,7 +128,7 @@ void main() {
 
     test('lastCacheTime returns timestamp after save', () async {
       final items = [
-        QueueItem(
+        const QueueItem(
           id: '1',
           patientName: 'Test',
           registrationNumber: 'T001',
@@ -156,7 +154,7 @@ void main() {
 
     test('clear removes all cached data', () async {
       await OfflineDashboardCache.saveQueue([
-        QueueItem(
+        const QueueItem(
           id: '1',
           patientName: 'Test',
           registrationNumber: 'T001',

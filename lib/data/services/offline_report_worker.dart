@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 import 'package:saber/data/api/report_generator.dart';
 import 'package:saber/data/prefs.dart';
@@ -12,7 +13,28 @@ import 'package:saber/data/utils/report_formatter.dart';
 /// Worker processed by SyncWorker to generate and upload pending reports
 class OfflineReportWorker {
   static final _log = Logger('OfflineReportWorker');
-  static bool _isProcessing = false;
+  static var _isProcessing = false;
+  static final List<VoidCallback> _completionListeners = [];
+
+  /// Add a listener to be called when report processing completes
+  static void addCompletionListener(VoidCallback listener) {
+    _completionListeners.add(listener);
+  }
+
+  /// Remove a completion listener
+  static void removeCompletionListener(VoidCallback listener) {
+    _completionListeners.remove(listener);
+  }
+
+  static void _notifyCompletion() {
+    for (final listener in _completionListeners) {
+      try {
+        listener();
+      } catch (e) {
+        _log.warning('Error in completion listener: $e');
+      }
+    }
+  }
 
   /// Process all pending reports in the offline queue.
   /// Calls the Gemini API, generates the report, saves it to Supabase,
@@ -52,6 +74,7 @@ class OfflineReportWorker {
       }
     } finally {
       _isProcessing = false;
+      _notifyCompletion();
     }
   }
 

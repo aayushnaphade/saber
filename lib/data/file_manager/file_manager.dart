@@ -244,6 +244,7 @@ class FileManager {
               filePath.endsWith(Editor.extensionOldJson) ||
               filePath.endsWith('${Editor.extension}.p') ||
               filePath.endsWith('${Editor.extensionOldJson}.p'))) {
+        log.info('Queueing upload for $filePath');
         DocumentSyncService.queueUpload(filePath);
       }
       if (filePath.endsWith(Editor.extension)) {

@@ -93,7 +93,11 @@ void main() {
       cupertinoTheme: cupertinoTheme,
       yaruTheme: yaruTheme,
       goldenFileName: '1_home',
-      child: const HomePage(subpage: HomePage.recentSubpage, path: ''),
+      child: const HomePage(
+        subpage: HomePage.recentSubpage,
+        currentPath: '',
+        child: SizedBox(),
+      ),
     );
     _screenshot(
       materialTheme: materialTheme,
@@ -115,7 +119,11 @@ void main() {
       cupertinoTheme: cupertinoTheme,
       yaruTheme: yaruTheme,
       goldenFileName: '4_settings',
-      child: const HomePage(subpage: HomePage.settingsSubpage, path: ''),
+      child: const HomePage(
+        subpage: HomePage.settingsSubpage,
+        currentPath: '',
+        child: SizedBox(),
+      ),
     );
   });
 }

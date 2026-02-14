@@ -5,6 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/data/api/error_handler.dart';
@@ -14,11 +15,13 @@ import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/session_manager.dart';
 import 'package:saber/data/services/offline_dashboard_cache.dart';
+
 import 'package:saber/data/services/offline_report_worker.dart';
 import 'package:saber/data/services/sync_outbox.dart';
 import 'package:saber/data/services/sync_worker.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
+import 'package:saber/data/supabase/supabase_report_service.dart'; // Added for pending reviews
 import 'package:saber/pages/home/dashboard/dashboard_skeleton.dart';
 import 'package:saber/pages/home/dashboard/widgets/live_queue_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/live_queue_list.dart';
@@ -55,6 +58,7 @@ class _DashboardPageState extends State<DashboardPage> {
   var _isStaleData = false;
   DateTime? _lastCacheTime;
   var _pendingSyncCount = 0;
+  List<ClinicalReport> _pendingReviews = []; // Added for pending reviews
 
   @override
   void initState() {
@@ -64,6 +68,18 @@ class _DashboardPageState extends State<DashboardPage> {
     _setupRealtimeSubscription();
     stows.isOnline.addListener(_onConnectivityChanged);
     SessionManager().addListener(_onSessionStateChanged);
+    SyncWorker.addCompletionListener(_onSyncCompleted);
+    OfflineReportWorker.addCompletionListener(_onSyncCompleted);
+  }
+
+  void _onSyncCompleted() {
+    debugPrint('Dashboard: _onSyncCompleted called');
+    if (mounted) {
+      debugPrint('Dashboard: Sync completed, refreshing data...');
+      _loadDashboardData();
+    } else {
+      debugPrint('Dashboard: _onSyncCompleted called but widget not mounted');
+    }
   }
 
   void _initAudioPlayer() {
@@ -118,6 +134,8 @@ class _DashboardPageState extends State<DashboardPage> {
     _audioPlayer?.dispose();
     stows.isOnline.removeListener(_onConnectivityChanged);
     SessionManager().removeListener(_onSessionStateChanged);
+    SyncWorker.removeCompletionListener(_onSyncCompleted);
+    OfflineReportWorker.removeCompletionListener(_onSyncCompleted);
     if (_consultationsSubscription != null) {
       supabase.removeChannel(_consultationsSubscription!);
     }
@@ -199,6 +217,15 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_isFetching) return;
     _isFetching = true;
 
+    // ── Snapshot outbox IDs BEFORE triggering the drain ──────────────
+    // processOutbox() is fire-and-forget and may remove entries from
+    // disk before Future.wait returns. Capturing these sets first
+    // ensures we can filter stale Supabase data correctly.
+    final locallyCompleted =
+        await SyncOutbox.getLocallyCompletedConsultationIds();
+    final locallyStarted = await SyncOutbox.getLocallyStartedConsultationIds();
+    final locallyHandled = locallyCompleted.union(locallyStarted);
+
     // Force sync worker to run (regardless of background init state)
     // ignore: avoid_print
     print('Dashboard: Triggering SyncWorker.processOutbox()...');
@@ -215,6 +242,7 @@ class _DashboardPageState extends State<DashboardPage> {
         SupabaseDashboardService.getLiveQueue(),
         SupabaseDashboardService.getTodayAppointments(),
         SupabaseDashboardService.getActiveConsultations(),
+        SupabaseReportService.getPendingReviewReports(), // Fetch pending reviews
       ]);
 
       if (!mounted) return;
@@ -226,11 +254,15 @@ class _DashboardPageState extends State<DashboardPage> {
           results[2] as ({List<Appointment> items, bool isStale});
 
       final activeList = (results[3] as List).cast<QueueItem>();
+      final pendingResult =
+          results[4] as ({List<ClinicalReport> items, bool isStale});
+      final pendingReviews = pendingResult.items;
 
-      // Cross-reference with outbox: filter out consultations that were
-      // locally completed but not yet synced to Supabase.
-      final locallyCompleted =
-          await SyncOutbox.getLocallyCompletedConsultationIds();
+      if (pendingResult.isStale) {
+        debugPrint(
+          'Dashboard: Offline pending reviews loaded: ${pendingReviews.length}',
+        );
+      }
 
       QueueItem? effectiveActive;
       // Pick the first one that is NOT locally completed
@@ -258,19 +290,23 @@ class _DashboardPageState extends State<DashboardPage> {
       final anyStale =
           statsResult.isStale ||
           queueResult.isStale ||
-          appointmentsResult.isStale;
+          appointmentsResult.isStale ||
+          pendingResult.isStale;
 
-      // Filter locally completed items from the waiting queue too
-      final effectiveQueue = locallyCompleted.isEmpty
+      // Filter locally completed OR started items from the waiting queue.
+      // Both sets were captured before the outbox drain started.
+      final effectiveQueue = locallyHandled.isEmpty
           ? queueResult.items
           : queueResult.items
-                .where((q) => !locallyCompleted.contains(q.id))
+                .where((q) => !locallyHandled.contains(q.id))
                 .toList();
 
-      if (locallyCompleted.isNotEmpty) {
+      if (locallyHandled.isNotEmpty) {
         debugPrint(
-          'Dashboard: Filtered ${locallyCompleted.length} locally-completed '
-          'consultations from server data',
+          'Dashboard: Filtered ${locallyHandled.length} locally-handled '
+          'consultations from server data '
+          '(${locallyCompleted.length} completed, '
+          '${locallyStarted.length} started)',
         );
       }
 
@@ -280,6 +316,7 @@ class _DashboardPageState extends State<DashboardPage> {
         _appointments = appointmentsResult.items;
         _activeConsultation = effectiveActive;
         _isStaleData = anyStale;
+        _pendingReviews = pendingReviews;
       });
 
       // Update last cache time if we're showing stale data
@@ -503,14 +540,8 @@ class _DashboardPageState extends State<DashboardPage> {
     if (confirm != true) return;
 
     try {
-      // 1. Update status to in_progress
-      await supabase
-          .from('consultations')
-          .update({
-            'status': 'in_progress',
-            'session_start_time': DateTime.now().toUtc().toIso8601String(),
-          })
-          .eq('id', item.id);
+      // 1. Update status to in_progress (offline-safe: queues if no network)
+      await SupabaseDashboardService.startConsultation(item.id);
 
       // 2. Create Session Files
       final patientId = item.patientId;
@@ -750,6 +781,8 @@ class _DashboardPageState extends State<DashboardPage> {
 
                     // Pending sync indicator
                     if (_pendingSyncCount > 0) _buildPendingSyncBadge(),
+                    // Pending reviews indicator
+                    if (_pendingReviews.isNotEmpty) _buildPendingReviewsBadge(),
 
                     // Doctor Status Indicator (for Reception Mode)
                     if (stows.receptionMode.value) ...[
@@ -1040,5 +1073,118 @@ class _DashboardPageState extends State<DashboardPage> {
         );
       },
     );
+  }
+
+  Widget _buildPendingReviewsBadge() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: Colors.orange.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: () {
+            _showPendingReviewsDialog();
+          },
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.rate_review_rounded,
+                  color: Colors.orange.shade800,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${_pendingReviews.length} report${_pendingReviews.length == 1 ? '' : 's'} to review',
+                  style: TextStyle(
+                    color: Colors.orange.shade900,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.orange.shade800,
+                  size: 10,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPendingReviewsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Pending Reviews'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: _pendingReviews.isEmpty
+              ? const Text('No pending reviews.')
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _pendingReviews.length,
+                  itemBuilder: (context, index) {
+                    final report = _pendingReviews[index];
+                    return ListTile(
+                      leading: const Icon(Icons.assignment_ind_rounded),
+                      title: Text(
+                        (report.patientName?.isNotEmpty ?? false)
+                            ? '${report.patientName} - Session ${report.sessionDate.day}'
+                            : 'Report for ${DateFormat.yMMMd().format(report.sessionDate)}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        'Created: ${DateFormat('h:mm a').format(report.createdAt)}',
+                      ),
+                      trailing: const Icon(Icons.edit_note),
+                      onTap: () {
+                        Navigator.pop(context); // Close list
+                        _openReportEditor(report);
+                      },
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openReportEditor(ClinicalReport report) async {
+    if (report.sourceDocumentPath != null) {
+      String path = report.sourceDocumentPath!;
+      if (path.startsWith(FileManager.documentsDirectory)) {
+        path = p.relative(path, from: FileManager.documentsDirectory);
+      }
+
+      final pathForRoute = path.startsWith('/') ? path : '/$path';
+
+      await context.push(
+        RoutePaths.editFilePath(pathForRoute),
+        extra: {'open_report_review': true, 'report': report},
+      );
+      if (mounted) {
+        _loadDashboardData();
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot find session file for this report'),
+        ),
+      );
+    }
   }
 }

@@ -454,6 +454,38 @@ class SupabaseDashboardService {
     }
   }
 
+  /// Starts a consultation session (sets status to in_progress).
+  /// If offline, queues the operation for later sync via SyncOutbox.
+  static Future<void> startConsultation(String consultationId) async {
+    final startTime = DateTime.now().toUtc().toIso8601String();
+    try {
+      await supabase
+          .from('consultations')
+          .update({'status': 'in_progress', 'session_start_time': startTime})
+          .eq('id', consultationId);
+      log.info('Consultation $consultationId marked as in_progress');
+    } catch (e) {
+      if (_isNetworkError(e)) {
+        log.warning(
+          'Network error starting consultation $consultationId, '
+          'queuing for later sync',
+        );
+        await SyncOutbox.enqueue(
+          OutboxEntry(
+            operation: 'start_consultation',
+            payload: {
+              'consultation_id': consultationId,
+              'session_start_time': startTime,
+            },
+          ),
+        );
+        return; // Succeed silently — will sync when online
+      }
+      log.severe('Error starting consultation: $e');
+      rethrow;
+    }
+  }
+
   /// Completes a consultation session.
   /// If offline, queues the operation for later sync.
   static Future<void> completeConsultation(String consultationId) async {

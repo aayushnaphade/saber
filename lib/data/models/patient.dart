@@ -242,18 +242,27 @@ enum DocumentType {
   }
 }
 
+/// Session status to distinguish between report-backed and raw note sessions
+enum SessionStatus {
+  completed, // Has a clinical report
+  inProgress, // Has notes but no report yet
+  syncing, // Found in cloud but not locally or in reports
+}
+
 /// Session information model
 class SessionInfo {
   final int sessionNumber;
   final String folderName;
   final int fileCount;
   final DateTime createdDate;
+  final SessionStatus status;
 
   SessionInfo({
     required this.sessionNumber,
     required this.folderName,
     required this.fileCount,
     required this.createdDate,
+    this.status = SessionStatus.completed,
   });
 
   @override

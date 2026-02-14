@@ -463,6 +463,44 @@ class SupabaseConsultationService {
       return 0;
     }
   }
+
+  /// Fetch all session numbers that exist in cloud storage for a patient
+  static Future<List<int>> getAllSessionNumbers(
+    String patientId, {
+    String? doctorId,
+  }) async {
+    try {
+      final effectiveDoctorId = doctorId ?? supabase.auth.currentUser?.id;
+      if (effectiveDoctorId == null) return [];
+
+      final cloudPrefix = '$effectiveDoctorId/$patientId/session_notes';
+      log.info('Fetching all session numbers from: $cloudPrefix');
+
+      // List all folders in the session_notes directory
+      final sessionFolders = await supabase.storage
+          .from('medical_notes')
+          .list(path: cloudPrefix);
+
+      final sessionNumbers = <int>[];
+
+      for (final folder in sessionFolders) {
+        // Folders often have null id, but checking name is safer
+        if (folder.name.startsWith('session_')) {
+          final sessionNum =
+              int.tryParse(folder.name.replaceAll('session_', '')) ?? 0;
+          if (sessionNum > 0) {
+            sessionNumbers.add(sessionNum);
+          }
+        }
+      }
+
+      sessionNumbers.sort();
+      return sessionNumbers;
+    } catch (e) {
+      log.severe('Error fetching all session numbers: $e');
+      return [];
+    }
+  }
 }
 
 /// Model for patient consultation data

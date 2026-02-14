@@ -352,6 +352,7 @@ class EditorCoreInfo {
     final fullPath = path.endsWith(Editor.extension)
         ? path
         : path + Editor.extension;
+
     final bsonBytes = await FileManager.readFile(fullPath);
 
     final String? jsonString;
@@ -365,6 +366,7 @@ class EditorCoreInfo {
     }
 
     if (bsonBytes == null && jsonString == null) {
+      log.warning('Debug loadFromFilePath: FILE NOT FOUND or EMPTY $path');
       return EditorCoreInfo(filePath: path, readOnly: readOnly);
     }
 

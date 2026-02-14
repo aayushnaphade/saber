@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/services/offline_report_queue.dart';
@@ -14,7 +15,28 @@ import 'package:saber/data/supabase/supabase_client.dart';
 class SyncWorker {
   static final _log = Logger('SyncWorker');
   static Timer? _drainTimer;
-  static bool _isProcessing = false;
+  static var _isProcessing = false;
+  static final List<VoidCallback> _completionListeners = [];
+
+  /// Add a listener to be called when sync completes
+  static void addCompletionListener(VoidCallback listener) {
+    _completionListeners.add(listener);
+  }
+
+  /// Remove a completion listener
+  static void removeCompletionListener(VoidCallback listener) {
+    _completionListeners.remove(listener);
+  }
+
+  static void _notifyCompletion() {
+    for (final listener in _completionListeners) {
+      try {
+        listener();
+      } catch (e) {
+        _log.warning('Error in completion listener: $e');
+      }
+    }
+  }
 
   /// Initialize the worker and start listening for connectivity changes.
   static Future<void> initialize() async {
@@ -97,6 +119,7 @@ class SyncWorker {
       _log.severe('Unexpected error in processOutbox: $e', e, stack);
     } finally {
       _isProcessing = false;
+      _notifyCompletion();
     }
   }
 
@@ -116,6 +139,20 @@ class SyncWorker {
             'status': 'completed',
             'session_end_time': payload['session_end_time'],
             'duration_seconds': payload['duration_seconds'],
+          })
+          .eq('id', consultationId);
+    } else if (entry.operation == 'start_consultation') {
+      final payload = entry.payload;
+      _log.info('Payload: $payload');
+
+      final consultationId =
+          (payload['consultation_id'] ?? payload['consultationId']) as String;
+
+      await supabase
+          .from('consultations')
+          .update({
+            'status': 'in_progress',
+            'session_start_time': payload['session_start_time'],
           })
           .eq('id', consultationId);
     } else if (entry.operation == 'create_report') {

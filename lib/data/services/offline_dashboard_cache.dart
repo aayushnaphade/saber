@@ -202,6 +202,38 @@ class OfflineDashboardCache {
     }
   }
 
+  // ── Pending Reviews ────────────────────────────────────────────────
+
+  static Map<String, dynamic> _reportToJson(ClinicalReport report) {
+    return report.toJson();
+  }
+
+  static ClinicalReport _reportFromJson(Map<String, dynamic> json) {
+    return ClinicalReport.fromJson(json);
+  }
+
+  static Future<void> savePendingReviews(List<ClinicalReport> items) async {
+    final cache = await _readCache();
+    cache['pendingReviews'] = items.map(_reportToJson).toList();
+    cache['reviewsCachedAt'] = DateTime.now().toIso8601String();
+    await _writeCache(cache);
+    _log.info('Cached ${items.length} pending reviews');
+  }
+
+  static Future<List<ClinicalReport>?> loadPendingReviews() async {
+    final cache = await _readCache();
+    final list = cache['pendingReviews'] as List?;
+    if (list == null || list.isEmpty) return null;
+    try {
+      return list
+          .map((e) => _reportFromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      _log.warning('Error deserializing cached pending reviews: $e');
+      return null;
+    }
+  }
+
   // ── Metadata ───────────────────────────────────────────────────────
 
   static Future<DateTime?> lastCacheTime() async {

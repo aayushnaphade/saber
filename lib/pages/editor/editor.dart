@@ -10,6 +10,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' as flutter_quill;
 import 'package:go_router/go_router.dart';
@@ -27,6 +28,7 @@ import 'package:saber/components/canvas/canvas_preview.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
 import 'package:saber/components/canvas/save_indicator.dart';
 import 'package:saber/components/editor/previous_notes_overlay_card.dart';
+import 'package:saber/data/supabase/document_sync_service.dart';
 import 'package:saber/components/intake_form/intake_overlay_card.dart'
     hide AnimatedBuilder;
 import 'package:saber/components/intake_form/psychiatric_intake_form.dart';
@@ -47,7 +49,10 @@ import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
 import 'package:saber/data/editor/editor_history.dart';
 import 'package:saber/data/editor/page.dart';
+
+import 'package:saber/data/supabase/supabase_consultation_service.dart';
 import 'package:saber/data/extensions/change_notifier_extensions.dart';
+import 'package:saber/data/utils/report_formatter.dart';
 import 'package:saber/data/extensions/matrix4_extensions.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/patient.dart';
@@ -59,12 +64,13 @@ import 'package:saber/data/report_generation_manager.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/session_manager.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
-import 'package:saber/data/supabase/supabase_consultation_service.dart';
+
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/data/supabase/supabase_intake_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_prescription_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
+import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/supabase/supabase_vitals_service.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
@@ -95,6 +101,8 @@ class Editor extends StatefulWidget {
     this.onVerify,
     this.readOnly = false,
     this.isWhiteboard = false,
+    this.openReportReview = false,
+    this.reportToReview,
   }) : initialPath = path != null
            ? Future.value(path)
            : FileManager.newFilePath('/'),
@@ -112,6 +120,8 @@ class Editor extends StatefulWidget {
   final bool isWhiteboard;
   final VoidCallback? onVerify;
   final bool readOnly;
+  final bool openReportReview;
+  final ClinicalReport? reportToReview;
 
   /// The file extension used by the app.
   /// Files with this extension are
@@ -441,13 +451,23 @@ class EditorState extends State<Editor> {
 
   Future _initStrokes() async {
     debugPrint('Editor: _initStrokes loading from file: ${coreInfo.filePath}');
+
+    // If the local file is missing, try to download from cloud storage
+    if (coreInfo.filePath.contains('/patients/')) {
+      try {
+        await DocumentSyncService.syncDownIfMissing(
+          localPath: coreInfo.filePath,
+        );
+      } catch (e) {
+        debugPrint('Editor: syncDownIfMissing failed: $e');
+      }
+    }
+
     coreInfo = await EditorCoreInfo.loadFromFilePath(coreInfo.filePath);
+
     if (widget.readOnly) {
       coreInfo.readOnly = true;
     }
-    debugPrint(
-      'Editor: EditorCoreInfo load complete. ReadOnly: ${coreInfo.readOnly}',
-    );
     if (coreInfo.readOnly) {
       log.info('Loaded file as read-only');
     }
@@ -489,12 +509,48 @@ class EditorState extends State<Editor> {
         Whiteboard.needsToAutoClearWhiteboard) {
       // clear whiteboard (and add to history)
       clearAllPages();
-
       // save cleared whiteboard
       await saveToFile();
       Whiteboard.needsToAutoClearWhiteboard = false;
     } else {
       setState(() {});
+    }
+
+    // Show report dialog for review mode AFTER file is loaded
+    // Show report dialog for review mode AFTER file is loaded
+    if (widget.openReportReview && widget.reportToReview != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // Wait a bit for the file to fully load and pages to be created
+        // The delay helps ensure the canvas is ready for capture
+        await Future.delayed(const Duration(milliseconds: 1000));
+
+        if (mounted && coreInfo.pages.isNotEmpty) {
+          try {
+            // Capture images from the pages so they can be shown in the thumbnails
+            final images = await captureAllPagesToBytes(
+              pixelRatio: 2.0, // Good quality for thumbnails
+            );
+
+            if (mounted) {
+              _showReportDialog(
+                context,
+                widget.reportToReview!.structuredData,
+                images,
+              );
+            }
+          } catch (e) {
+            log.severe('Failed to capture images for report review', e);
+            // Fallback to empty list so at least the report text is visible
+            if (mounted) {
+              _showReportDialog(
+                context,
+                widget.reportToReview!.structuredData,
+                [],
+              );
+            }
+          }
+        }
+      });
     }
   }
 
@@ -2786,7 +2842,10 @@ class EditorState extends State<Editor> {
                                 );
 
                                 if ((confirm ?? false) && context.mounted) {
-                                  _generateReport(context);
+                                  await _generateReport(
+                                    context,
+                                    closeEditor: true,
+                                  );
                                 }
                               },
                       ),
@@ -3650,6 +3709,38 @@ class EditorState extends State<Editor> {
                     .join('\n'),
                 imageBytesList: imageBytesList,
                 onVerify: () async {
+                  if (widget.openReportReview &&
+                      widget.reportToReview != null) {
+                    // Regenerate markdown with latest edits from ReportView (which updates reportData in-place)
+                    final markdown = ReportFormatter.formatToMarkdown(
+                      reportData: reportData,
+                      patientId: _patientId ?? '',
+                      patientName: _patientName ?? 'Unknown',
+                      registrationNumber: _patient?.registrationNumber ?? '',
+                    );
+
+                    await SupabaseReportService.updateReport(
+                      reportId: widget.reportToReview!.id,
+                      structuredData: reportData,
+                      markdownContent: markdown,
+                      status: 'verified',
+                    );
+
+                    // Terminate the session so the minimized overlay doesn't persist
+                    SessionManager().terminate();
+
+                    if (context.mounted) {
+                      Navigator.pop(context); // Close dialog
+                      Navigator.pop(context); // Close editor
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Report verified successfully'),
+                        ),
+                      );
+                    }
+                    return;
+                  }
+
                   // Force a final save before terminating to ensure local persistence and thumbnail generation
                   await saveToFile();
 
@@ -4447,6 +4538,127 @@ class EditorState extends State<Editor> {
         ),
       ),
     );
+  }
+
+  /// Captures all pages as images for report review thumbnails.
+  /// Used to fix issue where notes were blank in review dialog.
+  Future<List<Uint8List>> captureAllPagesToBytes({
+    double pixelRatio = 1.5,
+  }) async {
+    final List<Uint8List> images = [];
+    final log = EditorCoreInfo.log;
+
+    log.info(
+      '[captureAllPages] Starting capture for ${coreInfo.pages.length} pages',
+    );
+
+    // Store original transform to restore later
+    final originalTransform = _transformationController.value.clone();
+
+    try {
+      final screenWidth = MediaQuery.sizeOf(context).width;
+
+      for (int i = 0; i < coreInfo.pages.length; i++) {
+        log.info('[captureAllPages] Page $i: scrolling into view...');
+
+        // Scroll to page to ensure it's rendered
+        CanvasGestureDetector.scrollToPage(
+          pageIndex: i,
+          pages: coreInfo.pages,
+          screenWidth: screenWidth,
+          transformationController: _transformationController,
+        );
+
+        // Force a setState so the viewport builder rebuilds with new transform
+        setState(() {});
+
+        // Wait for Flutter to complete the frame rebuild using a Completer
+        // This ensures the widget tree is actually rebuilt (not just scheduled)
+        final completer = Completer<void>();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          completer.complete();
+        });
+        await completer.future;
+
+        // Additional delay for render object to be fully laid out
+        // Increased to 500ms because logs showed skipped frames/slow device
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        // Check if page is now rendered (not a placeholder)
+        final page = coreInfo.pages[i];
+        final hasContext = page.innerCanvasKey.currentContext != null;
+        log.info(
+          '[captureAllPages] Page $i: hasContext=$hasContext, '
+          'isRendered=${page.isRendered}, '
+          'strokes=${page.strokes.length}, '
+          'pageSize=${page.size}',
+        );
+
+        if (!hasContext) {
+          log.warning(
+            '[captureAllPages] Page $i: innerCanvasKey.currentContext is NULL - page is likely a placeholder',
+          );
+          continue;
+        }
+
+        // Find the RepaintBoundary for this page using its key
+        final renderObject = coreInfo.pages[i].innerCanvasKey.currentContext!
+            .findRenderObject();
+        log.info(
+          '[captureAllPages] Page $i: renderObject type=${renderObject?.runtimeType}',
+        );
+
+        final boundary = renderObject as RenderRepaintBoundary?;
+
+        if (boundary != null) {
+          try {
+            final image = await boundary.toImage(pixelRatio: pixelRatio);
+            log.info(
+              '[captureAllPages] Page $i: image dimensions=${image.width}x${image.height}',
+            );
+            final byteData = await image.toByteData(
+              format: ui.ImageByteFormat.png,
+            );
+            if (byteData != null) {
+              final bytes = byteData.buffer.asUint8List();
+              images.add(bytes);
+              log.info(
+                '[captureAllPages] Page $i: captured ${byteData.lengthInBytes} bytes',
+              );
+
+              // DEBUG: Save captured image to file for inspection
+              try {
+                final debugDir = FileManager.documentsDirectory;
+                final debugPath = '$debugDir/debug_capture_page_$i.png';
+                final file = File(debugPath);
+                await file.writeAsBytes(bytes);
+                log.info(
+                  '[captureAllPages] DEBUG: Saved capture to $debugPath',
+                );
+              } catch (e) {
+                log.warning(
+                  '[captureAllPages] DEBUG: Failed to save debug image: $e',
+                );
+              }
+            }
+          } catch (e) {
+            log.severe('[captureAllPages] Page $i: toImage() failed', e);
+          }
+        } else {
+          log.warning(
+            '[captureAllPages] Page $i: renderObject is not RenderRepaintBoundary',
+          );
+        }
+      }
+    } finally {
+      // Restore original transform
+      _transformationController.value = originalTransform;
+      log.info(
+        '[captureAllPages] Done. Captured ${images.length}/${coreInfo.pages.length} pages',
+      );
+    }
+
+    return images;
   }
 }
 

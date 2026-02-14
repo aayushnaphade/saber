@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,7 @@ import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/data/api/error_handler.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/models/patient.dart';
+import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/models/psychiatric_intake.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
@@ -278,87 +280,158 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   Future<List<SessionInfo>> _loadSessions(Patient patient) async {
     _log.info('📁 [DEBUG] _loadSessions called for patient: ${patient.id}');
 
-    // NEW APPROACH: Load from database reports instead of filesystem
-    // This ensures completed sessions (with saved reports) always appear,
-    // even after temporary session directories are cleaned up
+    final sessionsMap = <int, SessionInfo>{};
+
+    // 1. Load from Reports (Highest Trust - Database)
     try {
       final allReports = await SupabaseReportService.getReportsForPatient(
         patient.id,
       );
       _log.info('📊 [DEBUG] Found ${allReports.length} reports in database');
 
-      final sessionsSet = <SessionInfo>{}; // Use Set to avoid duplicates
-
       for (final report in allReports) {
         final sourcePath = report.sourceDocumentPath;
-        if (sourcePath == null) {
-          _log.warning('   ⚠️ [DEBUG] Report has no source path, skipping');
-          continue;
+        if (sourcePath != null) {
+          final sessionMatch = RegExp(r'session_(\d+)').firstMatch(sourcePath);
+          if (sessionMatch != null) {
+            final sessionNum = int.parse(sessionMatch.group(1)!);
+            final folderName = 'session_$sessionNum';
+
+            // Try to get page count from local/cloud (optional but nice)
+            int fileCount = 0;
+            // logic to get file count
+            try {
+              // We try simpler approach to avoid too many calls if local exists
+              final sessionPath = patient.documentFolderPath(
+                DocumentType.sessionNote,
+              );
+              final sessionDirPath = '$sessionPath/$folderName';
+              final sessionFiles = await FileManager.getChildrenOfDirectory(
+                sessionDirPath,
+              );
+
+              if (sessionFiles != null && sessionFiles.files.isNotEmpty) {
+                fileCount = sessionFiles.files
+                    .where(
+                      (f) =>
+                          (f.contains('.sbn') || f.contains('.sbn2')) &&
+                          !f.endsWith('.p'),
+                    )
+                    .length;
+              }
+
+              if (fileCount == 0) {
+                // Check cloud
+                fileCount =
+                    await SupabaseConsultationService.getSessionPageCount(
+                      patient.id,
+                      sessionNum,
+                    );
+              }
+            } catch (e) {
+              // ignore
+            }
+
+            sessionsMap[sessionNum] = SessionInfo(
+              sessionNumber: sessionNum,
+              folderName: folderName,
+              fileCount: fileCount,
+              createdDate: report.createdAt,
+              status: SessionStatus.completed,
+            );
+          }
         }
-
-        // Extract session folder name from path (e.g., "session_2" from path)
-        final sessionMatch = RegExp(r'session_(\d+)').firstMatch(sourcePath);
-        if (sessionMatch == null) {
-          _log.warning(
-            '   ⚠️ [DEBUG] Could not extract session number from: $sourcePath',
-          );
-          continue;
-        }
-
-        final sessionNumber = int.parse(sessionMatch.group(1)!);
-        final folderName = 'session_$sessionNumber';
-
-        _log.info(
-          '   📋 [DEBUG] Report session_$sessionNumber (from database)',
-        );
-
-        // Check if session directory still exists on filesystem (for file count)
-        final sessionPath = patient.documentFolderPath(
-          DocumentType.sessionNote,
-        );
-        final sessionDirPath = '$sessionPath/$folderName';
-        final sessionFiles = await FileManager.getChildrenOfDirectory(
-          sessionDirPath,
-        );
-        int fileCount = sessionFiles?.files.length ?? 0;
-
-        // If local file count is 0, session directory might have been deleted after completion.
-        // Fallback to checking Supabase storage for the actual page count.
-        if (fileCount == 0) {
-          _log.info(
-            '   ☁️ [DEBUG] Local files not found, checking cloud storage for session_$sessionNumber',
-          );
-          fileCount = await SupabaseConsultationService.getSessionPageCount(
-            patient.id,
-            sessionNumber,
-          );
-          _log.info(
-            '   📊 [DEBUG] Found $fileCount pages in cloud for session_$sessionNumber',
-          );
-        }
-
-        sessionsSet.add(
-          SessionInfo(
-            sessionNumber: sessionNumber,
-            folderName: folderName,
-            fileCount: fileCount,
-            createdDate: report.createdAt.toLocal() ?? DateTime.now(),
-          ),
-        );
       }
-
-      // Convert Set to List and sort
-      final sortedSessions = sessionsSet.toList()
-        ..sort((a, b) => b.sessionNumber.compareTo(a.sessionNumber));
-
-      _log.info(
-        '✅ [DEBUG] _loadSessions returning ${sortedSessions.length} sessions from database',
-      );
-      return sortedSessions;
     } catch (e) {
       _log.severe('❌ [DEBUG] Error loading sessions from database: $e');
-      return [];
     }
+
+    // 2. Load from Local Files (In Progress / Notes Only)
+    // This finds sessions that have notes but no report generated yet
+    try {
+      final sessionNotesPath = patient.documentFolderPath(
+        DocumentType.sessionNote,
+      );
+      final children = await FileManager.getChildrenOfDirectory(
+        sessionNotesPath,
+      );
+
+      if (children != null) {
+        for (final folderName in children.directories) {
+          // Fixed: directories
+          // Check if folder matches session_X pattern
+          if (folderName.startsWith('session_')) {
+            final sessionNum =
+                int.tryParse(folderName.replaceAll('session_', '')) ?? 0;
+
+            // Only add if not already present (Reports take precedence)
+            if (sessionNum > 0 && !sessionsMap.containsKey(sessionNum)) {
+              // Check if it actually has note files
+              final sessionDirPath = '$sessionNotesPath/$folderName';
+              final sessionFiles = await FileManager.getChildrenOfDirectory(
+                sessionDirPath,
+              );
+
+              final fileCount =
+                  sessionFiles?.files
+                      .where(
+                        (f) =>
+                            (f.contains('.sbn') || f.contains('.sbn2')) &&
+                            !f.endsWith('.p'),
+                      )
+                      .length ??
+                  0;
+
+              if (fileCount > 0) {
+                sessionsMap[sessionNum] = SessionInfo(
+                  sessionNumber: sessionNum,
+                  folderName: folderName,
+                  fileCount: fileCount,
+                  createdDate: DateTime.now(), // approximate for in-progress
+                  status: SessionStatus.inProgress,
+                );
+                _log.info(
+                  '   📝 [DEBUG] Found local in-progress session $sessionNum',
+                );
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      _log.warning('⚠️ [DEBUG] Error scanning local sessions: $e');
+    }
+
+    // 3. Load from Cloud (Syncing / Recovery)
+    // This finds sessions that exist in cloud but not locally or in reports
+    try {
+      final cloudSessionNumbers =
+          await SupabaseConsultationService.getAllSessionNumbers(patient.id);
+
+      for (final sessionNum in cloudSessionNumbers) {
+        if (!sessionsMap.containsKey(sessionNum)) {
+          sessionsMap[sessionNum] = SessionInfo(
+            sessionNumber: sessionNum,
+            folderName: 'session_$sessionNum',
+            fileCount: 0, // Unknown without further queries
+            createdDate: DateTime.now(), // Unknown
+            status: SessionStatus.syncing,
+          );
+          _log.info('   ☁️ [DEBUG] Found cloud-only session $sessionNum');
+        }
+      }
+    } catch (e) {
+      _log.warning('⚠️ [DEBUG] Error scanning cloud sessions: $e');
+    }
+
+    // Convert Map to List and sort descending (newest first)
+    final sortedSessions = sessionsMap.values.toList()
+      ..sort((a, b) => b.sessionNumber.compareTo(a.sessionNumber));
+
+    _log.info(
+      '✅ [DEBUG] _loadSessions returning ${sortedSessions.length} total sessions',
+    );
+    return sortedSessions;
   }
 
   int? _extractSessionNumber(String folderName) {
@@ -1515,6 +1588,55 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
         final session = sessions[index];
         final isSelected = _selectedSessionIds.contains(session.folderName);
 
+        // Status badge
+        Widget? statusBadge;
+        if (session.status == SessionStatus.inProgress) {
+          statusBadge = Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
+            ),
+            child: Text(
+              'In Progress',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.orange[800],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          );
+        } else if (session.status == SessionStatus.syncing) {
+          statusBadge = Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.withValues(alpha: 0.5)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 8,
+                  height: 8,
+                  child: CircularProgressIndicator(strokeWidth: 1.5),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Syncing',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.blue[800],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
         return Dismissible(
           key: Key(session.folderName),
           direction: _isSelectionMode
@@ -1635,7 +1757,13 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                           ),
                         ),
                   title: Row(
-                    children: [Text('Session ${session.sessionNumber}')],
+                    children: [
+                      Text('Session ${session.sessionNumber}'),
+                      if (statusBadge != null) ...[
+                        const SizedBox(width: 8),
+                        statusBadge,
+                      ],
+                    ],
                   ),
                   subtitle: Row(
                     children: [
@@ -1718,17 +1846,124 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     );
   }
 
-  void _openSession(SessionInfo session, {bool viewOnlyNotes = false}) {
+  void _openSession(SessionInfo session, {bool viewOnlyNotes = false}) async {
     if (patient == null) return;
 
-    final route = RoutePaths.sessionViewer
-        .replaceAll(':patientId', patient!.id)
-        .replaceAll(':sessionNumber', session.sessionNumber.toString());
+    // 1. Completed sessions -> View Report & Notes
+    if (session.status == SessionStatus.completed) {
+      final route = RoutePaths.sessionViewer
+          .replaceAll(':patientId', patient!.id)
+          .replaceAll(':sessionNumber', session.sessionNumber.toString());
 
-    context.push(
-      route,
-      extra: {'allSessions': sessions, 'viewOnlyNotes': viewOnlyNotes},
-    );
+      context.push(
+        route,
+        extra: {'allSessions': sessions, 'viewOnlyNotes': viewOnlyNotes},
+      );
+      return;
+    }
+
+    // 2. In Progress / Syncing sessions -> Open Editor (Edit Mode)
+    try {
+      final sessionFolder = session.folderName;
+      final sessionPath = patient!.documentFolderPath(DocumentType.sessionNote);
+      final sessionDirPath = '$sessionPath/$sessionFolder';
+
+      String? noteFilePath;
+
+      // Scan for existing note file (.sbn or .sbn2)
+      try {
+        final dir = Directory(FileManager.documentsDirectory + sessionDirPath);
+        if (await dir.exists()) {
+          final files = await dir.list().toList();
+          for (final file in files) {
+            final path = file.path;
+            if ((path.endsWith('.sbn') || path.endsWith('.sbn2')) &&
+                !path.endsWith('.p')) {
+              // Extract the relative path that FileManager expects (starts with /)
+              final relativePath = path.substring(
+                FileManager.documentsDirectory.length,
+              );
+              noteFilePath = relativePath;
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        _log.warning('Error scanning for session file: $e');
+      }
+
+      // If Syncing and not found, try to download expected filename
+      if (session.status == SessionStatus.syncing && noteFilePath == null) {
+        final expectedPath =
+            '$sessionDirPath/${sessionFolder}_notes${Editor.extension}';
+
+        // Show loading toast? For now just await.
+        await DocumentSyncService.syncDownIfMissing(localPath: expectedPath);
+
+        // Check if it exists now
+        if (await FileManager.getFile(expectedPath).exists()) {
+          noteFilePath = expectedPath;
+        } else {
+          // Try .sbn legacy
+          final expectedLegacy =
+              '$sessionDirPath/${sessionFolder}_notes${Editor.extensionOldJson}';
+          await DocumentSyncService.syncDownIfMissing(
+            localPath: expectedLegacy,
+          );
+          if (await FileManager.getFile(expectedLegacy).exists()) {
+            noteFilePath = expectedLegacy;
+          }
+        }
+      }
+
+      // Fallback: Create new path if still not found
+      noteFilePath ??=
+          '$sessionDirPath/${sessionFolder}_notes${Editor.extension}';
+
+      // Look for any existing in_progress consultation for this patient
+      String? consultationId;
+      try {
+        final user = supabase.auth.currentUser;
+        if (user != null) {
+          final existing = await supabase
+              .from('consultations')
+              .select('id')
+              .eq('patient_id', patient!.id)
+              .eq('doctor_id', user.id)
+              .eq('status', 'in_progress')
+              .order('created_at', ascending: false)
+              .limit(1)
+              .maybeSingle();
+
+          if (existing != null) {
+            consultationId = existing['id'];
+            _log.info(
+              'Found existing consultation for resumption: $consultationId',
+            );
+          }
+        }
+      } catch (e) {
+        _log.warning('Failed to lookup consultation for resumption: $e');
+      }
+
+      if (mounted) {
+        context.push(
+          RoutePaths.editFilePath(
+            noteFilePath,
+            patientId: patient!.id,
+            patientName: patient!.fullName,
+            consultationId: consultationId,
+          ),
+        );
+      }
+    } catch (e) {
+      _log.severe('Error opening session editor: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to open session: $e')));
+      }
+    }
   }
 
   Future<void> _openSessionReadOnly(SessionInfo session) async {

@@ -26,6 +26,7 @@ import 'package:saber/data/services/connectivity_service.dart';
 import 'package:saber/data/services/sync_worker.dart';
 import 'package:saber/data/supabase/supabase_auth_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
+import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/tools/stroke_properties.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/editor/editor.dart';
@@ -360,24 +361,30 @@ class App extends StatefulWidget {
       ),
       GoRoute(
         path: RoutePaths.edit,
-        pageBuilder: (context, state) => CustomTransitionPage(
-          key: state.pageKey,
-          child: Editor(
-            path: state.uri.queryParameters['path'],
-            pdfPath: state.uri.queryParameters['pdfPath'],
-            consultationId: state.uri.queryParameters['consultation_id'],
-            patientName: state.uri.queryParameters['patient_name'],
-            patientId: state.uri.queryParameters['patient_id'],
-            readOnly: state.uri.queryParameters['readOnly'] == 'true',
-          ),
-          transitionDuration: const Duration(milliseconds: 380),
-          reverseTransitionDuration: const Duration(milliseconds: 300),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            // No fade/slide here - returning child allows the Hero widget
-            // to be the primary visual transition.
-            return child;
-          },
-        ),
+        pageBuilder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: Editor(
+              path: state.uri.queryParameters['path'],
+              pdfPath: state.uri.queryParameters['pdfPath'],
+              consultationId: state.uri.queryParameters['consultation_id'],
+              patientName: state.uri.queryParameters['patient_name'],
+              patientId: state.uri.queryParameters['patient_id'],
+              readOnly: state.uri.queryParameters['readOnly'] == 'true',
+              openReportReview: extra?['open_report_review'] == true,
+              reportToReview: extra?['report'] as ClinicalReport?,
+            ),
+            transitionDuration: const Duration(milliseconds: 380),
+            reverseTransitionDuration: const Duration(milliseconds: 300),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  // No fade/slide here - returning child allows the Hero widget
+                  // to be the primary visual transition.
+                  return child;
+                },
+          );
+        },
       ),
       GoRoute(
         path: RoutePaths.login,

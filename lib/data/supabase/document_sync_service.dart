@@ -464,6 +464,7 @@ class DocumentSyncService {
   /// Queue a file for upload (to be processed when online)
   /// This is a simple implementation - for production, use a proper queue system
   static void queueUpload(String localPath) {
+    log.info('Queueing upload (immediate): $localPath');
     // For now, just attempt upload immediately
     // TODO: Implement proper offline queue with retry logic
     uploadDocument(localPath).catchError((error) {

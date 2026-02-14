@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
@@ -55,6 +56,14 @@ class _ReportViewState extends State<ReportView> {
   void didUpdateWidget(covariant ReportView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.imageBytesList != oldWidget.imageBytesList) {
+      debugPrint(
+        '[ReportView] didUpdateWidget: received new images. Count: ${widget.imageBytesList?.length}',
+      );
+      if (widget.imageBytesList != null && widget.imageBytesList!.isNotEmpty) {
+        debugPrint(
+          '[ReportView] First image size: ${widget.imageBytesList!.first.lengthInBytes} bytes',
+        );
+      }
       _currentNotePage = 0;
     }
   }
@@ -62,6 +71,15 @@ class _ReportViewState extends State<ReportView> {
   @override
   void initState() {
     super.initState();
+    debugPrint(
+      '[ReportView] initState. Image count: ${widget.imageBytesList?.length}',
+    );
+    if (widget.imageBytesList != null && widget.imageBytesList!.isNotEmpty) {
+      debugPrint(
+        '[ReportView] First image size: ${widget.imageBytesList!.first.lengthInBytes} bytes',
+      );
+    }
+
     _currentSymptomsController = TextEditingController(
       text: widget.reportData['current_symptoms'] ?? '',
     );
@@ -395,11 +413,36 @@ class _ReportViewState extends State<ReportView> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: images.isNotEmpty && _currentNotePage < images.length
-                    ? InteractiveViewer(
-                        child: Image.memory(
-                          images[_currentNotePage],
-                          fit: BoxFit.contain,
-                        ),
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          InteractiveViewer(
+                            child: Image.memory(
+                              images[_currentNotePage],
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                debugPrint('[ReportView] Image error: $error');
+                                return Center(child: Text('Error: $error'));
+                              },
+                            ),
+                          ),
+                          if (kDebugMode)
+                            Positioned(
+                              bottom: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                color: Colors.black54,
+                                child: Text(
+                                  'Size: ${images[_currentNotePage].lengthInBytes} bytes',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       )
                     : const Center(child: Text('Image not available')),
               ),

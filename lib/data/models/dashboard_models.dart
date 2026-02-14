@@ -250,3 +250,78 @@ class MockDashboardData {
     ];
   }
 }
+
+class ClinicalReport {
+  final String id;
+  final String patientId;
+  final String doctorId;
+  final DateTime createdAt;
+  final DateTime sessionDate;
+  final String? patientName;
+  final String? sourceDocumentPath;
+  final Map<String, dynamic> structuredData;
+  final String? markdownContent;
+  final String status;
+
+  ClinicalReport({
+    required this.id,
+    required this.patientId,
+    required this.doctorId,
+    required this.createdAt,
+    required this.sessionDate,
+    this.patientName,
+    this.sourceDocumentPath,
+    required this.structuredData,
+    this.markdownContent,
+    this.status = 'verified',
+  });
+
+  factory ClinicalReport.fromJson(Map<String, dynamic> json) {
+    // Extract patient name from joined patients table first,
+    // then fall back to structured_data
+    String? name;
+    if (json['patients'] != null && json['patients']['full_name'] != null) {
+      name = json['patients']['full_name'].toString();
+    } else if (json['structured_data'] != null &&
+        json['structured_data']['patient_name'] != null) {
+      name = json['structured_data']['patient_name'].toString();
+    }
+
+    return ClinicalReport(
+      id: json['id'] as String,
+      patientId: json['patient_id'] as String,
+      doctorId: json['doctor_id'] as String,
+      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
+      sessionDate: DateTime.parse(json['session_date'] as String).toLocal(),
+      patientName: name,
+      sourceDocumentPath: json['source_document_path'] as String?,
+      structuredData: json['structured_data'] as Map<String, dynamic>,
+      markdownContent: json['markdown_content'] as String?,
+      status: json['status'] as String? ?? 'verified',
+    );
+  }
+
+  /// Creates a lightweight placeholder from a locally-queued offline report.
+  /// Used to keep the pending-review banner visible while the report is being
+  /// generated and uploaded by OfflineReportWorker.
+  // factory ClinicalReport.fromOfflineReport(PendingReport r) { ... }
+  // NOTE: Moving this constructor requires importing PendingReport/OfflineReportQueue
+  // which causes circular dependency. Since we are removing the usage of this
+  // constructor in dashboard_page.dart ANYWAY, we can omit it here!
+  // Or if we need it, we should move PendingReport model to dashboard_models.dart too.
+  // For now, omitting it as per the fix plan.
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'patient_id': patientId,
+      'doctor_id': doctorId,
+      'created_at': createdAt.toUtc().toIso8601String(),
+      'session_date': sessionDate.toIso8601String().split('T')[0],
+      'source_document_path': sourceDocumentPath,
+      'structured_data': structuredData,
+      'markdown_content': markdownContent,
+      'status': status,
+    };
+  }
+}

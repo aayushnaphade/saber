@@ -161,6 +161,21 @@ class SyncOutbox {
         .toSet();
   }
 
+  /// Returns IDs of consultations that were started offline but not yet synced.
+  /// Used by Dashboard to filter out queue items that are actually in-progress.
+  static Future<Set<String>> getLocallyStartedConsultationIds() async {
+    final pending = await getPending();
+    return pending
+        .where((e) => e.operation == 'start_consultation')
+        .map((e) {
+          final cid =
+              e.payload['consultationId'] ?? e.payload['consultation_id'];
+          return cid?.toString();
+        })
+        .whereType<String>()
+        .toSet();
+  }
+
   /// Clears all entries from the outbox.
   static Future<void> clear() async {
     try {
