@@ -14,7 +14,9 @@ import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/session_manager.dart';
 import 'package:saber/data/services/offline_dashboard_cache.dart';
+import 'package:saber/data/services/offline_report_worker.dart';
 import 'package:saber/data/services/sync_outbox.dart';
+import 'package:saber/data/services/sync_worker.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/pages/home/dashboard/dashboard_skeleton.dart';
@@ -94,6 +96,11 @@ class _DashboardPageState extends State<DashboardPage> {
       debugPrint('Dashboard: Internet restored, refreshing data...');
       _loadDashboardData();
       _setupRealtimeSubscription();
+
+      // Force trigger sync worker in case background init failed
+      debugPrint('Dashboard: Triggering SyncWorker...');
+      SyncWorker.processOutbox();
+      OfflineReportWorker.processQueue();
     }
   }
 
@@ -191,6 +198,12 @@ class _DashboardPageState extends State<DashboardPage> {
   Future<void> _fetchDashboardData() async {
     if (_isFetching) return;
     _isFetching = true;
+
+    // Force sync worker to run (regardless of background init state)
+    // ignore: avoid_print
+    print('Dashboard: Triggering SyncWorker.processOutbox()...');
+    SyncWorker.processOutbox();
+    OfflineReportWorker.processQueue();
 
     debugPrint('Dashboard: Fetching data from Supabase...');
     try {

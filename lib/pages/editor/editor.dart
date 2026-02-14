@@ -1688,7 +1688,10 @@ class EditorState extends State<Editor> {
   }
 
   @override
-  Future<void> _generateReport(BuildContext context) async {
+  Future<void> _generateReport(
+    BuildContext context, {
+    bool closeEditor = false,
+  }) async {
     // 1. Capture Screenshots of ALL pages
     final screenshotController = ScreenshotController();
     final imageBytesList = <Uint8List>[];
@@ -1805,8 +1808,10 @@ class EditorState extends State<Editor> {
             duration: Duration(seconds: 2),
           ),
         );
-        // Optionally navigate back to dashboard if user wants,
-        // but let's keep them in the editor for now as they might want to continue notes.
+        // and return to dashboard if finishing session.
+        if (closeEditor && context.mounted) {
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       log.severe('Error during report capture', e);
@@ -2617,7 +2622,7 @@ class EditorState extends State<Editor> {
                                           );
 
                                           // Generate new report
-                                          _generateReport(context);
+                                          await _generateReport(context);
                                         } catch (e) {
                                           log.severe(
                                             'Failed to delete existing report',

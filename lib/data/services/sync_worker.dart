@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:logging/logging.dart';
 import 'package:saber/data/prefs.dart';
+import 'package:saber/data/services/offline_report_queue.dart';
 import 'package:saber/data/services/offline_report_worker.dart';
 import 'package:saber/data/services/sync_outbox.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
@@ -16,16 +17,21 @@ class SyncWorker {
   static bool _isProcessing = false;
 
   /// Initialize the worker and start listening for connectivity changes.
-  static void initialize() {
-    stows.isOnline.addListener(_onConnectivityChanged);
-    // Process any entries that might have been queued while the app was closed
-    Future.delayed(const Duration(seconds: 3), () {
-      if (stows.isOnline.value) {
-        processOutbox();
-        OfflineReportWorker.processQueue();
-      }
-    });
+  static Future<void> initialize() async {
     _log.info('SyncWorker initialized');
+    stows.isOnline.addListener(_onConnectivityChanged);
+
+    // Give failed items another chance on app startup
+    await SyncOutbox.retryAllFailed();
+    await OfflineReportQueue.retryAllFailed();
+
+    // Also resume any pending offline reports
+    await OfflineReportWorker.processQueue();
+
+    // Trigger initial check if online
+    if (stows.isOnline.value) {
+      processOutbox();
+    }
   }
 
   static void _onConnectivityChanged() {
@@ -73,75 +79,79 @@ class SyncWorker {
           _log.info('Successfully processed: ${entry.operation} (${entry.id})');
         } catch (e) {
           if (_isNetworkError(e)) {
-            _log.warning('Network error processing ${entry.id}, will retry');
-            await SyncOutbox.markFailed(entry.id, e.toString());
-            break; // Stop processing, will retry when online again
-          } else if (entry.retryCount >= 3) {
-            _log.severe(
-              'Permanent failure for ${entry.id} after ${entry.retryCount} retries: $e',
-            );
-            await SyncOutbox.markFailed(entry.id, 'PERMANENT: $e');
+            // For network errors, we stop processing but don't increment retry count
+            // (infinite retries until connected). We just update the logs.
+            _log.warning('Network error detected. Pausing sync.');
+            await SyncOutbox.markTransientFailure(entry.id, e.toString());
+            break; // Stop processing to avoid rapid retry loop
           } else {
-            _log.warning('Transient error for ${entry.id}: $e');
-            await SyncOutbox.markFailed(entry.id, e.toString());
+            _log.severe(
+              'Permanent failure for entry ${entry.id}. Marking as failed.',
+            );
+            await SyncOutbox.markPermanentFailure(entry.id, e.toString());
+            // Continue to next item
           }
         }
-
-        // Small delay between operations to avoid overwhelming the server
-        await Future.delayed(const Duration(milliseconds: 500));
       }
+    } catch (e, stack) {
+      _log.severe('Unexpected error in processOutbox: $e', e, stack);
     } finally {
       _isProcessing = false;
-      _log.info('Outbox drain complete');
     }
   }
 
-  /// Dispatches an outbox entry to the appropriate Supabase operation.
   static Future<void> _processEntry(OutboxEntry entry) async {
-    switch (entry.operation) {
-      case 'complete_consultation':
-      case 'completeConsultation':
-        final consultationId =
-            (entry.payload['consultation_id'] ??
-                    entry.payload['consultationId'])
-                as String;
-        final endTime = entry.payload['session_end_time'] as String?;
-        await supabase
-            .from('consultations')
-            .update({
-              'status': 'completed',
-              if (endTime != null) 'session_end_time': endTime,
-            })
-            .eq('id', consultationId);
+    _log.info('Dispatching operation: ${entry.operation}');
+    if (entry.operation == 'complete_consultation') {
+      final payload = entry.payload;
+      _log.info('Payload: $payload');
 
-      case 'create_report':
-        await supabase.from('clinical_reports').insert(entry.payload);
+      final consultationId =
+          (payload['consultation_id'] ?? payload['consultationId']) as String;
 
-      case 'update_consultation':
-        final consultationId = entry.payload['consultation_id'] as String;
-        final updates = Map<String, dynamic>.from(entry.payload)
-          ..remove('consultation_id');
-        await supabase
-            .from('consultations')
-            .update(updates)
-            .eq('id', consultationId);
+      // Update the consultation status in Supabase
+      await supabase
+          .from('consultations')
+          .update({
+            'status': 'completed',
+            'session_end_time': payload['session_end_time'],
+            'duration_seconds': payload['duration_seconds'],
+          })
+          .eq('id', consultationId);
+    } else if (entry.operation == 'create_report') {
+      final payload = entry.payload;
+      _log.info(
+        'Payload keys: ${payload.keys.toList()}',
+      ); // Avoid logging massive markdown
 
-      default:
-        _log.warning('Unknown operation: ${entry.operation}');
-        throw StateError('Unknown outbox operation: ${entry.operation}');
+      await supabase.from('clinical_reports').insert(payload);
+    } else {
+      _log.warning('Unknown operation: ${entry.operation}');
+      throw Exception('Unknown operation: ${entry.operation}');
     }
   }
 
   static bool _isNetworkError(Object e) {
     final msg = e.toString();
+    // Log the error message for debugging
+    _log.info('Checking if network error: "$msg"');
+
     return e is SocketException ||
         msg.contains('SocketException') ||
         msg.contains('Connection timed out') ||
         msg.contains('connection abort') ||
         msg.contains('Failed host lookup') ||
         msg.contains('Network is unreachable') ||
+        msg.contains('Network error') ||
         msg.contains('TimeoutException') ||
-        msg.contains('ClientException');
+        // ClientException/HttpException often imply 4xx/5xx responses or protocol errors
+        // which should NOT be retried infinitely. We treat them as transient errors
+        // that will eventually fail permanently if unresolved.
+        msg.contains('HandshakeException') ||
+        msg.contains('CERTIFICATE_VERIFY_FAILED') ||
+        msg.contains('Connection refused') ||
+        msg.contains('Connection closed') ||
+        msg.contains('Connection reset');
   }
 
   /// Clean up resources.

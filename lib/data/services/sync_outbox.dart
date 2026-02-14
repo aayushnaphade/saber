@@ -55,12 +55,16 @@ class SyncOutbox {
     return entry.id;
   }
 
-  /// Returns all pending (non-completed) entries, oldest first.
+  /// Returns all pending (non-completed and non-failed) entries, oldest first.
   static Future<List<OutboxEntry>> getPending() async {
     final entries = await _readAll();
     return entries
         .map(OutboxEntry.fromJson)
-        .where((e) => e.status != OutboxStatus.completed)
+        .where(
+          (e) =>
+              e.status != OutboxStatus.completed &&
+              e.status != OutboxStatus.failed,
+        )
         .toList();
   }
 
@@ -74,42 +78,87 @@ class SyncOutbox {
     );
   }
 
-  /// Marks an entry as failed with an error message.
-  static Future<void> markFailed(String id, String error) async {
+  /// Reset all 'failed' entries to 'pending' so they are retried.
+  /// Used on app startup to give failed items another chance.
+  static Future<void> retryAllFailed() async {
     final entries = await _readAll();
+    var changed = false;
     for (final entry in entries) {
-      if (entry['id'] == id) {
-        entry['status'] = 'failed';
-        entry['lastError'] = error;
-        entry['retryCount'] = (entry['retryCount'] as int? ?? 0) + 1;
+      if (entry['status'] == 'failed') {
+        entry['status'] = 'pending';
+        entry['retryCount'] = 0; // Reset retries
+        entry['lastError'] = null;
+        changed = true;
       }
     }
-    await _writeAll(entries);
-    _log.warning('Outbox entry $id marked as failed: $error');
+    if (changed) {
+      await _writeAll(entries);
+      _log.info('Reset failed outbox entries to pending for retry');
+    }
   }
 
-  /// Returns the count of pending operations.
+  /// Marks an entry as permanently failed. It will not be retried.
+  static Future<void> markPermanentFailure(String id, String error) async {
+    final entries = await _readAll();
+    final index = entries.indexWhere((e) => e['id'] == id);
+    if (index != -1) {
+      entries[index]['status'] = 'failed';
+      entries[index]['lastError'] = error;
+      await _writeAll(entries);
+      _log.severe('Marked entry $id as permanently failed: $error');
+    } else {
+      _log.warning('Could not find entry $id to mark as failed');
+    }
+  }
+
+  /// Marks an entry as transiently failed (retry later).
+  /// Increments retry count.
+  static Future<void> markTransientFailure(String id, String error) async {
+    final entries = await _readAll();
+    final index = entries.indexWhere((e) => e['id'] == id);
+    if (index != -1) {
+      // Don't change status to 'failed', just keep it pending (or 'processing' implicitly)
+      // but update metadata
+      final currentRetries = (entries[index]['retryCount'] as int?) ?? 0;
+      entries[index]['retryCount'] = currentRetries + 1;
+      entries[index]['lastError'] = error;
+
+      await _writeAll(entries);
+      _log.info(
+        'Marked entry $id as transient failure (Retry ${currentRetries + 1}): $error',
+      );
+    } else {
+      _log.warning('Could not find entry $id to mark as transient failure');
+    }
+  }
+
+  /// Returns the count of pending operations (excluding failed ones).
   static Future<int> pendingCount() async {
     final entries = await _readAll();
-    return entries.where((e) => e['status'] != 'completed').length;
+    final count = entries
+        .where((e) => e['status'] != 'completed' && e['status'] != 'failed')
+        .length;
+    _log.info('Pending sync count: $count');
+    return count;
   }
 
-  /// Returns consultation IDs that have been locally completed
-  /// (queued for sync) but not yet pushed to the server.
-  /// This is used by the dashboard to filter out stale active consultations.
+  /// Returns IDs of consultations that are locally completed but not yet synced.
+  /// Used by Dashboard to filter out "active" sessions that are actually done.
   static Future<Set<String>> getLocallyCompletedConsultationIds() async {
-    final entries = await getPending();
-    final ids = <String>{};
-    for (final entry in entries) {
-      if (entry.operation == 'completeConsultation' ||
-          entry.operation == 'complete_consultation') {
-        final id =
-            entry.payload['consultationId'] as String? ??
-            entry.payload['consultation_id'] as String?;
-        if (id != null) ids.add(id);
-      }
-    }
-    return ids;
+    final pending = await getPending();
+    return pending
+        .where(
+          (e) =>
+              e.operation == 'completeConsultation' ||
+              e.operation == 'complete_consultation',
+        )
+        .map((e) {
+          final cid =
+              e.payload['consultationId'] ?? e.payload['consultation_id'];
+          return cid?.toString();
+        })
+        .whereType<String>()
+        .toSet();
   }
 
   /// Clears all entries from the outbox.

@@ -14,6 +14,7 @@ class ClinicalReport {
   final String? sourceDocumentPath;
   final Map<String, dynamic> structuredData;
   final String? markdownContent;
+  final String status;
 
   ClinicalReport({
     required this.id,
@@ -24,6 +25,7 @@ class ClinicalReport {
     this.sourceDocumentPath,
     required this.structuredData,
     this.markdownContent,
+    this.status = 'verified',
   });
 
   factory ClinicalReport.fromJson(Map<String, dynamic> json) {
@@ -36,6 +38,7 @@ class ClinicalReport {
       sourceDocumentPath: json['source_document_path'] as String?,
       structuredData: json['structured_data'] as Map<String, dynamic>,
       markdownContent: json['markdown_content'] as String?,
+      status: json['status'] as String? ?? 'verified',
     );
   }
 
@@ -49,6 +52,7 @@ class ClinicalReport {
       'source_document_path': sourceDocumentPath,
       'structured_data': structuredData,
       'markdown_content': markdownContent,
+      'status': status,
     };
   }
 }
@@ -63,6 +67,7 @@ class SupabaseReportService {
     required Map<String, dynamic> structuredData,
     required String markdownContent,
     String? sourceDocumentPath,
+    String status = 'verified',
   }) async {
     final user = supabase.auth.currentUser;
     if (user == null) throw Exception('Not authenticated');
@@ -74,6 +79,7 @@ class SupabaseReportService {
       'source_document_path': sourceDocumentPath,
       'structured_data': structuredData,
       'markdown_content': markdownContent,
+      'status': status,
     };
 
     try {
@@ -103,6 +109,7 @@ class SupabaseReportService {
           sourceDocumentPath: sourceDocumentPath,
           structuredData: structuredData,
           markdownContent: markdownContent,
+          status: status,
         );
       }
       rethrow;

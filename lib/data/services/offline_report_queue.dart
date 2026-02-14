@@ -151,6 +151,24 @@ class OfflineReportQueue {
     await _writeManifest(manifest);
   }
 
+  /// Resets all 'failed' items to 'queued' so they are retried.
+  static Future<void> retryAllFailed() async {
+    final manifest = await _readManifest();
+    var changed = false;
+    for (final entry in manifest) {
+      if (entry['status'] == 'failed') {
+        entry['status'] = 'queued';
+        entry['retryCount'] = 0;
+        entry['lastError'] = null;
+        changed = true;
+      }
+    }
+    if (changed) {
+      await _writeManifest(manifest);
+      _log.info('Reset failed offline reports to queued for retry');
+    }
+  }
+
   /// Removes a completed or cancelled report and its files.
   static Future<void> remove(String id) async {
     // Remove files

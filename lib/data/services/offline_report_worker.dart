@@ -90,12 +90,31 @@ class OfflineReportWorker {
     );
 
     // 5. Save Report to Supabase
-    // We use the sourceFilePath stored in the queue so that session linking works
+    // We use the sourceFilePath stored in the queue so that session linking works.
+    // If it's null (legacy item), we try to infer it from consultation history.
+    String? finalSourcePath = entry.sourceFilePath;
+    if (finalSourcePath == null && entry.consultationId.isNotEmpty) {
+      try {
+        finalSourcePath = await _inferSessionPath(
+          entry.patientId,
+          entry.consultationId,
+        );
+        if (finalSourcePath != null) {
+          _log.info('Inferred session path for legacy item: $finalSourcePath');
+        } else {
+          _log.warning('Could not infer session path for ${entry.id}');
+        }
+      } catch (e) {
+        _log.warning('Error inferring session path: $e');
+      }
+    }
+
     await SupabaseReportService.createReport(
       patientId: entry.patientId,
       structuredData: reportData,
       markdownContent: markdown,
-      sourceDocumentPath: entry.sourceFilePath,
+      sourceDocumentPath: finalSourcePath,
+      status: 'draft',
     );
     _log.info('Report saved to Supabase for ${entry.id}');
 
@@ -104,6 +123,7 @@ class OfflineReportWorker {
       final medications = reportData['medications'];
       if (medications is List && medications.isNotEmpty) {
         final medsList = medications.whereType<Map<String, dynamic>>().map((m) {
+          // ... existing logic ...
           final newMap = Map<String, dynamic>.from(m);
           if (newMap.containsKey('remarks')) {
             newMap['instructions'] = newMap['remarks'];
@@ -143,5 +163,26 @@ class OfflineReportWorker {
     // 8. Remove from Queue
     await OfflineReportQueue.remove(entry.id);
     _log.info('Report ${entry.id} processing complete and removed from queue');
+  }
+
+  /// Infers the session path (e.g. session_5/session_5_notes.saber)
+  /// by looking up the consultation history.
+  static Future<String?> _inferSessionPath(
+    String patientId,
+    String consultationId,
+  ) async {
+    // Get all consultations for patient, ordered by date (newest first usually)
+    final consultations =
+        await SupabaseConsultationService.getPatientConsultations(patientId);
+
+    // Sort oldest first to determine index (1-based session number)
+    consultations.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+    final index = consultations.indexWhere((c) => c.id == consultationId);
+    if (index != -1) {
+      final sessionNum = index + 1;
+      return 'session_$sessionNum/session_${sessionNum}_notes.saber';
+    }
+    return null;
   }
 }

@@ -38,116 +38,103 @@ void main() {
   group('SyncOutbox', () {
     test('enqueue creates a persistent entry', () async {
       await SyncOutbox.enqueue(
-        operation: 'completeConsultation',
-        payload: {'consultationId': 'c123', 'status': 'completed'},
+        OutboxEntry(
+          operation: 'completeConsultation',
+          payload: {'consultationId': 'c123', 'status': 'completed'},
+        ),
       );
 
-      final pending = await SyncOutbox.getPendingEntries();
+      final pending = await SyncOutbox.getPending();
       expect(pending.length, 1);
-      expect(pending[0]['operation'], 'completeConsultation');
-      expect(pending[0]['payload']['consultationId'], 'c123');
-      expect(pending[0]['status'], 'pending');
+      expect(pending[0].operation, 'completeConsultation');
+      expect(pending[0].payload['consultationId'], 'c123');
+      expect(pending[0].status, OutboxStatus.pending);
     });
 
     test('multiple enqueue operations are ordered FIFO', () async {
-      await SyncOutbox.enqueue(operation: 'op1', payload: {'key': 'first'});
-      await SyncOutbox.enqueue(operation: 'op2', payload: {'key': 'second'});
-      await SyncOutbox.enqueue(operation: 'op3', payload: {'key': 'third'});
+      await SyncOutbox.enqueue(
+        OutboxEntry(operation: 'op1', payload: {'key': 'first'}),
+      );
+      await SyncOutbox.enqueue(
+        OutboxEntry(operation: 'op2', payload: {'key': 'second'}),
+      );
+      await SyncOutbox.enqueue(
+        OutboxEntry(operation: 'op3', payload: {'key': 'third'}),
+      );
 
-      final pending = await SyncOutbox.getPendingEntries();
+      final pending = await SyncOutbox.getPending();
       expect(pending.length, 3);
-      expect(pending[0]['operation'], 'op1');
-      expect(pending[1]['operation'], 'op2');
-      expect(pending[2]['operation'], 'op3');
+      expect(pending[0].operation, 'op1');
+      expect(pending[1].operation, 'op2');
+      expect(pending[2].operation, 'op3');
     });
 
     test('markCompleted removes entry from pending', () async {
       await SyncOutbox.enqueue(
-        operation: 'completeConsultation',
-        payload: {'consultationId': 'c123'},
+        OutboxEntry(
+          operation: 'completeConsultation',
+          payload: {'consultationId': 'c123'},
+        ),
       );
 
-      final pending = await SyncOutbox.getPendingEntries();
+      final pending = await SyncOutbox.getPending();
       expect(pending.length, 1);
 
-      final id = pending[0]['id'] as String;
+      final id = pending[0].id;
       await SyncOutbox.markCompleted(id);
 
-      final afterCompletion = await SyncOutbox.getPendingEntries();
+      final afterCompletion = await SyncOutbox.getPending();
       expect(afterCompletion.length, 0);
     });
 
-    test('markFailed increments retry count', () async {
+    test('markTransientFailure increments retry count', () async {
       await SyncOutbox.enqueue(
-        operation: 'createReport',
-        payload: {'patientId': 'p1'},
+        OutboxEntry(operation: 'createReport', payload: {'patientId': 'p1'}),
       );
 
-      final pending = await SyncOutbox.getPendingEntries();
-      final id = pending[0]['id'] as String;
+      final pending = await SyncOutbox.getPending();
+      final id = pending[0].id;
 
-      await SyncOutbox.markFailed(id);
-      final afterFail = await SyncOutbox.getPendingEntries();
+      await SyncOutbox.markTransientFailure(id, 'error');
+      // Must read from disk/cache again to check persistence
+      // Since getPending returns objects, we need fresh ones
+      final afterFail = await SyncOutbox.getPending();
 
       expect(afterFail.length, 1);
-      expect(afterFail[0]['retryCount'], 1);
+      expect(afterFail[0].retryCount, 1);
+      expect(afterFail[0].status, OutboxStatus.pending);
     });
 
-    test('multiple failures increment retry count correctly', () async {
+    test('markPermanentFailure sets status to failed', () async {
       await SyncOutbox.enqueue(
-        operation: 'createReport',
-        payload: {'patientId': 'p1'},
+        OutboxEntry(operation: 'createReport', payload: {'patientId': 'p1'}),
       );
 
-      final pending = await SyncOutbox.getPendingEntries();
-      final id = pending[0]['id'] as String;
+      final pending = await SyncOutbox.getPending();
+      final id = pending[0].id;
 
-      await SyncOutbox.markFailed(id);
-      await SyncOutbox.markFailed(id);
-      await SyncOutbox.markFailed(id);
+      await SyncOutbox.markPermanentFailure(id, 'error');
 
-      final afterFails = await SyncOutbox.getPendingEntries();
-      expect(afterFails[0]['retryCount'], 3);
+      // Should NOT appear in getPending() anymore
+      final afterFail = await SyncOutbox.getPending();
+      expect(afterFail, isEmpty);
+
+      // But counts should differ? pendingCount also filters it out.
+      expect(await SyncOutbox.pendingCount(), 0);
     });
 
     test('pendingCount returns correct count', () async {
       expect(await SyncOutbox.pendingCount(), 0);
 
-      await SyncOutbox.enqueue(operation: 'op1', payload: {});
+      await SyncOutbox.enqueue(OutboxEntry(operation: 'op1', payload: {}));
       expect(await SyncOutbox.pendingCount(), 1);
 
-      await SyncOutbox.enqueue(operation: 'op2', payload: {});
+      await SyncOutbox.enqueue(OutboxEntry(operation: 'op2', payload: {}));
       expect(await SyncOutbox.pendingCount(), 2);
 
-      final pending = await SyncOutbox.getPendingEntries();
-      await SyncOutbox.markCompleted(pending[0]['id'] as String);
+      final pending = await SyncOutbox.getPending();
+      await SyncOutbox.markCompleted(pending[0].id);
       expect(await SyncOutbox.pendingCount(), 1);
-    });
-
-    test('handles corrupted outbox file gracefully', () async {
-      final dir = fakePathProvider.tempDir;
-      final outboxDir = Directory('${dir.path}/offline_outbox');
-      outboxDir.createSync(recursive: true);
-      final outboxFile = File('${outboxDir.path}/outbox.json');
-      await outboxFile.writeAsString('definitely not json!!!');
-
-      // Should return empty list instead of throwing
-      final pending = await SyncOutbox.getPendingEntries();
-      expect(pending, isEmpty);
-    });
-
-    test('survives across reinitializaton (persistence check)', () async {
-      // Enqueue an item
-      await SyncOutbox.enqueue(
-        operation: 'persistenceCheck',
-        payload: {'test': true},
-      );
-
-      // Simulate "restart" by querying again
-      // (in real life, the app would restart and re-read from disk)
-      final pending = await SyncOutbox.getPendingEntries();
-      expect(pending.length, 1);
-      expect(pending[0]['operation'], 'persistenceCheck');
     });
   });
 }

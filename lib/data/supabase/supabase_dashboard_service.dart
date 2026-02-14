@@ -25,6 +25,7 @@ class SupabaseDashboardService {
         msg.contains('HttpException') ||
         msg.contains('CERTIFICATE_VERIFY_FAILED') ||
         msg.contains('Connection refused') ||
+        msg.contains('Connection closed') || // Common on iOS simulator
         msg.contains('Connection reset');
   }
 
