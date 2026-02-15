@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saber/data/routes.dart';
+import 'package:saber/data/services/secure_logger.dart';
 import 'package:saber/pages/home/home.dart';
 
 /// A service that handles back navigation logic for the ShellRoute architecture.
@@ -15,6 +16,8 @@ import 'package:saber/pages/home/home.dart';
 class BackNavigationService {
   BackNavigationService._();
 
+  static final _log = SecureLogger('BackNavigation');
+
   static DateTime? _lastBackPressTime;
   static const _exitConfirmationDuration = Duration(seconds: 2);
 
@@ -25,26 +28,27 @@ class BackNavigationService {
     required String currentPath,
     required String currentSubpage,
   }) {
-    print('🔙 [DEBUG] BackNavigationService.getBackNavigationResult()');
-    print('   Path: $currentPath');
-    print('   Subpage: $currentSubpage');
+    _log.debug('getBackNavigationResult', {
+      'path': currentPath,
+      'subpage': currentSubpage,
+    });
 
     // 1. Handle patient space navigation hierarchy
     if (_isInPatientSpace(currentPath)) {
-      print('   ℹ️ [DEBUG] In patient space, checking parent route...');
+      _log.debug('In patient space, checking parent route');
       final parentRoute = _getPatientSpaceParentRoute(currentPath);
       if (parentRoute != null) {
-        print('   ✅ [DEBUG] Navigating to parent: $parentRoute');
+        _log.debug('Navigating to parent', {'route': parentRoute});
         return BackNavigationResult.navigateTo(parentRoute);
       }
     }
 
     // 2. Handle session viewer -> patient profile navigation
     if (_isSessionViewer(currentPath)) {
-      print('   ℹ️ [DEBUG] In session viewer, extracting patient route...');
+      _log.debug('In session viewer, extracting patient route');
       final patientRoute = _extractPatientProfileRoute(currentPath);
       if (patientRoute != null) {
-        print('   ✅ [DEBUG] Navigating to patient profile: $patientRoute');
+        _log.debug('Navigating to patient profile', {'route': patientRoute});
         return BackNavigationResult.navigateTo(patientRoute);
       }
     }
@@ -52,25 +56,26 @@ class BackNavigationService {
     // 3. If on a sidebar page that is NOT Dashboard, navigate back to Dashboard
     final isKnownSubpage = HomePage.subpages.contains(currentSubpage);
     final isDashboard = currentSubpage == HomePage.dashboardSubpage;
-    print(
-      '   ℹ️ [DEBUG] Sidebar check: isKnownSubpage=$isKnownSubpage, isDashboard=$isDashboard',
-    );
+    _log.debug('Sidebar check', {
+      'isKnownSubpage': isKnownSubpage,
+      'isDashboard': isDashboard,
+    });
 
     if (isKnownSubpage && !isDashboard) {
       final dashboardRoute = HomeRoutes.getRoute(0);
-      print(
-        '   ✅ [DEBUG] Navigating from sidebar to Dashboard: $dashboardRoute',
-      );
+      _log.debug('Navigating from sidebar to Dashboard', {
+        'route': dashboardRoute,
+      });
       return BackNavigationResult.navigateTo(dashboardRoute);
     }
 
     // 4. On Dashboard - handle double-back-to-exit
-    print('   ℹ️ [DEBUG] On Dashboard, handling exit confirmation...');
+    _log.debug('On Dashboard, handling exit confirmation');
     final result = _handleExitConfirmation();
     if (result.action == BackNavigationAction.showExitConfirmation) {
-      print('   ⚠️ [DEBUG] Showing "press back again to exit" toast');
+      _log.debug('Showing exit confirmation toast');
     } else {
-      print('   ❌ [DEBUG] Allowing app exit');
+      _log.debug('Allowing app exit');
     }
     return result;
   }
@@ -172,13 +177,14 @@ class BackNavigationService {
     BackNavigationResult result,
     String exitMessage,
   ) {
-    print('🔙 [DEBUG] BackNavigationService.executeBackNavigation() starting');
-    print('   Action: ${result.action}');
-    print('   Target Route: ${result.targetRoute}');
+    _log.debug('executeBackNavigation', {
+      'action': result.action.name,
+      'target': result.targetRoute,
+    });
 
     // Safety check: verify context is still valid before performing operations
     if (!context.mounted) {
-      print('   ❌ [DEBUG] Context is NOT mounted! Skipping execution.');
+      _log.debug('Context is NOT mounted, skipping execution');
       return;
     }
 
@@ -186,13 +192,12 @@ class BackNavigationService {
       case BackNavigationAction.navigateTo:
         if (result.targetRoute != null && context.mounted) {
           final target = result.targetRoute!;
-          print('   🚀 [DEBUG] Calling context.go("$target")');
+          _log.debug('Calling context.go', {'target': target});
           context.go(target);
-          print('   ✅ [DEBUG] context.go("$target") completed');
         }
       case BackNavigationAction.showExitConfirmation:
         if (context.mounted) {
-          print('   🏠 [DEBUG] Showing exit confirmation snackbar');
+          _log.debug('Showing exit confirmation snackbar');
           ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -203,7 +208,7 @@ class BackNavigationService {
           );
         }
       case BackNavigationAction.exitApp:
-        print('   🛑 [DEBUG] Calling SystemNavigator.pop()');
+        _log.debug('Calling SystemNavigator.pop()');
         SystemNavigator.pop();
     }
   }

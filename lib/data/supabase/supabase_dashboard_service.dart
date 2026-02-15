@@ -5,7 +5,6 @@ import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/services/offline_dashboard_cache.dart';
 import 'package:saber/data/services/sync_outbox.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseDashboardService {
   static final log = Logger('SupabaseDashboardService');
@@ -19,6 +18,7 @@ class SupabaseDashboardService {
         msg.contains('connection abort') ||
         msg.contains('Failed host lookup') ||
         msg.contains('Network is unreachable') ||
+        msg.contains('No address associated with hostname') ||
         msg.contains('TimeoutException') ||
         msg.contains('ClientException') ||
         msg.contains('HandshakeException') ||
@@ -62,9 +62,6 @@ class SupabaseDashboardService {
   /// Returns a record with the queue items and whether the data is stale.
   static Future<({List<QueueItem> items, bool isStale})> getLiveQueue() async {
     try {
-      // Auto-cleanup past pending sessions
-      await cancelPastPendingSessions();
-
       final response = await supabase
           .from('consultations')
           .select(
@@ -170,9 +167,6 @@ class SupabaseDashboardService {
   static Future<({List<Appointment> items, bool isStale})>
   getTodayAppointments() async {
     try {
-      // Auto-cleanup past pending sessions
-      await cancelPastPendingSessions();
-
       final now = DateTime.now();
       final startOfDay = DateTime(
         now.year,
@@ -264,101 +258,59 @@ class SupabaseDashboardService {
   /// Returns a record with the stats and whether the data is stale.
   static Future<({DashboardStats stats, bool isStale})> getStats() async {
     try {
+      final user = supabase.auth.currentUser;
+      if (user == null) {
+        throw Exception('User not logged in');
+      }
+
       final now = DateTime.now();
       final startOfDay = DateTime(now.year, now.month, now.day).toUtc();
-      final startOfDayStr = startOfDay.toIso8601String();
-      final endOfDayStr = DateTime(
+      final endOfDay = DateTime(
         now.year,
         now.month,
         now.day,
         23,
         59,
         59,
-      ).toUtc().toIso8601String();
+      ).toUtc();
 
-      // Count consultations done today (Completed status with session_end_time today)
-      final completedTodayResponse = await supabase
-          .from('consultations')
-          .select('session_start_time, session_end_time')
-          .eq('status', 'completed')
-          .gte('session_end_time', startOfDayStr)
-          .lte('session_end_time', endOfDayStr);
-
-      final List completedTodayData = (completedTodayResponse as List?) ?? [];
-      final completedSessions = completedTodayData.length;
-
-      int totalMinutes = 0;
-      for (final session in completedTodayData) {
-        if (session is Map) {
-          final startStr = session['session_start_time'] as String?;
-          final endStr = session['session_end_time'] as String?;
-          if (startStr != null && endStr != null) {
-            try {
-              final start = DateTime.parse(startStr);
-              final end = DateTime.parse(endStr);
-              totalMinutes += end.difference(start).inMinutes;
-            } catch (e) {
-              log.warning('Error parsing session times: $e');
-            }
-          }
-        }
-      }
-
-      // Percentage calculation logic (Comparing against previous working day's same time window)
+      // Comparison period logic
       DateTime comparisonDate;
       if (now.weekday == DateTime.monday) {
-        // If Monday, compare with Saturday
         comparisonDate = now.subtract(const Duration(days: 2));
       } else if (now.weekday == DateTime.sunday) {
-        // If Sunday, compare with Saturday
         comparisonDate = now.subtract(const Duration(days: 1));
       } else {
-        // Otherwise compare with yesterday
         comparisonDate = now.subtract(const Duration(days: 1));
       }
 
-      final startOfComparisonDay = DateTime(
+      final startOfComp = DateTime(
         comparisonDate.year,
         comparisonDate.month,
         comparisonDate.day,
       ).toUtc();
-
-      // Best Practice: Time-of-Day (TOD) matching
-      // We compare metrics up to the same hour/minute of the comparative day to avoid the "morning dip".
       final durationIntoDay = now.difference(
         DateTime(now.year, now.month, now.day),
       );
-      final endOfComparisonWindow = startOfComparisonDay
-          .add(durationIntoDay)
-          .toIso8601String();
-      final startOfComparisonDayStr = startOfComparisonDay.toIso8601String();
+      final endOfComp = startOfComp.add(durationIntoDay);
 
-      final previousDataResponse = await supabase
-          .from('consultations')
-          .select('session_start_time, session_end_time')
-          .eq('status', 'completed')
-          .gte('session_end_time', startOfComparisonDayStr)
-          .lte('session_end_time', endOfComparisonWindow);
+      final response = await supabase.rpc(
+        'get_dashboard_stats',
+        params: {
+          'p_doctor_id': user.id,
+          'p_start_of_day': startOfDay.toIso8601String(),
+          'p_end_of_day': endOfDay.toIso8601String(),
+          'p_comp_start': startOfComp.toIso8601String(),
+          'p_comp_end': endOfComp.toIso8601String(),
+        },
+      );
 
-      final List previousData = (previousDataResponse as List?) ?? [];
-      final previousSessionsCount = previousData.length;
-
-      int previousTotalMinutes = 0;
-      for (final session in previousData) {
-        if (session is Map) {
-          final startStr = session['session_start_time'] as String?;
-          final endStr = session['session_end_time'] as String?;
-          if (startStr != null && endStr != null) {
-            try {
-              final start = DateTime.parse(startStr);
-              final end = DateTime.parse(endStr);
-              previousTotalMinutes += end.difference(start).inMinutes;
-            } catch (e) {
-              // ignore
-            }
-          }
-        }
-      }
+      final data = response as Map<String, dynamic>;
+      final completedSessions = data['completed_count'] as int;
+      final totalMinutes = data['total_minutes'] as int;
+      final previousSessionsCount = data['prev_count'] as int;
+      final previousTotalMinutes = data['prev_minutes'] as int;
+      final pendingCount = data['pending_count'] as int;
 
       // Calculate trends
       double consultationsTrend = 0.0;
@@ -368,7 +320,7 @@ class SupabaseDashboardService {
                 previousSessionsCount) *
             100;
       } else if (completedSessions > 0) {
-        consultationsTrend = 100.0; // From 0 to something is 100% gain
+        consultationsTrend = 100.0;
       }
 
       double timeTrend = 0.0;
@@ -379,13 +331,6 @@ class SupabaseDashboardService {
       } else if (totalMinutes > 0) {
         timeTrend = 100.0;
       }
-
-      final int pendingCount = await supabase
-          .from('consultations')
-          .count(CountOption.exact)
-          .eq('status', 'waiting')
-          .or('scheduled_time.gte.$startOfDayStr,created_at.gte.$startOfDayStr')
-          .lte('created_at', endOfDayStr);
 
       final stats = DashboardStats(
         consultationsToday: completedSessions,

@@ -35,11 +35,21 @@ class SupabaseReportService {
     };
 
     try {
+      final startTime = DateTime.now();
+      _log.info(
+        'SupabaseReportService: Start saving report for $patientId at $startTime',
+      );
+
       final response = await supabase
           .from('clinical_reports')
           .insert(insertPayload)
           .select()
           .single();
+
+      final duration = DateTime.now().difference(startTime);
+      _log.info(
+        'SupabaseReportService: Saved report in ${duration.inMilliseconds}ms',
+      );
 
       return ClinicalReport.fromJson(response);
     } catch (e) {
@@ -76,6 +86,7 @@ class SupabaseReportService {
         msg.contains('connection abort') ||
         msg.contains('Failed host lookup') ||
         msg.contains('Network is unreachable') ||
+        msg.contains('No address associated with hostname') ||
         msg.contains('TimeoutException') ||
         msg.contains('ClientException');
   }
@@ -119,7 +130,19 @@ class SupabaseReportService {
   static Future<({List<ClinicalReport> items, bool isStale})>
   getPendingReviewReports() async {
     final user = supabase.auth.currentUser;
-    if (user == null) return (items: <ClinicalReport>[], isStale: false);
+    if (user == null) {
+      _log.warning(
+        'SupabaseReportService: User is null. Attempting to load from cache.',
+      );
+      final cached = await OfflineDashboardCache.loadPendingReviews();
+      if (cached != null) {
+        _log.info(
+          'SupabaseReportService: Returning ${cached.length} cached pending reviews (User null)',
+        );
+        return (items: cached, isStale: true);
+      }
+      return (items: <ClinicalReport>[], isStale: false);
+    }
 
     try {
       final response = await supabase
@@ -137,18 +160,34 @@ class SupabaseReportService {
 
       // Cache on success
       await OfflineDashboardCache.savePendingReviews(items);
+      _log.info(
+        'SupabaseReportService: Fetched ${items.length} pending reviews from Supabase',
+      );
 
       return (items: items, isStale: false);
     } catch (e) {
-      _log.warning('Error fetching pending review reports: $e');
+      _log.warning(
+        'SupabaseReportService: Error fetching pending review reports: $e',
+      );
 
       // On network error, try cached data
       if (_isNetworkError(e)) {
+        _log.info(
+          'SupabaseReportService: Network error detected. Attempting cache load.',
+        );
         final cached = await OfflineDashboardCache.loadPendingReviews();
         if (cached != null) {
-          _log.info('Returning ${cached.length} cached pending reviews');
+          _log.info(
+            'SupabaseReportService: Returning ${cached.length} cached pending reviews',
+          );
           return (items: cached, isStale: true);
+        } else {
+          _log.warning('SupabaseReportService: Cache was null/empty.');
         }
+      } else {
+        _log.warning(
+          'SupabaseReportService: Error was NOT classified as network error.',
+        );
       }
 
       return (items: <ClinicalReport>[], isStale: false);

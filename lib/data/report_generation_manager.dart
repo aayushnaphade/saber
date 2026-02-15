@@ -94,6 +94,15 @@ class ReportGenerationManager extends ChangeNotifier {
       if (_isNetworkError(e)) {
         // Queue for later generation instead of showing an error
         _log.warning('Network error during report generation, queuing...');
+        // Validate required data before queuing
+        if (_patient == null || (_patient?.id ?? '').isEmpty) {
+          _errorMessage = 'Cannot queue report: patient data is missing';
+          _status = ReportGenerationStatus.error;
+          _currentMessage = 'Generation failed — no patient linked';
+          _log.severe('Cannot queue report: patient is null or has no ID');
+          notifyListeners();
+          return;
+        }
         try {
           final reportId = await OfflineReportQueue.saveForLater(
             imageBytesList: _imageBytesList,

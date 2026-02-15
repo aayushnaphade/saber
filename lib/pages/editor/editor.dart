@@ -381,23 +381,63 @@ class EditorState extends State<Editor> {
         patientId = parts[patientsIndex + 1];
       }
 
+      // Fallback: use widget's patientId unless path gave us something different
+      patientId ??= _patientId;
+
       if (patientId != null) {
         _patientId =
             patientId; // Store patient ID for potential intake creation
 
         log.info('Found patient ID: $patientId. Loading intake and vitals...');
 
-        final intake = await SupabaseIntakeService.getIntake(patientId);
-        final vitals = await SupabaseVitalsService.getVitalsHistory(patientId);
-        final patient = await SupabasePatientService.getPatient(patientId);
+        PsychiatricIntake? intake;
+        List<Vitals> vitals = [];
+        Patient? patient;
+
+        // Fetch data independently so one failure doesn't block others
+        try {
+          intake = await SupabaseIntakeService.getIntake(patientId);
+        } catch (e) {
+          log.warning('Failed to load intake: $e');
+        }
+
+        try {
+          vitals = await SupabaseVitalsService.getVitalsHistory(patientId);
+        } catch (e) {
+          log.warning('Failed to load vitals: $e');
+        }
+
+        try {
+          patient = await SupabasePatientService.getPatient(patientId);
+        } catch (e) {
+          log.warning('Failed to load patient: $e');
+        }
 
         if (mounted) {
           setState(() {
             if (intake != null) _patientIntake = intake;
-            _vitalsHistory = vitals;
+
+            if (vitals.isNotEmpty) {
+              _vitalsHistory = vitals;
+            }
+
             if (patient != null) {
               _patientName = patient.fullName;
               _patient = patient;
+            } else {
+              // Fallback for offline mode: create minimal patient if service failed
+              // This acts as a persistent placeholder so we can queue reports
+              log.info(
+                'Patient fetch failed/offline. Creating fallback Patient object.',
+              );
+              _patient = Patient(
+                id: patientId!,
+                createdAt: DateTime.now(),
+                fullName: _patientName ?? 'Unknown Patient',
+                status: PatientStatus.active,
+                doctorId: supabase.auth.currentUser?.id ?? '',
+                // Minimal required fields
+              );
             }
 
             // Check if this is a restored session
@@ -407,7 +447,7 @@ class EditorState extends State<Editor> {
 
             // Show vitals overlay in minimized form ONLY if there are vitals entries
             // AND it is NOT a restored session (only show on fresh start)
-            _showVitalsOverlay = vitals.isNotEmpty && !isRestore;
+            _showVitalsOverlay = _vitalsHistory.isNotEmpty && !isRestore;
 
             // Always collapse vitals by default
             _isVitalsExpanded = false;
@@ -415,7 +455,7 @@ class EditorState extends State<Editor> {
             // Vitals overlay logic handled by initialization
           });
           log.info(
-            'Loaded intake and vitals for patient: $patientId. Vitals count: ${vitals.length}',
+            'Loaded intake and vitals for patient: $patientId. Vitals count: ${_vitalsHistory.length}',
           );
         }
       } else {
@@ -1180,7 +1220,7 @@ class EditorState extends State<Editor> {
     savingState.value = .saved;
   }
 
-  Future<void> saveToFile() async {
+  Future<void> saveToFile({bool awaitUpload = false}) async {
     log.info('💾 [DEBUG] saveToFile() called for: ${coreInfo.filePath}');
     // Theme data is captured in didChangeDependencies() to avoid unsafe context access during dispose
 
@@ -1208,9 +1248,20 @@ class EditorState extends State<Editor> {
 
     await _renameFileNow();
 
-    final filePath = coreInfo.filePath.endsWith(Editor.extension)
-        ? coreInfo.filePath
-        : coreInfo.filePath + Editor.extension;
+    // Normalize: strip old .sbn extension to avoid double extension (.sbn.sbn2)
+    String basePath = coreInfo.filePath;
+    if (basePath.endsWith(Editor.extension)) {
+      basePath = basePath.substring(
+        0,
+        basePath.length - Editor.extension.length,
+      );
+    } else if (basePath.endsWith(Editor.extensionOldJson)) {
+      basePath = basePath.substring(
+        0,
+        basePath.length - Editor.extensionOldJson.length,
+      );
+    }
+    final filePath = basePath + Editor.extension;
 
     final Uint8List bson;
     final OrderedAssetCache assets;
@@ -1224,7 +1275,12 @@ class EditorState extends State<Editor> {
     }
     try {
       await Future.wait([
-        FileManager.writeFile(filePath, bson, awaitWrite: true),
+        FileManager.writeFile(
+          filePath,
+          bson,
+          awaitWrite: true,
+          awaitUpload: awaitUpload,
+        ),
         for (int i = 0; i < assets.length; ++i)
           assets
               .getBytes(i)
@@ -1233,6 +1289,7 @@ class EditorState extends State<Editor> {
                   '$filePath.$i',
                   bytes,
                   awaitWrite: true,
+                  awaitUpload: awaitUpload,
                 ),
               ),
         FileManager.removeUnusedAssets(filePath, numAssets: assets.length),
@@ -1270,7 +1327,7 @@ class EditorState extends State<Editor> {
           720 * previewHeight / page.size.width,
         );
 
-        // Use a sane default theme if we can't capture one (though we should have caught it early)
+        // Use a sane default theme if we can't capture one
         final themeData =
             _capturedThemeData ??
             ThemeData.light().copyWith(
@@ -1281,21 +1338,19 @@ class EditorState extends State<Editor> {
             );
 
         final thumbnail = await screenshotter.captureFromWidget(
-          Theme(
-            data: themeData,
-            child: Directionality(
-              // Maintain directionality
-              textDirection: ui.TextDirection.ltr,
-              child: Localizations.override(
-                context:
-                    context, // ScreenshotController handles this gracefully usually
-                child: SizedBox(
-                  width: thumbnailSize.width,
-                  height: thumbnailSize.height,
-                  child: FittedBox(
-                    child: Builder(
-                      // Use Builder to get a context for the page builder if needed
-                      builder: (ctx) => pageBuilderForScreenshot(
+          MediaQuery(
+            data: const MediaQueryData(size: Size(720, 1280)),
+            child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: themeData,
+              home: Builder(
+                builder: (ctx) => Material(
+                  color: Colors.white,
+                  child: SizedBox(
+                    width: thumbnailSize.width,
+                    height: thumbnailSize.height,
+                    child: FittedBox(
+                      child: pageBuilderForScreenshot(
                         ctx,
                         pageIndex: 0,
                         previewHeight: previewHeight,
@@ -1306,18 +1361,34 @@ class EditorState extends State<Editor> {
               ),
             ),
           ),
-          pixelRatio: 1,
-          // Context is optional in newer ScreenshotController but we provide it for safety
-          // if it's still mounted, otherwise null/ignored
-          context: mounted ? context : null,
+          delay: const Duration(milliseconds: 100),
           targetSize: thumbnailSize,
         );
 
-        await FileManager.writeFile('$filePath.p', thumbnail, awaitWrite: true);
+        await FileManager.writeFile(
+          '$filePath.p',
+          thumbnail,
+          awaitWrite: true,
+          awaitUpload: awaitUpload,
+        );
         log.info('Thumbnail saved to $filePath.p');
       }
+
+      // Save metadata (page count)
+      final metadata = {
+        'pageCount': coreInfo.pages.length,
+        'createdAt': DateTime.now().toIso8601String(),
+        'lastModified': DateTime.now().toIso8601String(),
+      };
+      await FileManager.writeFile(
+        '$filePath.meta',
+        utf8.encode(jsonEncode(metadata)),
+        awaitWrite: false,
+        awaitUpload: awaitUpload,
+      );
+      log.info('Metadata saved to $filePath.meta');
     } catch (e) {
-      log.warning('Failed to generate thumbnail: $e');
+      log.warning('Failed to generate thumbnail or save metadata: $e');
     }
   }
 
@@ -3624,7 +3695,7 @@ class EditorState extends State<Editor> {
         filenameTextEditingController.dispose();
       }
       if (!_isTerminating) {
-        await saveToFile();
+        await saveToFile(awaitUpload: true);
       }
     } finally {
       coreInfo.dispose();
@@ -3741,8 +3812,14 @@ class EditorState extends State<Editor> {
                     return;
                   }
 
+                  // Force any pending rename to happen before we save and submit the report
+                  if (_renameTimer?.isActive ?? false) {
+                    _renameTimer!.cancel();
+                    await _renameFileNow();
+                  }
+
                   // Force a final save before terminating to ensure local persistence and thumbnail generation
-                  await saveToFile();
+                  await saveToFile(awaitUpload: true);
 
                   if (mounted) {
                     setState(() {
@@ -4541,7 +4618,8 @@ class EditorState extends State<Editor> {
   }
 
   /// Captures all pages as images for report review thumbnails.
-  /// Used to fix issue where notes were blank in review dialog.
+  /// Uses ScreenshotController to render pages off-screen, avoiding
+  /// layout issues with handling non-visible pages in the main view.
   Future<List<Uint8List>> captureAllPagesToBytes({
     double pixelRatio = 1.5,
   }) async {
@@ -4552,107 +4630,78 @@ class EditorState extends State<Editor> {
       '[captureAllPages] Starting capture for ${coreInfo.pages.length} pages',
     );
 
-    // Store original transform to restore later
-    final originalTransform = _transformationController.value.clone();
-
     try {
-      final screenWidth = MediaQuery.sizeOf(context).width;
+      final screenshotter = ScreenshotController();
+
+      // Use a sane default theme if we can't capture one
+      final themeData =
+          _capturedThemeData ??
+          ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: EditorExporter.primaryColor,
+              secondary: EditorExporter.secondaryColor,
+            ),
+          );
 
       for (int i = 0; i < coreInfo.pages.length; i++) {
-        log.info('[captureAllPages] Page $i: scrolling into view...');
+        log.info('[captureAllPages] Capturing page $i...');
 
-        // Scroll to page to ensure it's rendered
-        CanvasGestureDetector.scrollToPage(
-          pageIndex: i,
-          pages: coreInfo.pages,
-          screenWidth: screenWidth,
-          transformationController: _transformationController,
-        );
-
-        // Force a setState so the viewport builder rebuilds with new transform
-        setState(() {});
-
-        // Wait for Flutter to complete the frame rebuild using a Completer
-        // This ensures the widget tree is actually rebuilt (not just scheduled)
-        final completer = Completer<void>();
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          completer.complete();
-        });
-        await completer.future;
-
-        // Additional delay for render object to be fully laid out
-        // Increased to 500ms because logs showed skipped frames/slow device
-        await Future.delayed(const Duration(milliseconds: 500));
-
-        // Check if page is now rendered (not a placeholder)
         final page = coreInfo.pages[i];
-        final hasContext = page.innerCanvasKey.currentContext != null;
-        log.info(
-          '[captureAllPages] Page $i: hasContext=$hasContext, '
-          'isRendered=${page.isRendered}, '
-          'strokes=${page.strokes.length}, '
-          'pageSize=${page.size}',
+        final previewHeight = page.previewHeight(
+          lineHeight: coreInfo.lineHeight,
         );
+        // Calculate appropriate size for the capture based on page width
+        // We use a fixed width (e.g. 720) and calculate height to maintain aspect ratio
+        final captureWidth = 720.0;
+        final captureHeight = captureWidth * previewHeight / page.size.width;
+        final targetSize = ui.Size(captureWidth, captureHeight);
 
-        if (!hasContext) {
-          log.warning(
-            '[captureAllPages] Page $i: innerCanvasKey.currentContext is NULL - page is likely a placeholder',
+        try {
+          final image = await screenshotter.captureFromWidget(
+            MediaQuery(
+              data: MediaQueryData(
+                size: Size(captureWidth, captureHeight + 100),
+              ),
+              child: MaterialApp(
+                debugShowCheckedModeBanner: false,
+                theme: themeData,
+                home: Builder(
+                  builder: (ctx) => Material(
+                    color: Colors.white,
+                    child: SizedBox(
+                      width: targetSize.width,
+                      height: targetSize.height,
+                      child: FittedBox(
+                        child: pageBuilderForScreenshot(
+                          ctx,
+                          pageIndex: i,
+                          previewHeight: previewHeight,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            pixelRatio: pixelRatio,
+            context: null, // context is not required for off-screen capture
+            targetSize: targetSize,
+            delay: const Duration(
+              milliseconds: 50,
+            ), // Small delay for rendering
           );
-          continue;
-        }
 
-        // Find the RepaintBoundary for this page using its key
-        final renderObject = coreInfo.pages[i].innerCanvasKey.currentContext!
-            .findRenderObject();
-        log.info(
-          '[captureAllPages] Page $i: renderObject type=${renderObject?.runtimeType}',
-        );
-
-        final boundary = renderObject as RenderRepaintBoundary?;
-
-        if (boundary != null) {
-          try {
-            final image = await boundary.toImage(pixelRatio: pixelRatio);
-            log.info(
-              '[captureAllPages] Page $i: image dimensions=${image.width}x${image.height}',
-            );
-            final byteData = await image.toByteData(
-              format: ui.ImageByteFormat.png,
-            );
-            if (byteData != null) {
-              final bytes = byteData.buffer.asUint8List();
-              images.add(bytes);
-              log.info(
-                '[captureAllPages] Page $i: captured ${byteData.lengthInBytes} bytes',
-              );
-
-              // DEBUG: Save captured image to file for inspection
-              try {
-                final debugDir = FileManager.documentsDirectory;
-                final debugPath = '$debugDir/debug_capture_page_$i.png';
-                final file = File(debugPath);
-                await file.writeAsBytes(bytes);
-                log.info(
-                  '[captureAllPages] DEBUG: Saved capture to $debugPath',
-                );
-              } catch (e) {
-                log.warning(
-                  '[captureAllPages] DEBUG: Failed to save debug image: $e',
-                );
-              }
-            }
-          } catch (e) {
-            log.severe('[captureAllPages] Page $i: toImage() failed', e);
-          }
-        } else {
-          log.warning(
-            '[captureAllPages] Page $i: renderObject is not RenderRepaintBoundary',
+          images.add(image);
+          log.info(
+            '[captureAllPages] Page $i: captured ${image.lengthInBytes} bytes',
           );
+        } catch (e) {
+          log.severe('[captureAllPages] Page $i: capture failed', e);
         }
       }
+    } catch (e, stack) {
+      log.severe('[captureAllPages] Critical error during capture', e, stack);
     } finally {
-      // Restore original transform
-      _transformationController.value = originalTransform;
       log.info(
         '[captureAllPages] Done. Captured ${images.length}/${coreInfo.pages.length} pages',
       );

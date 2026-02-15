@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -311,13 +312,38 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               );
 
               if (sessionFiles != null && sessionFiles.files.isNotEmpty) {
-                fileCount = sessionFiles.files
-                    .where(
-                      (f) =>
-                          (f.contains('.sbn') || f.contains('.sbn2')) &&
-                          !f.endsWith('.p'),
-                    )
-                    .length;
+                // Try reading .meta file for page count
+                try {
+                  final metaFile = sessionFiles.files.firstWhere(
+                    (f) => f.endsWith('.meta'),
+                    orElse: () => '',
+                  );
+
+                  if (metaFile.isNotEmpty) {
+                    final bytes = await FileManager.readFile(
+                      '$sessionDirPath/$metaFile',
+                    );
+                    if (bytes != null) {
+                      final content = utf8.decode(bytes);
+                      final json = jsonDecode(content);
+                      final count = json['pageCount'];
+                      if (count is int) fileCount = count;
+                    }
+                  }
+                } catch (e) {
+                  // ignore
+                }
+
+                if (fileCount == 0) {
+                  fileCount = sessionFiles.files
+                      .where(
+                        (f) =>
+                            (f.contains('.sbn') || f.contains('.sbn2')) &&
+                            !f.endsWith('.p') &&
+                            !f.endsWith('.meta'),
+                      )
+                      .length;
+                }
               }
 
               if (fileCount == 0) {

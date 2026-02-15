@@ -59,6 +59,11 @@ class OfflineReportQueue {
     String? registrationNumber,
     String? patientName,
   }) async {
+    // Guard: never queue a report without a valid patientId
+    if (patientId.isEmpty) {
+      throw ArgumentError('Cannot queue report: patientId is empty');
+    }
+
     final id = const Uuid().v4();
     final dir = await _queueDir();
     final reportDir = Directory('${dir.path}/$id');
@@ -133,18 +138,44 @@ class OfflineReportQueue {
   }
 
   /// Updates the status of a pending report in the manifest.
+  /// Set [resetRetries] to true when the user manually triggers a retry
+  /// to clear the retry count and allow processing again.
   static Future<void> updateStatus(
     String id,
     String status, {
     String? error,
+    bool resetRetries = false,
   }) async {
     final manifest = await _readManifest();
     for (final entry in manifest) {
       if (entry['id'] == id) {
         entry['status'] = status;
         if (error != null) entry['lastError'] = error;
-        if (status == 'retrying') {
+        if (resetRetries) {
+          entry['retryCount'] = 0;
+          entry['lastError'] = null;
+        } else if (status == 'retrying' || status == 'failed') {
           entry['retryCount'] = (entry['retryCount'] as int? ?? 0) + 1;
+        }
+      }
+    }
+    await _writeManifest(manifest);
+  }
+
+  /// Updates the patient info for a pending report (used for recovery).
+  static Future<void> recoverPatient(
+    String id, {
+    required String patientId,
+    String? patientName,
+    String? registrationNumber,
+  }) async {
+    final manifest = await _readManifest();
+    for (final entry in manifest) {
+      if (entry['id'] == id) {
+        entry['patientId'] = patientId;
+        if (patientName != null) entry['patientName'] = patientName;
+        if (registrationNumber != null) {
+          entry['registrationNumber'] = registrationNumber;
         }
       }
     }
@@ -167,6 +198,42 @@ class OfflineReportQueue {
       await _writeManifest(manifest);
       _log.info('Reset failed offline reports to queued for retry');
     }
+  }
+
+  /// Resets any reports that were stuck in 'processing' or 'retrying' state
+  /// (e.g. app crash) back to 'queued' so they can be picked up again.
+  static Future<void> resetStuckReports() async {
+    final manifest = await _readManifest();
+    var changed = false;
+    for (final entry in manifest) {
+      final status = entry['status'];
+      if (status == 'processing' || status == 'retrying') {
+        entry['status'] = 'queued';
+        entry['retryCount'] = 0;
+        entry['lastError'] = null;
+        changed = true;
+        _log.info(
+          'Reset stuck report ${entry['id']} from $status to queued (retryCount reset)',
+        );
+      }
+    }
+    if (changed) {
+      await _writeManifest(manifest);
+    }
+  }
+
+  /// Removes all failed reports from the queue and deletes their files.
+  static Future<void> removeAllFailed() async {
+    final manifest = await _readManifest();
+    final failedIds = manifest
+        .where((e) => e['status'] == 'failed')
+        .map((e) => e['id'] as String)
+        .toList();
+
+    for (final id in failedIds) {
+      await remove(id);
+    }
+    _log.info('Removed ${failedIds.length} failed reports');
   }
 
   /// Removes a completed or cancelled report and its files.

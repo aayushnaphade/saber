@@ -7,6 +7,7 @@ import 'package:saber/data/session_manager.dart';
 import 'package:saber/data/supabase/supabase_consultation_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/main.dart';
+import 'package:saber/pages/editor/editor.dart';
 import 'package:saber/pages/editor/report_view.dart';
 
 class ReportGenerationOverlay extends StatefulWidget {
@@ -448,7 +449,7 @@ class _AsyncReportCardState extends State<_AsyncReportCard>
       }
 
       // 2. Clean up local editor session files
-      await SessionManager().deleteActiveSessionFiles();
+      // await SessionManager().deleteActiveSessionFiles();
       SessionManager().terminate();
 
       // 3. Clear manager state
@@ -525,14 +526,14 @@ class _AsyncReportCardState extends State<_AsyncReportCard>
 
                     // Ensure the path has the correct extension for lookup in history
                     if (finalSourcePath != null &&
-                        !finalSourcePath.endsWith('.sbn')) {
-                      if (finalSourcePath.endsWith('.sbn2')) {
+                        !finalSourcePath.endsWith(Editor.extension)) {
+                      if (finalSourcePath.endsWith('.sbn')) {
                         finalSourcePath = finalSourcePath.replaceAll(
-                          '.sbn2',
                           '.sbn',
+                          Editor.extension,
                         );
                       } else {
-                        finalSourcePath = '$finalSourcePath.sbn';
+                        finalSourcePath = '$finalSourcePath${Editor.extension}';
                       }
                     }
 
@@ -554,7 +555,7 @@ class _AsyncReportCardState extends State<_AsyncReportCard>
                     } catch (e) {
                       debugPrint('Error completing consultation: $e');
                     }
-                    await SessionManager().deleteActiveSessionFiles();
+                    // await SessionManager().deleteActiveSessionFiles();
                     SessionManager().terminate();
 
                     // 3. Clear manager state

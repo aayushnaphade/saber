@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:logging/logging.dart';
@@ -309,36 +310,49 @@ class SupabaseConsultationService {
       final cloudPrefix = '$effectiveDoctorId/$patientId/session_notes';
       final sessionPath = '$cloudPrefix/session_$sessionNumber';
 
-      log.info('Fetching specific note from: $sessionPath');
-
       final files = await supabase.storage
           .from('medical_notes')
           .list(path: sessionPath);
 
       if (files.isEmpty) {
-        log.info('No files found in $sessionPath');
+        log.warning('No files found in $sessionPath');
         return null;
       }
 
       // Find the preview file (.sbn2.p or .sbn.p)
-      final previewFile = files.cast<FileObject?>().firstWhere(
+      FileObject? fileToUse = files.cast<FileObject?>().firstWhere(
         (f) => f != null && (f.name.endsWith('.p')),
         orElse: () => null,
       );
 
-      if (previewFile != null) {
+      // FALLBACK: If no preview, check for raw .sbn2 or .sbn
+      if (fileToUse == null) {
+        fileToUse = files.cast<FileObject?>().firstWhere(
+          (f) =>
+              f != null &&
+              (f.name.endsWith('.sbn2') || f.name.endsWith('.sbn')),
+          orElse: () => null,
+        );
+        if (fileToUse != null) {
+          log.info(
+            'Found raw note file (no preview) for session $sessionNumber: ${fileToUse.name}',
+          );
+        }
+      }
+
+      if (fileToUse != null) {
         // Use createSignedUrl instead of getPublicUrl for private buckets
         final signedUrl = await supabase.storage
             .from('medical_notes')
-            .createSignedUrl('$sessionPath/${previewFile.name}', 60 * 60);
+            .createSignedUrl('$sessionPath/${fileToUse.name}', 60 * 60);
 
         return PreviousSessionNote(
           imageUrl: signedUrl,
           sessionNumber: sessionNumber,
-          createdAt: previewFile.updatedAt != null
-              ? DateTime.parse(previewFile.updatedAt!).toLocal()
+          createdAt: fileToUse.updatedAt != null
+              ? DateTime.parse(fileToUse.updatedAt!).toLocal()
               : DateTime.now(),
-          fileName: previewFile.name,
+          fileName: fileToUse.name,
         );
       }
 
@@ -435,6 +449,7 @@ class SupabaseConsultationService {
   }
 
   /// Get the page count for a specific session from cloud storage
+  /// Get the page count for a specific session from cloud storage
   static Future<int> getSessionPageCount(
     String patientId,
     int sessionNumber, {
@@ -450,11 +465,29 @@ class SupabaseConsultationService {
           .from('medical_notes')
           .list(path: cloudPrefix);
 
-      // Count files that appear to be page assets (session_note.sbn.0, session_note.sbn.1, etc.)
+      // 1. Check for .meta file
+      final metaFiles = files.where((f) => f.name.endsWith('.meta'));
+      if (metaFiles.isNotEmpty) {
+        try {
+          final metaFile = metaFiles.first;
+          final bytes = await supabase.storage
+              .from('medical_notes')
+              .download('$cloudPrefix/${metaFile.name}');
+          final json = jsonDecode(utf8.decode(bytes));
+          final count = json['pageCount'];
+          if (count is int) return count;
+        } catch (e) {
+          log.warning('Error reading .meta file: $e');
+        }
+      }
+
+      // 2. Fallback: Count files that appear to be page assets (session_note.sbn.0, session_note.sbn.1, etc.)
       final pageFiles = files.where((f) {
         final name = f.name;
+        // Exclude meta and preview files
         return (name.contains('.sbn') || name.contains('.sbn2')) &&
-            !name.endsWith('.p');
+            !name.endsWith('.p') &&
+            !name.endsWith('.meta');
       });
 
       return pageFiles.length;

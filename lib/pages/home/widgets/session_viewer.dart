@@ -105,14 +105,17 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
 
       // 1. Fetch AI Report
       // The sourceDocumentPath matches the session file path
-      // e.g. /patients/{patientId}/session_notes/session_{num}/session_{num}_notes.sbn
+      // e.g. /patients/{patientId}/session_notes/session_{num}/session_{num}_notes.sbn2
       final documentName = '${session.folderName}_notes';
       final expectedPath =
+          '/patients/${widget.patientId}/session_notes/${session.folderName}/$documentName${Editor.extension}';
+      // Also check for legacy .sbn paths from older sessions
+      final legacyPath =
           '/patients/${widget.patientId}/session_notes/${session.folderName}/$documentName.sbn';
       log.info(
         'Fetching report for patient ${widget.patientId}, session folder ${session.folderName}',
       );
-      log.info('Expected path: $expectedPath');
+      log.info('Expected path: $expectedPath (legacy: $legacyPath)');
 
       // Robust fetch: get all reports for patient and filter in Dart
       // to handle potential path mismatch or extension variation (.sbn vs .sbn2)
@@ -130,9 +133,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
         report = allReports.firstWhere(
           (r) =>
               r.sourceDocumentPath == expectedPath ||
-              r.sourceDocumentPath == '${expectedPath}2' ||
-              r.sourceDocumentPath ==
-                  expectedPath.replaceAll('.sbn', '.sbn2') ||
+              r.sourceDocumentPath == legacyPath ||
               (r.sourceDocumentPath?.contains(session.folderName) ?? false),
         );
         log.info('Found matching report: ${report.id}');
@@ -140,9 +141,12 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
         log.warning(
           'No matching report found after filtering ${allReports.length} reports',
         );
-        // Fallback to direct path search if firstWhere failed (though it shouldn't if getReportsForPatient returned it)
+        // Fallback to direct path search (try both extensions)
         report = await SupabaseReportService.getReportBySourcePath(
           expectedPath,
+        );
+        report ??= await SupabaseReportService.getReportBySourcePath(
+          legacyPath,
         );
       }
 
@@ -150,7 +154,6 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
       // Use efficient single-fetch instead of loading all historic notes
       PreviousSessionNote? note;
 
-      // Try local file first (Offline / Faster / "Saved Locally" perception)
       try {
         final documentsDir = FileManager.documentsDirectory;
         final patientId = widget.patientId;
@@ -159,48 +162,151 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
         final sessionPath =
             '$documentsDir/patients/$patientId/session_notes/$sessionFolderName';
 
-        final expectedNoteName =
-            '${sessionFolderName}_notes${Editor.extension}.p';
+        // Determine expected note filename
+        String expectedNoteName;
+        if (report?.sourceDocumentPath != null) {
+          // Use the actual filename from the report
+          final reportPath = report!.sourceDocumentPath!;
+          final filename = reportPath.split('/').last;
+          if (filename.endsWith(Editor.extension)) {
+            expectedNoteName = '$filename.p'; // Add .p suffix
+          } else if (filename.endsWith('.sbn')) {
+            // Handle double extension bug: check if .sbn.sbn2.p exists locally
+            // (Old sessions might have this artifact)
+            final doubleExtName =
+                '$filename${Editor.extension}.p'; // .sbn.sbn2.p
+            final doubleExtPath = '$sessionPath/$doubleExtName';
+            if (await File(doubleExtPath).exists()) {
+              expectedNoteName = doubleExtName;
+            } else {
+              expectedNoteName = '$filename.p'; // Add .p suffix
+            }
+          } else {
+            // Fallback if report path doesn't have standard extension
+            expectedNoteName =
+                '${sessionFolderName}_notes${Editor.extension}.p';
+          }
+        } else {
+          // Fallback to default naming convention
+          expectedNoteName = '${sessionFolderName}_notes${Editor.extension}.p';
+        }
+
         final localNotePath = '$sessionPath/$expectedNoteName';
 
         log.info('Checking local note at: $localNotePath');
         final file = File(localNotePath);
-        if (await file.exists()) {
-          log.info('Found local note preview at $localNotePath');
-          note = PreviousSessionNote(
-            imageUrl: localNotePath,
-            sessionNumber: _currentSessionNumber,
-            createdAt: await file.lastModified(),
-            fileName: expectedNoteName,
-          );
-        } else {
-          // Try fallback for older .sbn.p
-          final olderNotePath = localNotePath.replaceAll('.sbn2.p', '.sbn.p');
-          final olderFile = File(olderNotePath);
-          final olderFileExists = await olderFile.exists();
-          log.info(
-            'Checking older local note at: $olderNotePath. Exists: $olderFileExists',
-          );
 
-          if (olderFileExists) {
-            log.info('Found older local note preview at $olderNotePath');
-            note = PreviousSessionNote(
-              imageUrl: olderNotePath,
-              sessionNumber: _currentSessionNumber,
-              createdAt: await olderFile.lastModified(),
-              fileName: olderNotePath.split('/').last,
+        if (await file.exists()) {
+          final length = await file.length();
+          if (length == 0) {
+            log.warning(
+              'Found 0-byte local note preview at $localNotePath. Deleting...',
             );
+            await file.delete();
+          } else {
+            log.info(
+              'Found local note preview at $localNotePath ($length bytes)',
+            );
+            note = PreviousSessionNote(
+              imageUrl: localNotePath,
+              sessionNumber: _currentSessionNumber,
+              createdAt: await file.lastModified(),
+              fileName: expectedNoteName,
+            );
+          }
+        } else {
+          // Check if ANY .p file exists in the directory as a fallback
+          // This handles cases where the report path might be outdated or mismatched
+          final dir = Directory(sessionPath);
+          if (await dir.exists()) {
+            final files = await dir.list().toList();
+            final pFiles = files.where((f) => f.path.endsWith('.p')).toList();
+            if (pFiles.isNotEmpty) {
+              // Sort by modification time to get the most recent one?
+              // Or just take the first one?
+              pFiles.sort(
+                (a, b) =>
+                    b.statSync().modified.compareTo(a.statSync().modified),
+              );
+              final bestFile = pFiles.first;
+
+              log.info('Found fallback local note preview: ${bestFile.path}');
+              note = PreviousSessionNote(
+                imageUrl: bestFile.path,
+                sessionNumber: _currentSessionNumber,
+                createdAt: await bestFile.stat().then((s) => s.modified),
+                fileName: bestFile.path.split('/').last,
+              );
+            }
+          }
+
+          if (note == null) {
+            // Try fallback for older .sbn.p
+            final olderNoteName = '${sessionFolderName}_notes.sbn.p';
+            final olderNotePath = '$sessionPath/$olderNoteName';
+            final olderFile = File(olderNotePath);
+
+            if (await olderFile.exists()) {
+              log.info('Found OLDER local note preview at $olderNotePath');
+              note = PreviousSessionNote(
+                imageUrl: olderNotePath,
+                sessionNumber: _currentSessionNumber,
+                createdAt: await olderFile.lastModified(),
+                fileName: olderNoteName,
+              );
+            } else {
+              // FALLBACK: Check for raw .sbn2 file (thumbnail generation might have failed)
+              final rawNoteName =
+                  '${sessionFolderName}_notes${Editor.extension}';
+              final rawNotePath = '$sessionPath/$rawNoteName';
+              final rawFile = File(rawNotePath);
+
+              if (await rawFile.exists()) {
+                log.info(
+                  'Found RAW local note file at $rawNotePath (missing thumbnail)',
+                );
+                note = PreviousSessionNote(
+                  imageUrl:
+                      rawNotePath, // We pass the raw path; UI must handle non-image extensions
+                  sessionNumber: _currentSessionNumber,
+                  createdAt: await rawFile.lastModified(),
+                  fileName: rawNoteName,
+                );
+              } else {
+                log.info(
+                  'Older local note preview AND raw file NOT found. Falling back to cloud...',
+                );
+              }
+            }
           }
         }
       } catch (e) {
         log.warning('Error checking local note: $e');
       }
 
-      note ??= await SupabaseConsultationService.getSessionNote(
-        widget.patientId,
-        _currentSessionNumber,
-        doctorId: report?.doctorId, // Pass the doctorId from the report
-      );
+      if (note == null) {
+        log.info(
+          'Fetching session note from Supabase for session $_currentSessionNumber...',
+        );
+        try {
+          note = await SupabaseConsultationService.getSessionNote(
+            widget.patientId,
+            _currentSessionNumber,
+            doctorId: report?.doctorId, // Pass the doctorId from the report
+          );
+          if (note != null) {
+            log.info(
+              'Successfully fetched note from Supabase: ${note.fileName}',
+            );
+          } else {
+            log.warning(
+              'No note found in Supabase for session $_currentSessionNumber',
+            );
+          }
+        } catch (e) {
+          log.severe('Error fetching note from Supabase: $e');
+        }
+      }
 
       // 3. Fetch Patient Info
       final patient = await SupabasePatientService.getPatient(widget.patientId);
@@ -464,6 +570,49 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
   }
 
   Widget _buildNoteContainer() {
+    final note = _currentNote!;
+    final isImage =
+        note.fileName?.endsWith('.p') == true ||
+        note.fileName?.endsWith('.png') == true ||
+        note.fileName?.endsWith('.jpg') == true ||
+        note.fileName?.endsWith('.jpeg') == true;
+
+    if (!isImage) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.description_outlined,
+                size: 64,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Handwritten Note Available',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Preview not generated',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -480,9 +629,9 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
         borderRadius: BorderRadius.circular(12),
         child: InteractiveViewer(
           maxScale: 5.0,
-          child: _currentNote!.imageUrl.startsWith('http')
+          child: note.imageUrl.startsWith('http')
               ? Image.network(
-                  _currentNote!.imageUrl,
+                  note.imageUrl,
                   fit: BoxFit.contain,
                   loadingBuilder: (context, child, loading) {
                     if (loading == null) return child;
@@ -497,7 +646,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
                   ),
                 )
               : Image.file(
-                  File(_currentNote!.imageUrl),
+                  File(note.imageUrl),
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stack) => const Center(
                     child: Icon(

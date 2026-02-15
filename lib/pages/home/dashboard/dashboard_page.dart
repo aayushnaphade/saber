@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 import 'package:saber/components/theming/premium_confirmation_dialog.dart';
 import 'package:saber/data/api/error_handler.dart';
@@ -22,6 +25,8 @@ import 'package:saber/data/services/sync_worker.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart'; // Added for pending reviews
+import 'package:saber/data/services/offline_report_queue.dart';
+import 'package:saber/pages/editor/editor.dart';
 import 'package:saber/pages/home/dashboard/dashboard_skeleton.dart';
 import 'package:saber/pages/home/dashboard/widgets/live_queue_card.dart';
 import 'package:saber/pages/home/dashboard/widgets/live_queue_list.dart';
@@ -37,6 +42,7 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
+  static final _log = Logger('DashboardPage');
   var _doctorName = stows.userDisplayName.value;
   String? _avatarUrl = stows.userAvatarUrl.value;
   RealtimeChannel? _consultationsSubscription;
@@ -218,31 +224,27 @@ class _DashboardPageState extends State<DashboardPage> {
     _isFetching = true;
 
     // ── Snapshot outbox IDs BEFORE triggering the drain ──────────────
-    // processOutbox() is fire-and-forget and may remove entries from
-    // disk before Future.wait returns. Capturing these sets first
-    // ensures we can filter stale Supabase data correctly.
-    final locallyCompleted =
-        await SyncOutbox.getLocallyCompletedConsultationIds();
-    final locallyStarted = await SyncOutbox.getLocallyStartedConsultationIds();
+    final outboxResults = await Future.wait([
+      SyncOutbox.getLocallyCompletedConsultationIds(),
+      SyncOutbox.getLocallyStartedConsultationIds(),
+    ]);
+    final locallyCompleted = outboxResults[0];
+    final locallyStarted = outboxResults[1];
     final locallyHandled = locallyCompleted.union(locallyStarted);
 
-    // Force sync worker to run (regardless of background init state)
-    // ignore: avoid_print
-    print('Dashboard: Triggering SyncWorker.processOutbox()...');
+    // Force sync worker to run
     SyncWorker.processOutbox();
     OfflineReportWorker.processQueue();
 
     debugPrint('Dashboard: Fetching data from Supabase...');
     try {
-      // Clean up past pending sessions first
-      await SupabaseDashboardService.cancelPastPendingSessions();
-
       final results = await Future.wait([
         SupabaseDashboardService.getStats(),
         SupabaseDashboardService.getLiveQueue(),
         SupabaseDashboardService.getTodayAppointments(),
         SupabaseDashboardService.getActiveConsultations(),
-        SupabaseReportService.getPendingReviewReports(), // Fetch pending reviews
+        SupabaseReportService.getPendingReviewReports(),
+        SupabaseDashboardService.cancelPastPendingSessions(), // Moved inside wait
       ]);
 
       if (!mounted) return;
@@ -257,6 +259,68 @@ class _DashboardPageState extends State<DashboardPage> {
       final pendingResult =
           results[4] as ({List<ClinicalReport> items, bool isStale});
       final pendingReviews = pendingResult.items;
+
+      try {
+        final offlinePending = await OfflineReportQueue.getPending();
+        if (offlinePending.isNotEmpty) {
+          _log.info(
+            'Dashboard: Merging ${offlinePending.length} offline pending reports',
+          );
+          final offlineClinical = offlinePending.map((p) {
+            final isFailed = p.status == 'failed';
+            final isQueued = p.status == 'queued';
+            final isRetrying = p.status == 'retrying';
+
+            if (kDebugMode) {
+              print('DEBUG: Offline Report ${p.id} status: ${p.status}');
+            }
+
+            String statusText;
+            if (isFailed) {
+              statusText =
+                  'Tap to retry generation. Error: ${p.lastError ?? "Unknown"}';
+            } else if (isQueued) {
+              statusText = 'Waiting for network...';
+            } else if (isRetrying) {
+              statusText = 'Retrying generation...';
+            } else {
+              statusText = 'Processing (${p.status})...';
+            }
+
+            return ClinicalReport(
+              id: p.id,
+              patientId: p.patientId,
+              doctorId: supabase.auth.currentUser?.id ?? 'offline',
+              createdAt: p.createdAt,
+              sessionDate: p.createdAt,
+              patientName: isFailed
+                  ? 'Generation Failed'
+                  : isQueued
+                  ? (p.patientName ?? 'Pending Report')
+                  : isRetrying
+                  ? (p.patientName ?? 'Retrying...')
+                  : (p.patientName ?? 'Processing...'),
+              status: 'draft',
+              structuredData: const {},
+              markdownContent: statusText,
+              sourceDocumentPath: p.sourceFilePath,
+            );
+          }).toList();
+
+          // Prepend offline reports (they are usually newer or high priority)
+          pendingReviews.insertAll(0, offlineClinical);
+        }
+      } catch (e) {
+        _log.warning('Dashboard: Error merging offline reports: $e');
+      }
+
+      _log.info('Dashboard: Pending Result Stale: ${pendingResult.isStale}');
+      _log.info('Dashboard: Pending Reviews Count: ${pendingReviews.length}');
+      if (pendingReviews.isNotEmpty) {
+        _log.info(
+          'Dashboard: First Review Status: ${pendingReviews.first.status}',
+        );
+      }
 
       if (pendingResult.isStale) {
         debugPrint(
@@ -585,7 +649,10 @@ class _DashboardPageState extends State<DashboardPage> {
       await sessionDir.create();
 
       final documentName = 'session_${nextSessionNumber}_notes';
-      final fullPath = p.join(sessionDir.path, '$documentName.sbn');
+      final fullPath = p.join(
+        sessionDir.path,
+        '$documentName${Editor.extension}',
+      );
 
       // Navigate to editor
       final relativePath = p.relative(
@@ -1164,6 +1231,66 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _openReportEditor(ClinicalReport report) async {
+    // Check for Failed or Stuck/Queued/Retrying/Processing state
+    // We treat ANY of these states as actionable to ensure user is never blocked.
+    // OfflineReportWorker handles concurrency safety.
+    final isFailed = report.patientName == 'Generation Failed';
+    final isQueued =
+        report.patientName == 'Pending Report' ||
+        report.patientName == 'Retrying...' ||
+        report.patientName == 'Processing...' ||
+        (report.patientName?.contains('Processing') ?? false) ||
+        report.markdownContent == 'Waiting for network...' ||
+        (report.markdownContent?.contains('Processing') ?? false);
+
+    if (isFailed || isQueued) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Retrying report generation...')),
+        );
+      }
+      // Reset status to queued AND reset retry count for manual user retry
+      await OfflineReportQueue.updateStatus(
+        report.id,
+        'queued',
+        resetRetries: true,
+      );
+      // Force processing even if the worker thinks it's busy
+      OfflineReportWorker.processQueue(force: true);
+      _loadDashboardData();
+      return;
+    }
+
+    // Check if report is still processing/generating
+    final isProcessing =
+        report.patientName == 'Processing...' ||
+        (report.patientName?.contains('Processing') ?? false) ||
+        report.markdownContent == 'Report generation in progress...';
+
+    // DEBUG LOGGING
+    if (kDebugMode) {
+      print('DEBUG: _openReportEditor called');
+      print('DEBUG: Report ID: ${report.id}');
+      print('DEBUG: Patient Name: "${report.patientName}"');
+      print(
+        'DEBUG: Markdown prefix: "${report.markdownContent?.substring(0, min(20, report.markdownContent?.length ?? 0))}"',
+      );
+      print('DEBUG: Is Processing evaluated to: $isProcessing');
+    }
+
+    if (isProcessing) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Report is still processing. Please wait a moment.'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
     if (report.sourceDocumentPath != null) {
       String path = report.sourceDocumentPath!;
       if (path.startsWith(FileManager.documentsDirectory)) {

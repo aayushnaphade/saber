@@ -349,9 +349,20 @@ class EditorCoreInfo {
     bool readOnly = false,
     bool onlyFirstPage = false,
   }) async {
-    final fullPath = path.endsWith(Editor.extension)
-        ? path
-        : path + Editor.extension;
+    // Normalize the path: strip old .sbn extension to get the base path
+    String basePath;
+    if (path.endsWith(Editor.extension)) {
+      basePath = path.substring(0, path.length - Editor.extension.length);
+    } else if (path.endsWith(Editor.extensionOldJson)) {
+      basePath = path.substring(
+        0,
+        path.length - Editor.extensionOldJson.length,
+      );
+    } else {
+      basePath = path;
+    }
+
+    final fullPath = basePath + Editor.extension;
 
     final bsonBytes = await FileManager.readFile(fullPath);
 
@@ -360,20 +371,20 @@ class EditorCoreInfo {
       jsonString = null;
     } else {
       final jsonBytes = await FileManager.readFile(
-        path + Editor.extensionOldJson,
+        basePath + Editor.extensionOldJson,
       );
       jsonString = jsonBytes != null ? utf8.decode(jsonBytes) : null;
     }
 
     if (bsonBytes == null && jsonString == null) {
       log.warning('Debug loadFromFilePath: FILE NOT FOUND or EMPTY $path');
-      return EditorCoreInfo(filePath: path, readOnly: readOnly);
+      return EditorCoreInfo(filePath: basePath, readOnly: readOnly);
     }
 
     return loadFromFileContents(
       jsonString: jsonString,
       bsonBytes: bsonBytes,
-      path: path,
+      path: basePath,
       readOnly: readOnly,
       onlyFirstPage: onlyFirstPage,
     );

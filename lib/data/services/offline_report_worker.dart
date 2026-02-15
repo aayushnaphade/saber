@@ -5,10 +5,12 @@ import 'package:logging/logging.dart';
 import 'package:saber/data/api/report_generator.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/services/offline_report_queue.dart';
+import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:saber/data/supabase/supabase_consultation_service.dart';
 import 'package:saber/data/supabase/supabase_prescription_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/data/utils/report_formatter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Worker processed by SyncWorker to generate and upload pending reports
 class OfflineReportWorker {
@@ -39,36 +41,83 @@ class OfflineReportWorker {
   /// Process all pending reports in the offline queue.
   /// Calls the Gemini API, generates the report, saves it to Supabase,
   /// and creates prescriptions.
-  static Future<void> processQueue() async {
-    if (_isProcessing) return;
+  static Future<void> processQueue({bool force = false}) async {
+    if (force) {
+      _log.info('Forcing worker processing (resetting flag)');
+      _isProcessing = false;
+    }
+
+    if (_isProcessing) {
+      _log.info('Worker is already processing, skipping trigger');
+      return;
+    }
     _isProcessing = true;
 
     try {
       final pendingList = await OfflineReportQueue.getPending();
-      if (pendingList.isEmpty) return;
+      if (pendingList.isEmpty) {
+        _log.info('[TIMING] No pending reports in queue');
+        return;
+      }
 
-      _log.info('Processing ${pendingList.length} pending offline reports...');
+      _log.info('[TIMING] Online: ${stows.isOnline.value}');
+      _log.info(
+        '[TIMING] Processing ${pendingList.length} pending offline reports...',
+      );
 
       for (final reportEntry in pendingList) {
+        _log.info(
+          '[TIMING] Entry ${reportEntry.id}: status=${reportEntry.status}, retryCount=${reportEntry.retryCount}, patient=${reportEntry.patientName}',
+        );
+
         // Skip if max retries reached or marked as permanent failure
         if (reportEntry.retryCount >= 3 || reportEntry.status == 'failed') {
+          _log.info(
+            '[TIMING] Skipping ${reportEntry.id}: retryCount=${reportEntry.retryCount}, status=${reportEntry.status}',
+          );
+          // If retryCount >= 3 but status isn't 'failed', mark it as failed
+          if (reportEntry.status != 'failed' && reportEntry.retryCount >= 3) {
+            await OfflineReportQueue.updateStatus(
+              reportEntry.id,
+              'failed',
+              error: 'Max retries (${reportEntry.retryCount}) exceeded',
+            );
+          }
           continue;
         }
 
         // Stop if we lose connection
         if (!stows.isOnline.value) {
-          _log.info('Lost connectivity, pausing report worker');
+          _log.info('[TIMING] Lost connectivity, pausing report worker');
           break;
         }
 
         try {
-          await _processSingleReport(reportEntry);
+          final overallStart = DateTime.now();
+          _log.info(
+            '[TIMING] >>> Starting processing for report ${reportEntry.id} at $overallStart',
+          );
+          await _processSingleReport(reportEntry).timeout(
+            const Duration(minutes: 3),
+            onTimeout: () {
+              throw TimeoutException('Report generation timed out after 3 min');
+            },
+          );
+          final overallDuration = DateTime.now().difference(overallStart);
+          _log.info(
+            '[TIMING] <<< Finished report ${reportEntry.id} in ${overallDuration.inSeconds}s',
+          );
         } catch (e) {
-          _log.severe('Error processing report ${reportEntry.id}', e);
+          _log.severe('[TIMING] Error processing report ${reportEntry.id}: $e');
+          final newRetryCount = reportEntry.retryCount + 1;
+          final newStatus = newRetryCount >= 3 ? 'failed' : 'retrying';
           await OfflineReportQueue.updateStatus(
             reportEntry.id,
-            'retrying', // Or 'failed' depending on error
+            newStatus,
             error: e.toString(),
+          );
+          _log.info(
+            '[TIMING] Updated ${reportEntry.id} to status=$newStatus, retryCount will be $newRetryCount',
           );
         }
       }
@@ -80,6 +129,60 @@ class OfflineReportWorker {
 
   static Future<void> _processSingleReport(PendingReport entry) async {
     _log.info('Generating report for ${entry.patientName} (${entry.id})');
+
+    // 0. Validate or Recover required fields
+    String processedPatientId = entry.patientId;
+    String? processedPatientName = entry.patientName;
+
+    if (processedPatientId.isEmpty) {
+      if (entry.consultationId.isNotEmpty) {
+        _log.info(
+          'Attempting to recover missing patientId from consultation ${entry.consultationId}',
+        );
+        try {
+          // Attempt to fetch patient_id and patient_name from consultation
+          final consultation = await supabase
+              .from('clinical_consultations')
+              .select('patient_id, patient_name, patients(full_name)')
+              .eq('id', entry.consultationId)
+              .maybeSingle();
+
+          if (consultation != null && consultation['patient_id'] != null) {
+            processedPatientId = consultation['patient_id'] as String;
+            // Try to get name from join or fallback
+            if (consultation['patients'] != null) {
+              processedPatientName = consultation['patients']['full_name'];
+            } else {
+              processedPatientName = consultation['patient_name'];
+            }
+
+            _log.info(
+              'Recovered patientId: $processedPatientId. Updating manifest.',
+            );
+            await OfflineReportQueue.recoverPatient(
+              entry.id,
+              patientId: processedPatientId,
+              patientName: processedPatientName,
+            );
+          }
+        } catch (e) {
+          _log.warning('Failed to recover patientId: $e');
+        }
+      }
+
+      // If still empty after recovery attempt, fail.
+      if (processedPatientId.isEmpty) {
+        _log.severe(
+          'Report ${entry.id} has empty patientId and recovery failed. Marking as permanently failed.',
+        );
+        await OfflineReportQueue.updateStatus(
+          entry.id,
+          'failed',
+          error: 'Missing patientId — recovery failed',
+        );
+        return;
+      }
+    }
 
     // 1. Load Images
     final images = await OfflineReportQueue.loadImages(entry.id);
@@ -97,18 +200,24 @@ class OfflineReportWorker {
     // We use the default logic from ReportGenerator internally.
 
     // 3. Generate Report via Gemini
+    final startTime = DateTime.now();
+    _log.info('Calling ReportGenerator at $startTime');
+
     final reportData = await ReportGenerator.generateReport(
       images,
       registrationNumber: entry.registrationNumber,
     );
 
-    _log.info('Report generated successfully for ${entry.id}');
+    final duration = DateTime.now().difference(startTime);
+    _log.info(
+      'Report generated successfully in ${duration.inSeconds}s for ${entry.id}',
+    );
 
     // 4. Format Markdown
     final markdown = ReportFormatter.formatToMarkdown(
       reportData: reportData,
-      patientId: entry.patientId,
-      patientName: entry.patientName,
+      patientId: processedPatientId,
+      patientName: processedPatientName,
       registrationNumber: entry.registrationNumber,
     );
 
@@ -119,7 +228,7 @@ class OfflineReportWorker {
     if (finalSourcePath == null && entry.consultationId.isNotEmpty) {
       try {
         finalSourcePath = await _inferSessionPath(
-          entry.patientId,
+          processedPatientId,
           entry.consultationId,
         );
         if (finalSourcePath != null) {
@@ -133,7 +242,7 @@ class OfflineReportWorker {
     }
 
     await SupabaseReportService.createReport(
-      patientId: entry.patientId,
+      patientId: processedPatientId,
       structuredData: reportData,
       markdownContent: markdown,
       sourceDocumentPath: finalSourcePath,
@@ -145,6 +254,8 @@ class OfflineReportWorker {
     try {
       final medications = reportData['medications'];
       if (medications is List && medications.isNotEmpty) {
+        final rxStart = DateTime.now();
+        _log.info('[TIMING] Step 6: Creating prescriptions...');
         final medsList = medications.whereType<Map<String, dynamic>>().map((m) {
           // ... existing logic ...
           final newMap = Map<String, dynamic>.from(m);
@@ -156,13 +267,18 @@ class OfflineReportWorker {
 
         if (medsList.isNotEmpty) {
           await SupabasePrescriptionService.createPrescription(
-            patientId: entry.patientId,
+            patientId: processedPatientId,
             consultationId: entry.consultationId,
             medications: medsList,
-            patientName: entry.patientName,
+            patientName: processedPatientName,
           );
-          _log.info('Prescriptions created for ${entry.id}');
+          final rxDuration = DateTime.now().difference(rxStart);
+          _log.info(
+            '[TIMING] Step 6: Prescriptions created in ${rxDuration.inMilliseconds}ms',
+          );
         }
+      } else {
+        _log.info('[TIMING] Step 6: No medications to prescribe, skipping');
       }
     } catch (e) {
       _log.warning('Failed to create prescriptions for ${entry.id}: $e');
@@ -171,21 +287,32 @@ class OfflineReportWorker {
 
     // 7. Ensure Consultation is Completed (Safety net)
     try {
-      // Only if ID is valid
       if (entry.consultationId.isNotEmpty) {
-        // We don't want to override existing completion data if SyncOutbox handled it,
-        // but providing a status update is idempotent usually.
+        final step7Start = DateTime.now();
+        _log.info(
+          '[TIMING] Step 7: Completing consultation ${entry.consultationId}...',
+        );
         await SupabaseConsultationService.completeConsultation(
           entry.consultationId,
         );
+        final step7Duration = DateTime.now().difference(step7Start);
+        _log.info(
+          '[TIMING] Step 7: Consultation completed in ${step7Duration.inMilliseconds}ms',
+        );
+      } else {
+        _log.info('[TIMING] Step 7: No consultationId, skipping');
       }
     } catch (e) {
       _log.warning('Consultation completion check failed: $e');
     }
 
     // 8. Remove from Queue
+    final step8Start = DateTime.now();
+    _log.info('[TIMING] Step 8: Removing report ${entry.id} from queue...');
     await OfflineReportQueue.remove(entry.id);
-    _log.info('Report ${entry.id} processing complete and removed from queue');
+    final step8Duration = DateTime.now().difference(step8Start);
+    _log.info('[TIMING] Step 8: Removed in ${step8Duration.inMilliseconds}ms');
+    _log.info('Report ${entry.id} processing FULLY complete');
   }
 
   /// Infers the session path (e.g. session_5/session_5_notes.saber)

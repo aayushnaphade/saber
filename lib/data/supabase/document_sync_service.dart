@@ -14,34 +14,32 @@ class DocumentSyncService {
   /// Upload a document file to Supabase Storage
   static Future<void> uploadDocument(
     String localPath, {
-    bool overwrite = true,
+    bool overwrite = false,
   }) async {
+    final file = File(localPath);
+    if (!await file.exists()) {
+      log.warning('Attempted to upload non-existent file: $localPath');
+      return;
+    }
+
     try {
-      log.info('Uploading document: $localPath');
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) throw Exception('User not logged in');
 
-      // Check if file is in patients directory
-      if (!localPath.contains('/patients/')) {
-        log.fine('Skipping non-patient file: $localPath');
-        return;
+      // Convert local path to cloud path
+      // Local: /.../documents/patients/{patientId}/{...}
+      // Cloud: {userId}/{patientId}/{...}
+      String cloudPath = localPath;
+      if (cloudPath.contains('/patients/')) {
+        final parts = cloudPath.split('/patients/');
+        if (parts.length > 1) {
+          cloudPath = '$userId/${parts[1]}';
+        }
       }
 
-      // Get cloud path
-      final cloudPath = _getCloudPath(localPath);
-      if (cloudPath == null) {
-        log.warning('Could not determine cloud path for: $localPath');
-        return;
-      }
-
-      // Read file
-      final file = FileManager.getFile(localPath);
-      if (!await file.exists()) {
-        log.warning('File does not exist: $localPath');
-        return;
-      }
+      log.info('Starting upload: $localPath -> $cloudPath');
 
       final bytes = await file.readAsBytes();
-
-      // Upload to storage
       await supabase.storage
           .from('medical_notes')
           .uploadBinary(
@@ -50,14 +48,14 @@ class DocumentSyncService {
             fileOptions: FileOptions(upsert: overwrite),
           );
 
-      log.info('Successfully uploaded: $localPath -> $cloudPath');
+      log.info('Upload successful: $cloudPath');
 
-      // If this is a .sbn2 file, also upload the .sba assets folder
+      // If this is an .sbn2 file, we also need to upload its assets folder
       if (localPath.endsWith('.sbn2')) {
         await _uploadAssetsFolder(localPath, cloudPath);
       }
-    } catch (e, stackTrace) {
-      log.severe('Failed to upload document: $localPath', e, stackTrace);
+    } catch (e) {
+      log.severe('Error uploading document $localPath: $e');
       rethrow;
     }
   }
@@ -463,11 +461,11 @@ class DocumentSyncService {
 
   /// Queue a file for upload (to be processed when online)
   /// This is a simple implementation - for production, use a proper queue system
-  static void queueUpload(String localPath) {
+  static Future<void> queueUpload(String localPath) {
     log.info('Queueing upload (immediate): $localPath');
     // For now, just attempt upload immediately
     // TODO: Implement proper offline queue with retry logic
-    uploadDocument(localPath).catchError((error) {
+    return uploadDocument(localPath).catchError((error) {
       log.warning('Failed to upload queued file: $localPath', error);
       // Queue for retry later
     });

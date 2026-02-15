@@ -46,6 +46,8 @@ class SyncWorker {
     // Give failed items another chance on app startup
     await SyncOutbox.retryAllFailed();
     await OfflineReportQueue.retryAllFailed();
+    // Reset any reports that were stuck processing (e.g. app crash)
+    await OfflineReportQueue.resetStuckReports();
 
     // Also resume any pending offline reports
     await OfflineReportWorker.processQueue();
@@ -162,6 +164,15 @@ class SyncWorker {
       ); // Avoid logging massive markdown
 
       await supabase.from('clinical_reports').insert(payload);
+    } else if (entry.operation == 'create_patient') {
+      final payload = entry.payload;
+      _log.info('Creating patient sync: ${payload['id']}');
+      await supabase.from('patients').insert(payload);
+    } else if (entry.operation == 'update_patient') {
+      final payload = Map<String, dynamic>.from(entry.payload);
+      final id = payload.remove('id') as String;
+      _log.info('Updating patient sync: $id');
+      await supabase.from('patients').update(payload).eq('id', id);
     } else {
       _log.warning('Unknown operation: ${entry.operation}');
       throw Exception('Unknown operation: ${entry.operation}');

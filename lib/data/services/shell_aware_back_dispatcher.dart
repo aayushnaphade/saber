@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/services/back_navigation_service.dart';
+import 'package:saber/data/services/secure_logger.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/home/home.dart';
 
@@ -17,6 +18,7 @@ class ShellAwareBackButtonDispatcher extends RootBackButtonDispatcher {
   ShellAwareBackButtonDispatcher({required this.router});
 
   final GoRouter router;
+  static final _log = SecureLogger('BackDispatcher');
 
   /// Global key for accessing the scaffold messenger
   static final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -25,30 +27,29 @@ class ShellAwareBackButtonDispatcher extends RootBackButtonDispatcher {
   Future<bool> didPopRoute() async {
     // Get the current location from the router
     final currentLocation = router.routerDelegate.currentConfiguration.uri.path;
-    print('🔄 [DEBUG] ShellAwareBackButtonDispatcher.didPopRoute() called');
-    print('   Location: $currentLocation');
+    _log.debug('didPopRoute', {'location': currentLocation});
 
     // Determine the current subpage based on the path
     final subpage = _getSubpageFromPath(currentLocation);
 
     // Check if we're within the shell (home) routes
     if (_isInShellRoute(currentLocation)) {
-      print('   ℹ️ [DEBUG] In shell route, using BackNavigationService...');
+      _log.debug('In shell route, using BackNavigationService');
       // Get the navigation result from our service
       final navResult = BackNavigationService.getBackNavigationResult(
         currentPath: currentLocation,
         currentSubpage: subpage,
       );
 
-      print('   🎯 [DEBUG] NavResult action: ${navResult.action}');
+      _log.debug('NavResult', {'action': navResult.action.name});
 
       switch (navResult.action) {
         case BackNavigationAction.navigateTo:
           if (navResult.targetRoute != null) {
             final target = navResult.targetRoute!;
-            print(
-              '   🚀 [DEBUG] ShellDispatcher calling router.go("$target") via microtask',
-            );
+            _log.debug('ShellDispatcher routing via microtask', {
+              'target': target,
+            });
             // Use a microtask to return true to the platform FIRST
             // This prevents JNI detachment during the back gesture animation
             Future.microtask(() => router.go(target));
@@ -56,20 +57,20 @@ class ShellAwareBackButtonDispatcher extends RootBackButtonDispatcher {
           return true; // We handled the back event
 
         case BackNavigationAction.showExitConfirmation:
-          print('   🏠 [DEBUG] ShellDispatcher showing exit confirmation');
+          _log.debug('ShellDispatcher showing exit confirmation');
           // Show the exit confirmation snackbar
           _showExitConfirmationSnackbar();
           return true; // We handled the back event
 
         case BackNavigationAction.exitApp:
-          print('   🛑 [DEBUG] ShellDispatcher calling SystemNavigator.pop()');
+          _log.debug('ShellDispatcher calling SystemNavigator.pop()');
           // Exit the app
           SystemNavigator.pop();
           return true;
       }
     }
 
-    print('   ⏭️ [DEBUG] Not in shell route or handled. Letting super handle.');
+    _log.debug('Not in shell route, deferring to super');
     // For routes outside the shell (login, editor, etc.), let GoRouter handle it
     return super.didPopRoute();
   }

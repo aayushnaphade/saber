@@ -213,6 +213,7 @@ class FileManager {
     List<int> toWrite, {
     bool awaitWrite = false,
     bool alsoUpload = true,
+    bool awaitUpload = false,
     DateTime? lastModified,
   }) async {
     filePath = _sanitisePath(filePath);
@@ -236,16 +237,21 @@ class FileManager {
         .catchError((_) => File(''), test: (e) => e is PathNotFoundException),
     ]);
 
-    void afterWrite() {
+    Future<void> afterWrite() async {
       broadcastFileWrite(FileOperationType.write, filePath);
       // Queue for Supabase upload
       if (filePath.contains('/patients/') &&
           (filePath.endsWith(Editor.extension) ||
               filePath.endsWith(Editor.extensionOldJson) ||
               filePath.endsWith('${Editor.extension}.p') ||
-              filePath.endsWith('${Editor.extensionOldJson}.p'))) {
+              filePath.endsWith('${Editor.extensionOldJson}.p') ||
+              filePath.endsWith('.meta'))) {
         log.info('Queueing upload for $filePath');
-        DocumentSyncService.queueUpload(filePath);
+        final uploadFuture = DocumentSyncService.queueUpload(filePath);
+        if (awaitUpload) {
+          log.info('Awaiting upload for $filePath');
+          await uploadFuture;
+        }
       }
       if (filePath.endsWith(Editor.extension)) {
         _removeReferences(
