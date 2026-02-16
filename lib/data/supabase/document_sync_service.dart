@@ -16,7 +16,7 @@ class DocumentSyncService {
     String localPath, {
     bool overwrite = false,
   }) async {
-    final file = File(localPath);
+    final file = FileManager.getFile(localPath);
     if (!await file.exists()) {
       log.warning('Attempted to upload non-existent file: $localPath');
       return;

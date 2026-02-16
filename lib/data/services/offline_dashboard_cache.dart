@@ -34,12 +34,25 @@ class OfflineDashboardCache {
     }
   }
 
+  static final _lock = <void>[]; // Simple mutex using a list
+
   static Future<void> _writeCache(Map<String, dynamic> data) async {
+    // Wait for previous writes to complete
+    while (_lock.isNotEmpty) {
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
+    _lock.add(null); // Acquire lock
+
     try {
       final file = await _cacheFile();
-      await file.writeAsString(jsonEncode(data));
+      // Write to a temporary file first then rename for atomicity
+      final tempFile = File('${file.path}.tmp');
+      await tempFile.writeAsString(jsonEncode(data));
+      await tempFile.rename(file.path);
     } catch (e) {
       _log.warning('Error writing cache: $e');
+    } finally {
+      if (_lock.isNotEmpty) _lock.removeLast(); // Release lock
     }
   }
 

@@ -1279,7 +1279,7 @@ class EditorState extends State<Editor> {
           filePath,
           bson,
           awaitWrite: true,
-          awaitUpload: awaitUpload,
+          awaitUpload: true, // Force await upload
         ),
         for (int i = 0; i < assets.length; ++i)
           assets
@@ -1289,7 +1289,7 @@ class EditorState extends State<Editor> {
                   '$filePath.$i',
                   bytes,
                   awaitWrite: true,
-                  awaitUpload: awaitUpload,
+                  awaitUpload: true, // Force await upload
                 ),
               ),
         FileManager.removeUnusedAssets(filePath, numAssets: assets.length),
@@ -1369,9 +1369,9 @@ class EditorState extends State<Editor> {
           '$filePath.p',
           thumbnail,
           awaitWrite: true,
-          awaitUpload: awaitUpload,
+          awaitUpload: true, // Force await upload to prevent data loss on exit
         );
-        log.info('Thumbnail saved to $filePath.p');
+        log.info('Thumbnail saved and uploaded to $filePath.p');
       }
 
       // Save metadata (page count)
@@ -1384,7 +1384,7 @@ class EditorState extends State<Editor> {
         '$filePath.meta',
         utf8.encode(jsonEncode(metadata)),
         awaitWrite: false,
-        awaitUpload: awaitUpload,
+        awaitUpload: true, // Force await upload
       );
       log.info('Metadata saved to $filePath.meta');
     } catch (e) {
