@@ -193,37 +193,58 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
 
         final localNotePath = '$sessionPath/$expectedNoteName';
 
-        log.info('Checking local note at: $localNotePath');
-        final file = File(localNotePath);
+        // First try new individual page thumbnail format (_page1.p)
+        final page1Name = expectedNoteName.replaceAll('.p', '_page1.p');
+        final page1Path = '$sessionPath/$page1Name';
+        final page1File = File(page1Path);
 
-        if (await file.exists()) {
-          final length = await file.length();
-          if (length == 0) {
-            log.warning(
-              'Found 0-byte local note preview at $localNotePath. Deleting...',
-            );
-            await file.delete();
-          } else {
-            log.info(
-              'Found local note preview at $localNotePath ($length bytes)',
-            );
+        log.info('Checking for page 1 thumbnail: $page1Path');
+        if (await page1File.exists()) {
+          final length = await page1File.length();
+          if (length > 0) {
+            log.info('Found page 1 thumbnail at $page1Path ($length bytes)');
             note = PreviousSessionNote(
-              imageUrl: localNotePath,
+              imageUrl: page1Path,
               sessionNumber: _currentSessionNumber,
-              createdAt: await file.lastModified(),
-              fileName: expectedNoteName,
+              createdAt: await page1File.lastModified(),
+              fileName: page1Name,
             );
           }
-        } else {
-          // Check if ANY .p file exists in the directory as a fallback
-          // This handles cases where the report path might be outdated or mismatched
+        }
+
+        // If page 1 doesn't exist, try composite thumbnail
+        if (note == null) {
+          log.info('Checking local note at: $localNotePath');
+          final file = File(localNotePath);
+
+          if (await file.exists()) {
+            final length = await file.length();
+            if (length == 0) {
+              log.warning(
+                'Found 0-byte local note preview at $localNotePath. Deleting...',
+              );
+              await file.delete();
+            } else {
+              log.info(
+                'Found local note preview at $localNotePath ($length bytes)',
+              );
+              note = PreviousSessionNote(
+                imageUrl: localNotePath,
+                sessionNumber: _currentSessionNumber,
+                createdAt: await file.lastModified(),
+                fileName: expectedNoteName,
+              );
+            }
+          }
+        }
+
+        // Check if ANY .p file exists in the directory as a further fallback
+        if (note == null) {
           final dir = Directory(sessionPath);
           if (await dir.exists()) {
             final files = await dir.list().toList();
             final pFiles = files.where((f) => f.path.endsWith('.p')).toList();
             if (pFiles.isNotEmpty) {
-              // Sort by modification time to get the most recent one?
-              // Or just take the first one?
               pFiles.sort(
                 (a, b) =>
                     b.statSync().modified.compareTo(a.statSync().modified),
@@ -239,45 +260,45 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
               );
             }
           }
+        }
 
-          if (note == null) {
-            // Try fallback for older .sbn.p
-            final olderNoteName = '${sessionFolderName}_notes.sbn.p';
-            final olderNotePath = '$sessionPath/$olderNoteName';
-            final olderFile = File(olderNotePath);
+        // Try fallback for older .sbn.p
+        if (note == null) {
+          final olderNoteName = '${sessionFolderName}_notes.sbn.p';
+          final olderNotePath = '$sessionPath/$olderNoteName';
+          final olderFile = File(olderNotePath);
 
-            if (await olderFile.exists()) {
-              log.info('Found OLDER local note preview at $olderNotePath');
-              note = PreviousSessionNote(
-                imageUrl: olderNotePath,
-                sessionNumber: _currentSessionNumber,
-                createdAt: await olderFile.lastModified(),
-                fileName: olderNoteName,
-              );
-            } else {
-              // FALLBACK: Check for raw .sbn2 file (thumbnail generation might have failed)
-              final rawNoteName =
-                  '${sessionFolderName}_notes${Editor.extension}';
-              final rawNotePath = '$sessionPath/$rawNoteName';
-              final rawFile = File(rawNotePath);
+          if (await olderFile.exists()) {
+            log.info('Found OLDER local note preview at $olderNotePath');
+            note = PreviousSessionNote(
+              imageUrl: olderNotePath,
+              sessionNumber: _currentSessionNumber,
+              createdAt: await olderFile.lastModified(),
+              fileName: olderNoteName,
+            );
+          }
+        }
 
-              if (await rawFile.exists()) {
-                log.info(
-                  'Found RAW local note file at $rawNotePath (missing thumbnail)',
-                );
-                note = PreviousSessionNote(
-                  imageUrl:
-                      rawNotePath, // We pass the raw path; UI must handle non-image extensions
-                  sessionNumber: _currentSessionNumber,
-                  createdAt: await rawFile.lastModified(),
-                  fileName: rawNoteName,
-                );
-              } else {
-                log.info(
-                  'Older local note preview AND raw file NOT found. Falling back to cloud...',
-                );
-              }
-            }
+        // FALLBACK: Check for raw .sbn2 file (thumbnail generation might have failed)
+        if (note == null) {
+          final rawNoteName = '${sessionFolderName}_notes${Editor.extension}';
+          final rawNotePath = '$sessionPath/$rawNoteName';
+          final rawFile = File(rawNotePath);
+
+          if (await rawFile.exists()) {
+            log.info(
+              'Found RAW local note file at $rawNotePath (missing thumbnail)',
+            );
+            note = PreviousSessionNote(
+              imageUrl: rawNotePath,
+              sessionNumber: _currentSessionNumber,
+              createdAt: await rawFile.lastModified(),
+              fileName: rawNoteName,
+            );
+          } else {
+            log.info(
+              'Older local note preview AND raw file NOT found. Falling back to cloud...',
+            );
           }
         }
       } catch (e) {

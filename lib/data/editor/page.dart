@@ -97,8 +97,8 @@ class EditorPage extends ChangeNotifier implements HasSize {
     final fullHeight = size.height;
 
     /// The height of the canvas (cropped),
-    /// adjusted to be between 10% and 100% of the full height.
-    final croppedHeight = min(fullHeight, max(maxY, 0) + (0.1 * fullHeight));
+    /// adjusted to be at least full height, expanding if necessary.
+    final croppedHeight = max(fullHeight, max(maxY, 0) + (0.1 * fullHeight));
 
     return croppedHeight;
   }

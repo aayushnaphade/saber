@@ -204,7 +204,6 @@ class EditorState extends State<Editor> {
   var _hasLoadedIntake = false;
   var _isIntakeExpanded = false;
   Offset? _intakeOverlayPosition; // null means use default right-side position
-  var _isCapturingForReport = false;
 
   // Vitals overlay state
   List<Vitals> _vitalsHistory = [];
@@ -1263,54 +1262,60 @@ class EditorState extends State<Editor> {
     }
     final filePath = basePath + Editor.extension;
 
-    final Uint8List bson;
-    final OrderedAssetCache assets;
-    coreInfo.assetCache.allowRemovingAssets = false;
-    try {
-      (bson, assets) = coreInfo.saveToBinary(
-        currentPageIndex: currentPageIndex,
-      );
-    } finally {
-      coreInfo.assetCache.allowRemovingAssets = true;
-    }
-    try {
-      await Future.wait([
-        FileManager.writeFile(
-          filePath,
-          bson,
-          awaitWrite: true,
-          awaitUpload: true, // Force await upload
-        ),
-        for (int i = 0; i < assets.length; ++i)
-          assets
-              .getBytes(i)
-              .then(
-                (bytes) => FileManager.writeFile(
-                  '$filePath.$i',
-                  bytes,
-                  awaitWrite: true,
-                  awaitUpload: true, // Force await upload
-                ),
-              ),
-        FileManager.removeUnusedAssets(filePath, numAssets: assets.length),
-      ]);
-      savingState.value = .saved;
-      history.markLastChangeAsSaved();
+    // If read-only, we skip saving the content BUT we might still want to
+    // regenerate the thumbnail if we're closing the file or if it's missing.
+    // For now, we allow the thumbnail generation to proceed below.
 
-      // Mark consultation as completed if this is a session note
-      // REMOVED: Logic moved to Report Generation verification step
-      // to prevent premature status updates.
-    } catch (e) {
-      log.severe('Failed to save file: $e', e);
-      savingState.value = .waitingToSave;
-      if (kDebugMode) rethrow;
-      return;
-    } finally {
-      if (savingState.value == .saved) {
-        log.info('saveToFile() completed successfully. File: $filePath');
-      } else {
-        log.warning('saveToFile() finished with state: ${savingState.value}');
+    if (!coreInfo.readOnly) {
+      final Uint8List bson;
+      final OrderedAssetCache assets;
+      coreInfo.assetCache.allowRemovingAssets = false;
+      try {
+        (bson, assets) = coreInfo.saveToBinary(
+          currentPageIndex: currentPageIndex,
+        );
+      } finally {
+        coreInfo.assetCache.allowRemovingAssets = true;
       }
+      try {
+        await Future.wait([
+          FileManager.writeFile(
+            filePath,
+            bson,
+            awaitWrite: true,
+            awaitUpload: true, // Force await upload
+          ),
+          for (int i = 0; i < assets.length; ++i)
+            assets
+                .getBytes(i)
+                .then(
+                  (bytes) => FileManager.writeFile(
+                    '$filePath.$i',
+                    bytes,
+                    awaitWrite: true,
+                    awaitUpload: true, // Force await upload
+                  ),
+                ),
+          FileManager.removeUnusedAssets(filePath, numAssets: assets.length),
+        ]);
+        savingState.value = .saved;
+        history.markLastChangeAsSaved();
+      } catch (e) {
+        log.severe('Failed to save file: $e', e);
+        savingState.value = .waitingToSave;
+        if (kDebugMode) rethrow;
+        return;
+      } finally {
+        if (savingState.value == .saved) {
+          log.info('saveToFile() content saved successfully. File: $filePath');
+        } else {
+          log.warning('saveToFile() finished with state: ${savingState.value}');
+        }
+      }
+    } else {
+      log.info(
+        'Skipping content save (read-only), but proceeding to thumbnail generation.',
+      );
     }
 
     // Move thumbnail generation to run regardless of mounted state (best effort)
@@ -1318,60 +1323,81 @@ class EditorState extends State<Editor> {
     try {
       if (coreInfo.pages.isNotEmpty) {
         final screenshotter = ScreenshotController();
-        final page = coreInfo.pages.first;
-        final previewHeight = page.previewHeight(
-          lineHeight: coreInfo.lineHeight,
-        );
-        final thumbnailSize = ui.Size(
-          720,
-          720 * previewHeight / page.size.width,
-        );
 
-        // Use a sane default theme if we can't capture one
-        final themeData =
-            _capturedThemeData ??
-            ThemeData.light().copyWith(
-              colorScheme: const ColorScheme.light(
-                primary: EditorExporter.primaryColor,
-                secondary: EditorExporter.secondaryColor,
-              ),
-            );
+        // Calculate page heights for individual thumbnails
+        final pageHeights = <double>[];
+        for (int i = 0; i < coreInfo.pages.length; i++) {
+          final page = coreInfo.pages[i];
+          final h = page.previewHeight(lineHeight: coreInfo.lineHeight);
+          pageHeights.add(h);
+        }
 
-        final thumbnail = await screenshotter.captureFromWidget(
-          MediaQuery(
-            data: const MediaQueryData(size: Size(720, 1280)),
-            child: MaterialApp(
-              debugShowCheckedModeBanner: false,
-              theme: themeData,
-              home: Builder(
-                builder: (ctx) => Material(
-                  color: Colors.white,
-                  child: SizedBox(
-                    width: thumbnailSize.width,
-                    height: thumbnailSize.height,
-                    child: FittedBox(
-                      child: pageBuilderForScreenshot(
-                        ctx,
-                        pageIndex: 0,
-                        previewHeight: previewHeight,
+        // Variables moved inside per-page loop
+
+        // Generate individual page thumbnails for swipe navigation
+        for (
+          int pageIndex = 0;
+          pageIndex < coreInfo.pages.length;
+          pageIndex++
+        ) {
+          final page = coreInfo.pages[pageIndex];
+          final pageHeight = pageHeights[pageIndex];
+          final pageWidth = page.size.width;
+
+          final pageThumbnailSize = ui.Size(720, 720 * pageHeight / pageWidth);
+
+          // Use a sane default theme if we can't capture one
+          final themeData =
+              _capturedThemeData ??
+              ThemeData.light().copyWith(
+                colorScheme: const ColorScheme.light(
+                  primary: EditorExporter.primaryColor,
+                  secondary: EditorExporter.secondaryColor,
+                ),
+              );
+
+          final pageThumbnail = await screenshotter.captureFromWidget(
+            MediaQuery(
+              data: const MediaQueryData(size: Size(720, 1280)),
+              child: MaterialApp(
+                debugShowCheckedModeBanner: false,
+                theme: themeData,
+                home: Builder(
+                  builder: (ctx) {
+                    return Material(
+                      color: Colors.white,
+                      child: SizedBox(
+                        width: pageWidth,
+                        height: pageHeight,
+                        child: FittedBox(
+                          fit: BoxFit.contain,
+                          alignment: Alignment.topCenter,
+                          child: pageBuilderForScreenshot(
+                            ctx,
+                            pageIndex: pageIndex,
+                            previewHeight: pageHeight,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
             ),
-          ),
-          delay: const Duration(milliseconds: 100),
-          targetSize: thumbnailSize,
-        );
+            delay: const Duration(milliseconds: 100),
+            targetSize: pageThumbnailSize,
+          );
 
-        await FileManager.writeFile(
-          '$filePath.p',
-          thumbnail,
-          awaitWrite: true,
-          awaitUpload: true, // Force await upload to prevent data loss on exit
-        );
-        log.info('Thumbnail saved and uploaded to $filePath.p');
+          // Save individual page thumbnail
+          final pageFilePath = '$filePath\_page${pageIndex + 1}.p';
+          await FileManager.writeFile(
+            pageFilePath,
+            pageThumbnail,
+            awaitWrite: true,
+            awaitUpload: true,
+          );
+          log.info('Page ${pageIndex + 1} thumbnail saved to $pageFilePath');
+        }
       }
 
       // Save metadata (page count)
@@ -1828,10 +1854,6 @@ class EditorState extends State<Editor> {
     // Handled by manager implicitly if we call start, but we can update message
     manager.updateMessage('Capturing session pages...');
 
-    setState(() => _isCapturingForReport = true);
-    // Allow one frame for the Hero widgets to be disabled before capture
-    await Future.delayed(Duration.zero);
-
     try {
       // Loop through all pages
       for (var i = 0; i < coreInfo.pages.length; i++) {
@@ -1955,10 +1977,6 @@ class EditorState extends State<Editor> {
         );
       }
       manager.reset();
-    } finally {
-      if (mounted) {
-        setState(() => _isCapturingForReport = false);
-      }
     }
   }
 
@@ -2406,9 +2424,6 @@ class EditorState extends State<Editor> {
         },
       );
     }
-
-    final bool enableHero =
-        !_isCapturingForReport && !SessionManager().isMinimized;
 
     final Widget contentWithPopScope = ValueListenableBuilder<SavingState>(
       valueListenable: savingState,
@@ -3014,14 +3029,6 @@ class EditorState extends State<Editor> {
             : null,
       ),
     );
-
-    if (enableHero) {
-      return Hero(
-        key: const ValueKey('active_session_hero_editor'),
-        tag: 'active_session',
-        child: contentWithPopScope,
-      );
-    }
 
     return contentWithPopScope;
   }
