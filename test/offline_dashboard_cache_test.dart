@@ -41,26 +41,28 @@ void main() {
         QueueItem(
           id: '1',
           patientName: 'John Doe',
+          patientId: 'p1',
           registrationNumber: 'REG001',
           age: 45,
-          visitType: 'Follow-up',
-          appointmentType: 'scheduled',
-          estimatedWaitMinutes: 15,
-          queuePosition: 1,
+          patientType: 'Follow-up',
+          estimatedWaitTime: const Duration(minutes: 15),
+          position: 1,
           status: 'waiting',
-          scheduledTime: DateTime(2026, 2, 13, 9, 0),
-          checkInTime: DateTime(2026, 2, 13, 8, 45),
+          gender: 'Male',
+          registeredTime: DateTime(2026, 2, 13, 8, 45),
         ),
-        const QueueItem(
+        QueueItem(
           id: '2',
           patientName: 'Jane Smith',
+          patientId: 'p2',
           registrationNumber: 'REG002',
           age: 32,
-          visitType: 'New Visit',
-          appointmentType: 'walk_in',
-          estimatedWaitMinutes: 30,
-          queuePosition: 2,
+          patientType: 'New Visit',
+          estimatedWaitTime: const Duration(minutes: 30),
+          position: 2,
           status: 'waiting',
+          gender: 'Female',
+          registeredTime: DateTime(2026, 2, 13, 9, 0),
         ),
       ];
 
@@ -88,9 +90,8 @@ void main() {
         pendingConsultations: 3,
         completedSessions: 12,
         totalConsultationMinutes: 180,
-        todayTrend: 2.0,
-        completedTrend: 1.5,
-        minutesTrend: -0.5,
+        consultationsTrend: 2.0,
+        timeTrend: -0.5,
       );
 
       await OfflineDashboardCache.saveStats(stats);
@@ -110,9 +111,11 @@ void main() {
           Appointment(
             id: 'apt1',
             patientName: 'Alice',
-            scheduledTime: DateTime(2026, 2, 13, 10, 0),
+            patientId: 'p3',
+            time: DateTime(2026, 2, 13, 10, 0),
+            reason: 'Checkup',
             appointmentType: 'scheduled',
-            status: 'confirmed',
+            status: AppointmentStatus.upcoming,
           ),
         ];
 
@@ -128,16 +131,18 @@ void main() {
 
     test('lastCacheTime returns timestamp after save', () async {
       final items = [
-        const QueueItem(
+        QueueItem(
           id: '1',
           patientName: 'Test',
+          patientId: 'p4',
           registrationNumber: 'T001',
           age: 30,
-          visitType: 'Test',
-          appointmentType: 'walk_in',
-          estimatedWaitMinutes: 0,
-          queuePosition: 1,
+          patientType: 'Test',
+          estimatedWaitTime: Duration.zero,
+          position: 1,
           status: 'waiting',
+          gender: 'Other',
+          registeredTime: DateTime.now(),
         ),
       ];
 
@@ -154,16 +159,18 @@ void main() {
 
     test('clear removes all cached data', () async {
       await OfflineDashboardCache.saveQueue([
-        const QueueItem(
+        QueueItem(
           id: '1',
           patientName: 'Test',
+          patientId: 'p5',
           registrationNumber: 'T001',
           age: 30,
-          visitType: 'Test',
-          appointmentType: 'walk_in',
-          estimatedWaitMinutes: 0,
-          queuePosition: 1,
+          patientType: 'Test',
+          estimatedWaitTime: Duration.zero,
+          position: 1,
           status: 'waiting',
+          gender: 'Other',
+          registeredTime: DateTime.now(),
         ),
       ]);
 

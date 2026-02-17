@@ -12,6 +12,7 @@ class CanvasPreview extends StatelessWidget implements PreferredSizeWidget {
     required this.height,
     required this.coreInfo,
     this.highQuality = false,
+    this.scale,
   });
 
   final int pageIndex;
@@ -21,6 +22,10 @@ class CanvasPreview extends StatelessWidget implements PreferredSizeWidget {
   /// Whether to draw [Stroke.highQualityPath] or [Stroke.lowQualityPath].
   final bool highQuality;
 
+  /// Optional explicit scale factor.
+  /// If provided, this overrides the default scale logic.
+  final double? scale;
+
   late final pageSize =
       coreInfo.pages.getOrNull(pageIndex)?.size ?? EditorPage.defaultSize;
   @override
@@ -28,6 +33,9 @@ class CanvasPreview extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint(
+      'XXX_DEBUG: CanvasPreview build - pageIndex: $pageIndex, height: $height, highQuality: $highQuality, preferredSize: $preferredSize, scale: ${highQuality ? 5.0 : double.minPositive}',
+    );
     return InnerCanvas(
       pageIndex: pageIndex,
       width: preferredSize.width,
@@ -38,7 +46,7 @@ class CanvasPreview extends StatelessWidget implements PreferredSizeWidget {
       currentStrokeDetectedShape: null,
       currentSelection: null,
       currentToolIsSelect: false,
-      currentScale: highQuality ? double.maxFinite : double.minPositive,
+      currentScale: scale ?? (highQuality ? 5.0 : double.minPositive),
     );
   }
 }

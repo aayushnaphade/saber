@@ -9,6 +9,8 @@ import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/main.dart';
 import 'package:saber/pages/editor/editor.dart';
 import 'package:saber/pages/editor/report_view.dart';
+import 'package:saber/data/supabase/supabase_prescription_service.dart';
+import 'package:saber/data/supabase/supabase_patient_service.dart';
 
 class ReportGenerationOverlay extends StatefulWidget {
   const ReportGenerationOverlay({
@@ -543,6 +545,68 @@ class _AsyncReportCardState extends State<_AsyncReportCard>
                       markdownContent: sb.toString(),
                       sourceDocumentPath: finalSourcePath,
                     );
+
+                    // ---------------------------------------------------------
+                    // [NEW] Prescription Logic for Async/Overlay Flow
+                    // ---------------------------------------------------------
+                    final medications = reportData['medications'];
+                    if (medications is List && medications.isNotEmpty) {
+                      String? pName;
+                      try {
+                        final pData = await SupabasePatientService.getPatient(
+                          patient.id,
+                        );
+                        pName = pData?.fullName;
+                      } catch (e) {
+                        debugPrint(
+                          'Failed to fetch patient name for prescription: $e',
+                        );
+                      }
+
+                      final medsList = medications.whereType<Map>().map((m) {
+                        final newMap = Map<String, dynamic>.from(m);
+                        if (newMap.containsKey('remarks')) {
+                          newMap['instructions'] = newMap['remarks'];
+                        }
+                        return newMap;
+                      }).toList();
+
+                      if (medsList.isNotEmpty) {
+                        try {
+                          // We use the consultation ID from the manager if available
+                          // (which should be the same as SessionManager's active ID)
+                          await SupabasePrescriptionService.createPrescription(
+                            patientId: patient.id,
+                            consultationId: manager.consultationId,
+                            medications: medsList,
+                            patientName: pName,
+                          );
+                          if (targetContext.mounted) {
+                            ScaffoldMessenger.of(targetContext).showSnackBar(
+                              const SnackBar(
+                                content: Text('Prescription sent to pharmacy'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          debugPrint(
+                            'Failed to create prescription in overlay: $e',
+                          );
+                          if (targetContext.mounted) {
+                            ScaffoldMessenger.of(targetContext).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Failed to create prescription: $e',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    }
+                    // ---------------------------------------------------------
 
                     // 2. Terminate Session properly
                     try {

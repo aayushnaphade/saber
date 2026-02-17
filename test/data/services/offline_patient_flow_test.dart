@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
-import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/services/offline_patient_cache.dart';
 import 'package:saber/data/services/sync_outbox.dart';

@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
+import 'package:path/path.dart' as p;
 import 'package:saber/data/api/error_handler.dart';
-import 'package:saber/data/file_manager/file_manager.dart';
-import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/models/dashboard_models.dart';
+import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/models/previous_session_note.dart';
+import 'package:saber/data/repositories/session_data_repository.dart';
 import 'package:saber/data/supabase/supabase_consultation_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
@@ -151,158 +152,23 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
       }
 
       // 2. Fetch Handwritten Note Preview
-      // Use efficient single-fetch instead of loading all historic notes
       PreviousSessionNote? note;
-
       try {
-        final documentsDir = FileManager.documentsDirectory;
-        final patientId = widget.patientId;
-        final sessionFolderName = session.folderName;
-        // /patients/{id}/session_notes/{session_folder}/{session_folder}_notes.sbn2.p
-        final sessionPath =
-            '$documentsDir/patients/$patientId/session_notes/$sessionFolderName';
-
-        // Determine expected note filename
-        String expectedNoteName;
-        if (report?.sourceDocumentPath != null) {
-          // Use the actual filename from the report
-          final reportPath = report!.sourceDocumentPath!;
-          final filename = reportPath.split('/').last;
-          if (filename.endsWith(Editor.extension)) {
-            expectedNoteName = '$filename.p'; // Add .p suffix
-          } else if (filename.endsWith('.sbn')) {
-            // Handle double extension bug: check if .sbn.sbn2.p exists locally
-            // (Old sessions might have this artifact)
-            final doubleExtName =
-                '$filename${Editor.extension}.p'; // .sbn.sbn2.p
-            final doubleExtPath = '$sessionPath/$doubleExtName';
-            if (await File(doubleExtPath).exists()) {
-              expectedNoteName = doubleExtName;
-            } else {
-              expectedNoteName = '$filename.p'; // Add .p suffix
-            }
-          } else {
-            // Fallback if report path doesn't have standard extension
-            expectedNoteName =
-                '${sessionFolderName}_notes${Editor.extension}.p';
-          }
-        } else {
-          // Fallback to default naming convention
-          expectedNoteName = '${sessionFolderName}_notes${Editor.extension}.p';
-        }
-
-        final localNotePath = '$sessionPath/$expectedNoteName';
-
-        // First try new individual page thumbnail format (_page1.p)
-        final page1Name = expectedNoteName.replaceAll('.p', '_page1.p');
-        final page1Path = '$sessionPath/$page1Name';
-        final page1File = File(page1Path);
-
-        log.info('Checking for page 1 thumbnail: $page1Path');
-        if (await page1File.exists()) {
-          final length = await page1File.length();
-          if (length > 0) {
-            log.info('Found page 1 thumbnail at $page1Path ($length bytes)');
-            note = PreviousSessionNote(
-              imageUrl: page1Path,
-              sessionNumber: _currentSessionNumber,
-              createdAt: await page1File.lastModified(),
-              fileName: page1Name,
-            );
-          }
-        }
-
-        // If page 1 doesn't exist, try composite thumbnail
-        if (note == null) {
-          log.info('Checking local note at: $localNotePath');
-          final file = File(localNotePath);
-
-          if (await file.exists()) {
-            final length = await file.length();
-            if (length == 0) {
-              log.warning(
-                'Found 0-byte local note preview at $localNotePath. Deleting...',
-              );
-              await file.delete();
-            } else {
-              log.info(
-                'Found local note preview at $localNotePath ($length bytes)',
-              );
-              note = PreviousSessionNote(
-                imageUrl: localNotePath,
-                sessionNumber: _currentSessionNumber,
-                createdAt: await file.lastModified(),
-                fileName: expectedNoteName,
-              );
-            }
-          }
-        }
-
-        // Check if ANY .p file exists in the directory as a further fallback
-        if (note == null) {
-          final dir = Directory(sessionPath);
-          if (await dir.exists()) {
-            final files = await dir.list().toList();
-            final pFiles = files.where((f) => f.path.endsWith('.p')).toList();
-            if (pFiles.isNotEmpty) {
-              pFiles.sort(
-                (a, b) =>
-                    b.statSync().modified.compareTo(a.statSync().modified),
-              );
-              final bestFile = pFiles.first;
-
-              log.info('Found fallback local note preview: ${bestFile.path}');
-              note = PreviousSessionNote(
-                imageUrl: bestFile.path,
-                sessionNumber: _currentSessionNumber,
-                createdAt: await bestFile.stat().then((s) => s.modified),
-                fileName: bestFile.path.split('/').last,
-              );
-            }
-          }
-        }
-
-        // Try fallback for older .sbn.p
-        if (note == null) {
-          final olderNoteName = '${sessionFolderName}_notes.sbn.p';
-          final olderNotePath = '$sessionPath/$olderNoteName';
-          final olderFile = File(olderNotePath);
-
-          if (await olderFile.exists()) {
-            log.info('Found OLDER local note preview at $olderNotePath');
-            note = PreviousSessionNote(
-              imageUrl: olderNotePath,
-              sessionNumber: _currentSessionNumber,
-              createdAt: await olderFile.lastModified(),
-              fileName: olderNoteName,
-            );
-          }
-        }
-
-        // FALLBACK: Check for raw .sbn2 file (thumbnail generation might have failed)
-        if (note == null) {
-          final rawNoteName = '${sessionFolderName}_notes${Editor.extension}';
-          final rawNotePath = '$sessionPath/$rawNoteName';
-          final rawFile = File(rawNotePath);
-
-          if (await rawFile.exists()) {
-            log.info(
-              'Found RAW local note file at $rawNotePath (missing thumbnail)',
-            );
-            note = PreviousSessionNote(
-              imageUrl: rawNotePath,
-              sessionNumber: _currentSessionNumber,
-              createdAt: await rawFile.lastModified(),
-              fileName: rawNoteName,
-            );
-          } else {
-            log.info(
-              'Older local note preview AND raw file NOT found. Falling back to cloud...',
-            );
-          }
+        final thumbPath = await SessionDataRepository.getThumbnailPath(
+          expectedPath,
+        );
+        if (thumbPath != null) {
+          final file = File(thumbPath);
+          log.info('Found note preview at $thumbPath');
+          note = PreviousSessionNote(
+            imageUrl: thumbPath,
+            sessionNumber: _currentSessionNumber,
+            createdAt: await file.lastModified(),
+            fileName: p.basename(thumbPath),
+          );
         }
       } catch (e) {
-        log.warning('Error checking local note: $e');
+        log.warning('Error resolving thumbnail via repository: $e');
       }
 
       if (note == null) {
@@ -593,10 +459,10 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
   Widget _buildNoteContainer() {
     final note = _currentNote!;
     final isImage =
-        note.fileName?.endsWith('.p') == true ||
-        note.fileName?.endsWith('.png') == true ||
-        note.fileName?.endsWith('.jpg') == true ||
-        note.fileName?.endsWith('.jpeg') == true;
+        (note.fileName?.endsWith('.p') ?? false) ||
+        (note.fileName?.endsWith('.png') ?? false) ||
+        (note.fileName?.endsWith('.jpg') ?? false) ||
+        (note.fileName?.endsWith('.jpeg') ?? false);
 
     if (!isImage) {
       return DecoratedBox(

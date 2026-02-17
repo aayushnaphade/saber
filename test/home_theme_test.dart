@@ -28,7 +28,7 @@ void main() {
                 data: theme,
                 child: const HomePage(
                   subpage: HomePage.recentSubpage,
-                  path: '',
+                  child: SizedBox(),
                 ),
               ),
             ),

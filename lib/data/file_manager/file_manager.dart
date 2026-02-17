@@ -37,8 +37,8 @@ class FileManager {
   static String _sanitisePath(String path) => File(path).path;
 
   /// A regex that matches the file names/paths of asset files,
-  /// including previews, e.g. `mynote.sbn2.1`.
-  static final assetFileRegex = RegExp(r'\.sbn2?\.[\dp]+$');
+  /// including previews, e.g. `mynote.sbn2.1` or `mynote.sbn2_page1.p`.
+  static final assetFileRegex = RegExp(r'\.sbn2?(_page\d+)?\.[\dp]+$');
 
   static Future<void> init({
     String? documentsDirectory,
@@ -243,8 +243,7 @@ class FileManager {
       if (filePath.contains('/patients/') &&
           (filePath.endsWith(Editor.extension) ||
               filePath.endsWith(Editor.extensionOldJson) ||
-              filePath.endsWith('${Editor.extension}.p') ||
-              filePath.endsWith('${Editor.extensionOldJson}.p') ||
+              filePath.endsWith('.p') ||
               filePath.endsWith('.meta'))) {
         log.info('Queueing upload for $filePath');
         final uploadFuture = DocumentSyncService.queueUpload(filePath);

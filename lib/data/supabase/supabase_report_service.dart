@@ -1,13 +1,11 @@
 import 'dart:io';
 
 import 'package:logging/logging.dart';
-
+import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/services/offline_dashboard_cache.dart';
 import 'package:saber/data/services/sync_outbox.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 import 'package:uuid/uuid.dart';
-
-import 'package:saber/data/models/dashboard_models.dart';
 
 class SupabaseReportService {
   static final _log = Logger('SupabaseReportService');
@@ -212,7 +210,7 @@ class SupabaseReportService {
     final updatePayload = {
       'structured_data': structuredData,
       'markdown_content': markdownContent,
-      if (status != null) 'status': status,
+      'status': ?status,
     };
 
     await supabase

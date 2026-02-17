@@ -80,6 +80,7 @@ class _EditorPageManagerState extends State<EditorPageManager> {
                             pageIndex: pageIndex,
                             height: null,
                             coreInfo: widget.coreInfo,
+                            highQuality: true,
                           ),
                         ),
                       ),

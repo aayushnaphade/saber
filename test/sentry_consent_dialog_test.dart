@@ -18,7 +18,10 @@ void main() {
         ScreenshotApp.withConditionalTitlebar(
           device: GoldenSmallDevices.androidPhone.device,
           title: 'Saber',
-          home: const HomePage(subpage: HomePage.settingsSubpage, path: ''),
+          home: const HomePage(
+            subpage: HomePage.settingsSubpage,
+            child: SizedBox(),
+          ),
         ),
       );
 

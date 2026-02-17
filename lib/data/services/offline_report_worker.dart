@@ -10,7 +10,6 @@ import 'package:saber/data/supabase/supabase_consultation_service.dart';
 import 'package:saber/data/supabase/supabase_prescription_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
 import 'package:saber/data/utils/report_formatter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Worker processed by SyncWorker to generate and upload pending reports
 class OfflineReportWorker {

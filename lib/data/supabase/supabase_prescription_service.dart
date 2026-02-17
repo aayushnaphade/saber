@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
 
@@ -98,9 +99,16 @@ class SupabasePrescriptionService {
         'created_at': DateTime.now().toUtc().toIso8601String(),
       };
 
+      debugPrint(
+        'XXX_DEBUG: Creating prescription with payload: $prescriptionData',
+      );
       _log.info('Creating prescription for patient: $patientId');
 
-      await supabase.from('prescriptions').insert(prescriptionData);
+      final response = await supabase
+          .from('prescriptions')
+          .insert(prescriptionData)
+          .select();
+      debugPrint('XXX_DEBUG: Prescription creation response: $response');
 
       _log.info('Prescription created successfully');
     } catch (e) {

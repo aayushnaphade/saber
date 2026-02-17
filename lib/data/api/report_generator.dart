@@ -50,17 +50,20 @@ You must output a single valid JSON object containing exactly these six keys. Do
 4.  `family_history`: (String) Descriptions of family mental health or the family tree/genogram details.
 5.  `mental_status_examination`: (Object) Break this down into sub-fields based on the notes (e.g., "appearance", "mood", "affect", "thought", "perception", "insight").
 6.  `provided_diagnosis`: (String) The diagnosis or impression (Imp/∆) written by the doctor.
-7.  `medications`: (Array of Objects) List of prescribed medicines found in the notes (Rx/Adv). Each object must have:
+7.  `medications`: (Array of Objects) List of prescribed medicines found in the notes (Rx/Adv).
+    - IMPORTANT: If "Rx" symbol is missing, look for medications in "Plan", "Advice", or checks for "Continue same meds".
+    - Each object must have:
     - `name` (String): Only the generic or brand name of the medicine (e.g., "Sertraline", "Clonazepam"). Do NOT include the dosage here.
     - `dosage` (String): The strength or concentration (e.g., "50mg", "0.5mg", "10ml").
     - `frequency` (String): Frequency (e.g., "BD", "1-0-1").
     - `duration` (String): Duration if mentioned (e.g., "5 days", "1 month").
+    - IMPORTANT: Aggressively look for duration. Often written with abbreviations like "x 5 d", "for 1 wk", "x 3 mths", "5/365", "5/7". Map these to their full English equivalent (e.g., "5 days", "1 week").
     - `remarks` (String): Any special instructions or administration notes (e.g., "after food", "empty stomach", "at night"). Look for text written below or next to the medication.
     If no medications are found, return empty array `[]`.
 
 **Critical Rules:**
 1.  **Missing Information:** If a specific section is not found in the notes, the value must be the string "Not mentioned". Do not hallucinate or infer missing data.
-2.  **Abbreviations:** Expand standard clinical abbreviations for clarity (e.g., change "wks" to "weeks", "pt" to "patient") BUT keep the patient's subjective description (quotes) exact.
+2.  **Abbreviations:** Expand standard clinical abbreviations for clarity (e.g., change "wks" or "wk" to "weeks", "pt" to "patient", "d" or "days" to "days" in duration) BUT keep the patient's subjective description (quotes) exact.
 3.  **Symbols:** Convert symbols to text (e.g., "Sleep ↓" becomes "Sleep decreased/reduced").
 4.  **Language:** If words like "Ghabrahat" or "Man udaas" are used, transliterate them exactly as written, followed by the English approximation in parentheses if obvious (e.g., "Ghabrahat (Anxiety)").
 
@@ -123,7 +126,7 @@ You must output a single valid JSON object containing exactly these six keys. Do
       final accountCredentials = ServiceAccountCredentials.fromJson(
         serviceAccount,
       );
-      final scopes = [AiplatformApi.cloudPlatformScope];
+      const scopes = [AiplatformApi.cloudPlatformScope];
 
       final client = await clientViaServiceAccount(accountCredentials, scopes);
       final api = AiplatformApi(client);
@@ -228,7 +231,7 @@ You must output a single valid JSON object containing exactly these six keys. Do
         log.info('Candidate finish reason: ${candidate.finishReason}');
         if (candidate.safetyRatings != null) {
           log.info(
-            'Safety ratings: ${candidate.safetyRatings!.map((r) => '${r.category}: ${r.probability}').join(', ')}',
+            'Safety ratings: ${candidate.safetyRatings!.map((r) => "${r.category}: ${r.probability}").join(', ')}',
           );
         }
 

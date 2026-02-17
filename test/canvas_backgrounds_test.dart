@@ -117,15 +117,12 @@ void _testPatternWithLineHeight(
           continue;
         }
 
-        if (pattern != .cornell) {
-          // Cornell has two lines on the same row, so they shouldn't be spaced apart
-
-          expect(
-            position != lastPosition,
-            true,
-            reason: 'Lines should be spaced apart',
-          );
-        }
+        // Cornell has been removed, so we can always expect lines to be spaced apart
+        expect(
+          position != lastPosition,
+          true,
+          reason: 'Lines should be spaced apart',
+        );
 
         final spacing = (position - lastPosition).abs();
         double diffFromALine = spacing % lineHeight;

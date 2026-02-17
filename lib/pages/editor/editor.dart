@@ -10,14 +10,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' as flutter_quill;
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:keybinder/keybinder.dart';
 import 'package:logging/logging.dart';
-import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
 import 'package:saber/components/canvas/_stroke.dart';
@@ -28,7 +25,6 @@ import 'package:saber/components/canvas/canvas_preview.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
 import 'package:saber/components/canvas/save_indicator.dart';
 import 'package:saber/components/editor/previous_notes_overlay_card.dart';
-import 'package:saber/data/supabase/document_sync_service.dart';
 import 'package:saber/components/intake_form/intake_overlay_card.dart'
     hide AnimatedBuilder;
 import 'package:saber/components/intake_form/psychiatric_intake_form.dart';
@@ -39,7 +35,6 @@ import 'package:saber/components/theming/adaptive_icon.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/components/toolbar/color_bar.dart';
-
 import 'package:saber/components/toolbar/editor_bottom_sheet.dart';
 import 'package:saber/components/toolbar/editor_page_manager.dart';
 import 'package:saber/components/toolbar/toolbar.dart';
@@ -49,12 +44,10 @@ import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
 import 'package:saber/data/editor/editor_history.dart';
 import 'package:saber/data/editor/page.dart';
-
-import 'package:saber/data/supabase/supabase_consultation_service.dart';
 import 'package:saber/data/extensions/change_notifier_extensions.dart';
-import 'package:saber/data/utils/report_formatter.dart';
 import 'package:saber/data/extensions/matrix4_extensions.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
+import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/models/patient.dart';
 import 'package:saber/data/models/previous_session_note.dart';
 import 'package:saber/data/models/psychiatric_intake.dart';
@@ -63,14 +56,13 @@ import 'package:saber/data/prefs.dart';
 import 'package:saber/data/report_generation_manager.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/data/session_manager.dart';
+import 'package:saber/data/supabase/document_sync_service.dart';
 import 'package:saber/data/supabase/supabase_client.dart';
-
+import 'package:saber/data/supabase/supabase_consultation_service.dart';
 import 'package:saber/data/supabase/supabase_dashboard_service.dart';
 import 'package:saber/data/supabase/supabase_intake_service.dart';
 import 'package:saber/data/supabase/supabase_patient_service.dart';
-import 'package:saber/data/supabase/supabase_prescription_service.dart';
 import 'package:saber/data/supabase/supabase_report_service.dart';
-import 'package:saber/data/models/dashboard_models.dart';
 import 'package:saber/data/supabase/supabase_vitals_service.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
@@ -82,7 +74,7 @@ import 'package:saber/data/tools/select.dart';
 import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/main.dart';
-import 'package:saber/pages/editor/report_view.dart';
+import 'package:saber/pages/editor/report_generation_dialog.dart';
 import 'package:saber/pages/home/whiteboard.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:super_clipboard/super_clipboard.dart';
@@ -1389,7 +1381,7 @@ class EditorState extends State<Editor> {
           );
 
           // Save individual page thumbnail
-          final pageFilePath = '$filePath\_page${pageIndex + 1}.p';
+          final pageFilePath = '${filePath}_page${pageIndex + 1}.p';
           await FileManager.writeFile(
             pageFilePath,
             pageThumbnail,
@@ -1840,7 +1832,6 @@ class EditorState extends State<Editor> {
     }
   }
 
-  @override
   Future<void> _generateReport(
     BuildContext context, {
     bool closeEditor = false,
@@ -1857,14 +1848,29 @@ class EditorState extends State<Editor> {
     try {
       // Loop through all pages
       for (var i = 0; i < coreInfo.pages.length; i++) {
+        // Skip empty pages
+        if (coreInfo.pages[i].strokes.isEmpty &&
+            coreInfo.pages[i].images.isEmpty) {
+          log.info('Skipping empty page $i during report generation');
+          continue;
+        }
+
         final page = coreInfo.pages[i];
         final previewHeight = page.previewHeight(
           lineHeight: coreInfo.lineHeight,
         );
-        final targetSize = Size(page.size.width, page.size.height);
+
+        // Match the 5.0 scale used in CanvasPreview(highQuality: true)
+        const captureWidth = 3600.0;
+        final captureHeight = captureWidth * previewHeight / page.size.width;
+        final targetSize = Size(captureWidth, captureHeight);
+        final pixelRatio = captureWidth / page.size.width;
 
         log.info(
           'Capturing page ${i + 1}/${coreInfo.pages.length} with size: $targetSize',
+        );
+        debugPrint(
+          'XXX_DEBUG: _generateReport - pageIndex: $i, previewHeight: $previewHeight, pageSize: ${page.size}, captureWidth: $captureWidth, captureHeight: $captureHeight',
         );
 
         final imageBytes = await screenshotController.captureFromWidget(
@@ -1904,6 +1910,7 @@ class EditorState extends State<Editor> {
                                   context,
                                   pageIndex: i,
                                   previewHeight: previewHeight,
+                                  scale: pixelRatio,
                                 ),
                               ),
                             ),
@@ -2395,7 +2402,7 @@ class EditorState extends State<Editor> {
             child: Column(
               children: [
                 Expanded(child: content),
-                if (readonlyBanner != null) readonlyBanner,
+                ?readonlyBanner,
               ],
             ),
           ),
@@ -2416,7 +2423,7 @@ class EditorState extends State<Editor> {
                 children: [
                   Expanded(child: content),
                   toolbar,
-                  if (readonlyBanner != null) readonlyBanner,
+                  ?readonlyBanner,
                 ],
               ),
             ),
@@ -3145,14 +3152,19 @@ class EditorState extends State<Editor> {
     BuildContext context, {
     required int pageIndex,
     double? previewHeight,
+    double? scale,
   }) {
     final page = coreInfo.pages[pageIndex];
     previewHeight ??= page.previewHeight(lineHeight: coreInfo.lineHeight);
+    debugPrint(
+      'XXX_DEBUG: pageBuilderForScreenshot - pageIndex: $pageIndex, previewHeight: $previewHeight, scale: $scale',
+    );
     return CanvasPreview(
       pageIndex: pageIndex,
       height: previewHeight,
       coreInfo: coreInfo,
       highQuality: true,
+      scale: scale,
     );
   }
 
@@ -3715,439 +3727,51 @@ class EditorState extends State<Editor> {
     List<Uint8List> imageBytesList, {
     VoidCallback? onRegenerate,
   }) {
-    final reportViewKey = GlobalKey();
-
     showDialog(
       context: context,
+      builder: (context) => ReportGenerationDialog(
+        reportData: reportData,
+        imageBytesList: imageBytesList,
+        patient: _patient,
+        patientId: _patientId,
+        patientName: _patientName,
+        doctorName: _doctorName,
+        consultationId: widget.consultationId,
+        filePath: coreInfo.filePath,
+        rawNotes: coreInfo.pages
+            .map((p) => p.quill.controller.document.toPlainText())
+            .join('\n'),
+        onRegenerate: onRegenerate,
+        isReviewMode: widget.openReportReview,
+        reportToReview: widget.reportToReview,
+        onVerify: () async {
+          // Force any pending rename to happen before we save and submit the report
+          if (_renameTimer?.isActive ?? false) {
+            _renameTimer!.cancel();
+            await _renameFileNow();
+          }
 
-      builder: (context) => Dialog(
-        insetPadding: const EdgeInsets.all(16),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: Theme.of(context).brightness == Brightness.dark
-                  ? [
-                      const Color(0xFF1E1E1E), // Dark Dialog
-                      const Color(0xFF2C2C2C), // Slightly lighter
-                    ]
-                  : [
-                      const Color(0xFFF5F7FA), // Very light grey
-                      const Color(0xFFE4EBF5), // Subtle blue-grey
-                    ],
-            ),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // Use orientation from MediaQuery to avoid flipping layout when keyboard appears
-              final isPortrait =
-                  MediaQuery.of(context).orientation == Orientation.portrait;
+          // Force a final save before terminating to ensure local persistence and thumbnail generation
+          await saveToFile(awaitUpload: true);
 
-              // Common Image Preview Widget
-              Widget buildImagePreview() => ListView.separated(
-                padding: const EdgeInsets.all(24),
-                itemCount: imageBytesList.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 24),
-                itemBuilder: (context, index) {
-                  return DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.memory(
-                        imageBytesList[index],
-                        gaplessPlayback: true,
-                        cacheWidth: 1024,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  );
-                },
-              );
+          if (mounted) {
+            setState(() {
+              _isTerminating = true;
+            });
+          }
 
-              // Common Report View Widget
-              Widget buildReportView() => ReportView(
-                key: reportViewKey,
-                reportData: reportData,
-                onRegenerate: onRegenerate,
-                patient: _patient,
-                rawNotes: coreInfo.pages
-                    .map((p) => p.quill.controller.document.toPlainText())
-                    .join('\n'),
-                imageBytesList: imageBytesList,
-                onVerify: () async {
-                  if (widget.openReportReview &&
-                      widget.reportToReview != null) {
-                    // Regenerate markdown with latest edits from ReportView (which updates reportData in-place)
-                    final markdown = ReportFormatter.formatToMarkdown(
-                      reportData: reportData,
-                      patientId: _patientId ?? '',
-                      patientName: _patientName ?? 'Unknown',
-                      registrationNumber: _patient?.registrationNumber ?? '',
-                    );
-
-                    await SupabaseReportService.updateReport(
-                      reportId: widget.reportToReview!.id,
-                      structuredData: reportData,
-                      markdownContent: markdown,
-                      status: 'verified',
-                    );
-
-                    // Terminate the session so the minimized overlay doesn't persist
-                    SessionManager().terminate();
-
-                    if (context.mounted) {
-                      Navigator.pop(context); // Close dialog
-                      Navigator.pop(context); // Close editor
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Report verified successfully'),
-                        ),
-                      );
-                    }
-                    return;
-                  }
-
-                  // Force any pending rename to happen before we save and submit the report
-                  if (_renameTimer?.isActive ?? false) {
-                    _renameTimer!.cancel();
-                    await _renameFileNow();
-                  }
-
-                  // Force a final save before terminating to ensure local persistence and thumbnail generation
-                  await saveToFile(awaitUpload: true);
-
-                  if (mounted) {
-                    setState(() {
-                      _isTerminating = true;
-                    });
-                  }
-                  try {
-                    // Convert to Markdown
-                    final sb = StringBuffer();
-                    sb.writeln('# 📋 Clinical Assessment Report');
-                    sb.writeln();
-                    sb.writeln('---');
-                    sb.writeln();
-                    if (_patientName != null) {
-                      sb.writeln('**👤 Patient:** $_patientName');
-                    }
-                    sb.writeln(
-                      '**📅 Date:** ${DateFormat.yMMMd().format(DateTime.now())}',
-                    );
-                    if (_doctorName != null) {
-                      sb.writeln('**👨‍⚕️ Doctor:** $_doctorName');
-                    }
-                    sb.writeln();
-                    sb.writeln('---');
-                    sb.writeln();
-
-                    sb.writeln('### 🕒 Current Symptoms (HPI)');
-                    sb.writeln(
-                      reportData['current_symptoms'] ?? 'Not mentioned',
-                    );
-                    sb.writeln();
-
-                    sb.writeln('### 👤 Premorbid Personality');
-                    sb.writeln(
-                      reportData['premorbid_personality'] ?? 'Not mentioned',
-                    );
-                    sb.writeln();
-
-                    sb.writeln('### 📜 Past History');
-                    sb.writeln(reportData['past_history'] ?? 'Not mentioned');
-                    sb.writeln();
-
-                    sb.writeln('### 👨‍👩‍👧‍👦 Family History');
-                    sb.writeln(reportData['family_history'] ?? 'Not mentioned');
-                    sb.writeln();
-
-                    sb.writeln('### 🏥 Mental Status Examination');
-                    final mse = reportData['mental_status_examination'];
-                    if (mse is Map) {
-                      mse.forEach((key, value) {
-                        final formattedKey = key
-                            .toString()
-                            .replaceAll('_', ' ')
-                            .toUpperCase();
-                        sb.writeln('- **$formattedKey:** $value');
-                      });
-                    } else if (mse is String) {
-                      sb.writeln(mse);
-                    } else {
-                      sb.writeln('*Not mentioned*');
-                    }
-                    sb.writeln();
-
-                    sb.writeln('### 🏁 Diagnosis');
-                    sb.writeln(
-                      '**${reportData['provided_diagnosis'] ?? 'Not mentioned'}**',
-                    );
-                    sb.writeln();
-
-                    sb.writeln('---');
-                    sb.writeln();
-                    sb.writeln('### 💊 Prescribed Medications');
-                    final meds = reportData['medications'] as List?;
-                    if (meds != null && meds.isNotEmpty) {
-                      sb.writeln(
-                        '| Medication | Frequency | Duration | Remarks |',
-                      );
-                      sb.writeln('| :--- | :--- | :--- | :--- |');
-                      for (final m in meds) {
-                        if (m is Map) {
-                          final name = m['name'] ?? 'N/A';
-                          final freq = m['frequency'] ?? 'N/A';
-                          final duration = m['duration'] ?? 'N/A';
-                          final remarks = m['remarks'] ?? '';
-                          sb.writeln(
-                            '| **$name** | $freq | $duration | $remarks |',
-                          );
-                        }
-                      }
-                    } else {
-                      sb.writeln('*None prescribed or not mentioned.*');
-                    }
-                    sb.writeln();
-                    sb.writeln('---');
-                    sb.writeln();
-                    sb.write(
-                      '> *This report was automatically generated by Synapse AI based on clinical notes.*',
-                    );
-
-                    // Determine path
-                    String filePath = coreInfo.filePath;
-                    // Use _patientId as source of truth if available, otherwise fallback to path parsing
-                    String? patientId = _patientId;
-
-                    // Ensure we have a valid absolute path
-                    // If the path is just '/patients/...' on mobile, it's likely relative to the app sandbox
-                    if (!File(filePath).isAbsolute ||
-                        (Platform.isAndroid || Platform.isIOS) &&
-                            filePath.startsWith('/patients')) {
-                      if (filePath.startsWith('/')) {
-                        filePath = filePath.substring(1);
-                      }
-
-                      // Attempt to extract patient ID from path if not already found
-                      if (patientId == null) {
-                        final parts = filePath.split('/');
-                        if (parts.length >= 2 && parts[0] == 'patients') {
-                          patientId = parts[1];
-                        }
-                      }
-
-                      // Use FileManager.documentsDirectory to ensure we are in the 'Saber' subfolder
-                      filePath = p.join(
-                        FileManager.documentsDirectory,
-                        filePath,
-                      );
-                    }
-
-                    // Submit to Supabase if we found a patient ID
-                    if (patientId != null) {
-                      try {
-                        log.info(
-                          'Saving report with sourceDocumentPath: ${coreInfo.filePath}',
-                        );
-                        await SupabaseReportService.createReport(
-                          patientId: patientId,
-                          structuredData: reportData,
-                          markdownContent: sb.toString(),
-                          sourceDocumentPath: coreInfo.filePath,
-                        );
-                        log.info(
-                          'Report saved to Supabase for patient $patientId',
-                        );
-                      } catch (dbError) {
-                        log.severe('Failed to save report to DB', dbError);
-                        // Don't block local file save if DB fails
-                      }
-
-                      // Send medications to Pharmacy (prescriptions table)
-                      try {
-                        final medications = reportData['medications'];
-                        if (medications is List && medications.isNotEmpty) {
-                          // Fetch patient name if possible for the pharmacy
-                          String? patientName;
-                          try {
-                            final pData =
-                                await SupabasePatientService.getPatient(
-                                  patientId,
-                                );
-                            patientName = pData?.fullName;
-                          } catch (e) {
-                            // ignore
-                          }
-
-                          // Convert medications to List<Map<String, dynamic>>
-                          final medsList = medications
-                              .whereType<Map<String, dynamic>>()
-                              .map((m) {
-                                final newMap = Map<String, dynamic>.from(m);
-                                // Map remarks to instructions for pharmacy compatibility
-                                if (newMap.containsKey('remarks')) {
-                                  newMap['instructions'] = newMap['remarks'];
-                                }
-                                return newMap;
-                              })
-                              .toList();
-
-                          if (medsList.isNotEmpty) {
-                            await SupabasePrescriptionService.createPrescription(
-                              patientId: patientId,
-                              consultationId: widget.consultationId,
-                              medications: medsList,
-                              patientName: patientName,
-                            );
-                            log.info('Prescriptions sent to pharmacy');
-                          }
-                        }
-                      } catch (rxError) {
-                        log.severe('Failed to send prescriptions', rxError);
-                      }
-
-                      // Mark consultation as completed with progress status
-                      if (widget.consultationId != null) {
-                        try {
-                          await SupabaseConsultationService.completeConsultation(
-                            widget.consultationId!,
-                          );
-                          log.info(
-                            'Consultation ${widget.consultationId} marked as completed',
-                          );
-                        } catch (e) {
-                          log.warning(
-                            'Failed to mark consultation as completed: $e',
-                          );
-                        }
-                      }
-                    }
-
-                    // Save report to file
-                    final reportFileName =
-                        'clinical_report_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.md';
-                    final reportPath = p.join(
-                      p.dirname(filePath),
-                      reportFileName,
-                    );
-
-                    // Only try to write file if directory exists
-                    if (await Directory(p.dirname(filePath)).exists()) {
-                      await FileManager.writeFile(
-                        reportPath,
-                        Uint8List.fromList(utf8.encode(sb.toString())),
-                        awaitWrite: true,
-                      );
-
-                      if (context.mounted) {
-                        Navigator.pop(context); // Close dialog
-
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (widget.onVerify != null) {
-                            widget.onVerify?.call();
-                          } else {
-                            // Production fallback: Terminate session and go to dashboard
-                            SessionManager().terminate();
-                            final targetContext =
-                                App.rootNavigatorKey.currentContext ?? context;
-                            if (targetContext.mounted) {
-                              GoRouter.of(
-                                targetContext,
-                              ).go(HomeRoutes.getRoute(0));
-                            }
-                          }
-                        });
-                      }
-                    } else {
-                      log.warning(
-                        'Cannot save report locally: Directory not found ${p.dirname(filePath)}',
-                      );
-                      // Still show success if DB save worked
-                      if (context.mounted && patientId != null) {
-                        Navigator.pop(context);
-
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (widget.onVerify != null) {
-                            widget.onVerify?.call();
-                          } else {
-                            // Production fallback: Terminate session and go to dashboard
-                            SessionManager().terminate();
-                            final targetContext =
-                                App.rootNavigatorKey.currentContext ?? context;
-                            if (targetContext.mounted) {
-                              GoRouter.of(
-                                targetContext,
-                              ).go(HomeRoutes.getRoute(0));
-                            }
-                          }
-                        });
-                      }
-                    }
-                  } catch (e) {
-                    log.severe('Error saving report', e);
-                    if (context.mounted) {
-                      final targetContext =
-                          App.rootNavigatorKey.currentContext ?? context;
-                      ScaffoldMessenger.of(targetContext).showSnackBar(
-                        SnackBar(
-                          content: HeroMode(
-                            enabled: false,
-                            child: Text('Failed to save report: $e'),
-                          ),
-                        ),
-                      );
-                    }
-                  }
-                },
-              );
-
-              if (isPortrait) {
-                return Column(
-                  children: [
-                    // Portrait: Top Image Preview (Flexible Height)
-                    Expanded(
-                      flex: 4, // 40% height for the note
-                      child: buildImagePreview(),
-                    ),
-
-                    Expanded(
-                      flex: 6, // 60% height for the report
-                      child: buildReportView(),
-                    ),
-                  ],
-                );
-              } else {
-                return Row(
-                  children: [
-                    // Landscape: Left Image Preview
-                    if (imageBytesList.isNotEmpty)
-                      Expanded(
-                        flex: 4, // 40% width
-                        child: buildImagePreview(),
-                      ),
-
-                    Expanded(
-                      flex: 6, // 60% width for report
-                      child: buildReportView(),
-                    ),
-                  ],
-                );
-              }
-            },
-          ),
-        ),
+          if (widget.onVerify != null) {
+            widget.onVerify?.call();
+          } else {
+            // Production fallback: Terminate session and go to dashboard
+            SessionManager().terminate();
+            final targetContext =
+                App.rootNavigatorKey.currentContext ?? context;
+            if (targetContext.mounted) {
+              GoRouter.of(targetContext).go(HomeRoutes.getRoute(0));
+            }
+          }
+        },
       ),
     );
   }
@@ -4651,6 +4275,13 @@ class EditorState extends State<Editor> {
           );
 
       for (int i = 0; i < coreInfo.pages.length; i++) {
+        // Skip empty pages to avoid showing blank cards
+        if (coreInfo.pages[i].strokes.isEmpty &&
+            coreInfo.pages[i].images.isEmpty) {
+          log.info('[captureAllPages] Skipping empty page $i');
+          continue;
+        }
+
         log.info('[captureAllPages] Capturing page $i...');
 
         final page = coreInfo.pages[i];
@@ -4659,7 +4290,8 @@ class EditorState extends State<Editor> {
         );
         // Calculate appropriate size for the capture based on page width
         // We use a fixed width (e.g. 720) and calculate height to maintain aspect ratio
-        final captureWidth = 720.0;
+        // MATCHING CANVAS PREVIEW SCALE: 5.0 (High Quality) -> 720 * 5 = 3600
+        const captureWidth = 3600.0;
         final captureHeight = captureWidth * previewHeight / page.size.width;
         final targetSize = ui.Size(captureWidth, captureHeight);
 
@@ -4679,23 +4311,19 @@ class EditorState extends State<Editor> {
                       width: targetSize.width,
                       height: targetSize.height,
                       child: FittedBox(
-                        child: pageBuilderForScreenshot(
-                          ctx,
-                          pageIndex: i,
-                          previewHeight: previewHeight,
-                        ),
+                        alignment: Alignment.topCenter,
+                        child: pageBuilderForScreenshot(ctx, pageIndex: i),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-            pixelRatio: pixelRatio,
+            pixelRatio:
+                pixelRatio, // Keep pixelRatio as is (1.5 or 2.0) for high quality output
             context: null, // context is not required for off-screen capture
             targetSize: targetSize,
-            delay: const Duration(
-              milliseconds: 50,
-            ), // Small delay for rendering
+            delay: const Duration(milliseconds: 500),
           );
 
           images.add(image);
