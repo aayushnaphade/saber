@@ -20,14 +20,14 @@ import 'package:saber/pages/editor/report_view.dart';
 class SessionViewerPage extends StatefulWidget {
   final String patientId;
   final int initialSessionNumber;
-  final List<SessionInfo> allSessions;
+  final List<SessionInfo>? allSessions;
   final bool viewOnlyNotes;
 
   const SessionViewerPage({
     super.key,
     required this.patientId,
     required this.initialSessionNumber,
-    required this.allSessions,
+    this.allSessions,
     this.viewOnlyNotes = false,
   });
 
@@ -50,7 +50,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
   void initState() {
     super.initState();
     _currentSessionNumber = widget.initialSessionNumber;
-    _sessions = List.from(widget.allSessions);
+    _sessions = List.from(widget.allSessions ?? []);
     _loadSessionData();
 
     // If we only have one session, fetch all to enable navigation
@@ -161,10 +161,11 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
           final file = File(thumbPath);
           log.info('Found note preview at $thumbPath');
           note = PreviousSessionNote(
-            imageUrl: thumbPath,
+            pageUrls: [thumbPath],
             sessionNumber: _currentSessionNumber,
             createdAt: await file.lastModified(),
             fileName: p.basename(thumbPath),
+            pageCount: 1,
           );
         }
       } catch (e) {
@@ -191,7 +192,9 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
             );
           }
         } catch (e) {
-          log.severe('Error fetching note from Supabase: $e');
+          log.severe(
+            'Error fetching session note for session $_currentSessionNumber: $e',
+          );
         }
       }
 
@@ -363,73 +366,99 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
                           constraints.maxHeight > constraints.maxWidth;
 
                       if (isPortrait) {
-                        // Portrait Mode: Vertical Stack
                         return SingleChildScrollView(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // Top: Handwritten Note
-                              if (_currentNote != null)
-                                Center(
-                                  child: SizedBox(
-                                    height: 400, // Fixed height for portrait
-                                    child: AspectRatio(
-                                      aspectRatio: 1 / 1.414,
-                                      child: _buildNoteContainer(),
+                              // Handwritten Note Section
+                              if (_currentNote != null &&
+                                  _currentNote!.pageUrls.isNotEmpty)
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Handwritten Notes (${_currentNote!.pageUrls.length} pages)',
+                                      style: theme.textTheme.titleLarge,
                                     ),
-                                  ),
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      height: 540,
+                                      child: PageView.builder(
+                                        itemCount:
+                                            _currentNote!.pageUrls.length,
+                                        itemBuilder: (context, index) {
+                                          return _buildNotePage(
+                                            _currentNote!,
+                                            index,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ],
                                 )
                               else
                                 const SizedBox(
                                   height: 200,
                                   child: Center(
                                     child: Text(
-                                      'No handwritten note available',
+                                      'No handwritten notes available',
                                     ),
                                   ),
                                 ),
 
                               const SizedBox(height: 32),
 
-                              // Bottom: AI Report
-                              if (_currentReport != null &&
-                                  !widget.viewOnlyNotes)
-                                SizedBox(
-                                  height:
-                                      500, // Give fixed height in portrait scroll
-                                  child: _buildReportSection(
-                                    theme,
-                                    isPortrait: true,
-                                  ),
-                                )
-                              else if (!widget.viewOnlyNotes)
-                                _buildNoReportState(theme),
+                              // AI Report Section
+                              if (!widget.viewOnlyNotes)
+                                if (_currentReport != null)
+                                  SizedBox(
+                                    height: 500,
+                                    child: _buildReportSection(theme),
+                                  )
+                                else
+                                  _buildNoReportState(theme),
 
-                              const SizedBox(height: 100), // Bottom padding
+                              const SizedBox(height: 80),
                             ],
                           ),
                         );
                       } else {
-                        // Landscape Mode: Horizontal Row
+                        // Landscape Mode
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // Left: Handwritten Note
-                            if (_currentNote != null)
+                            // Left: Notes
+                            if (_currentNote != null &&
+                                _currentNote!.pageUrls.isNotEmpty)
                               SizedBox(
-                                width: 500,
-                                child: Center(
-                                  child: AspectRatio(
-                                    aspectRatio: 1 / 1.414,
-                                    child: _buildNoteContainer(),
-                                  ),
+                                width: constraints.maxWidth * 0.45,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Handwritten Notes (${_currentNote!.pageUrls.length} pages)',
+                                      style: theme.textTheme.titleLarge,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Expanded(
+                                      child: PageView.builder(
+                                        itemCount:
+                                            _currentNote!.pageUrls.length,
+                                        itemBuilder: (context, index) {
+                                          return _buildNotePage(
+                                            _currentNote!,
+                                            index,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               )
                             else
-                              const SizedBox(
-                                width: 500,
+                              const Expanded(
                                 child: Center(
-                                  child: Text('No handwritten note available'),
+                                  child: Text('No handwritten notes available'),
                                 ),
                               ),
 
@@ -439,10 +468,7 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
                             if (!widget.viewOnlyNotes)
                               Expanded(
                                 child: _currentReport != null
-                                    ? _buildReportSection(
-                                        theme,
-                                        isPortrait: false,
-                                      )
+                                    ? _buildReportSection(theme)
                                     : _buildNoReportState(theme),
                               ),
                           ],
@@ -456,99 +482,78 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
     );
   }
 
-  Widget _buildNoteContainer() {
-    final note = _currentNote!;
-    final isImage =
-        (note.fileName?.endsWith('.p') ?? false) ||
-        (note.fileName?.endsWith('.png') ?? false) ||
-        (note.fileName?.endsWith('.jpg') ?? false) ||
-        (note.fileName?.endsWith('.jpeg') ?? false);
+  Widget _buildNotePage(PreviousSessionNote note, int index) {
+    if (index >= note.pageUrls.length) return const SizedBox.shrink();
+    final url = note.pageUrls[index];
 
-    if (!isImage) {
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.description_outlined,
-                size: 64,
-                color: Colors.grey[400],
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Handwritten Note Available',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+    return Column(
+      children: [
+        Expanded(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: url.startsWith('http')
+                    ? Image.network(
+                        url,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Center(child: Icon(Icons.broken_image)),
+                      )
+                    : Builder(
+                        builder: (context) {
+                          final file = File(url);
+                          // Force eviction of the old image from cache before displaying
+                          // This is crucial because the file path stays the same when the thumbnail is updated
+                          FileImage(file).evict();
+                          return Image.file(
+                            file,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Center(child: Icon(Icons.broken_image)),
+                          );
+                        },
+                      ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Preview not generated',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-            ],
+            ),
           ),
         ),
-      );
-    }
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: InteractiveViewer(
-          maxScale: 5.0,
-          child: note.imageUrl.startsWith('http')
-              ? Image.network(
-                  note.imageUrl,
-                  fit: BoxFit.contain,
-                  loadingBuilder: (context, child, loading) {
-                    if (loading == null) return child;
-                    return const Center(child: CircularProgressIndicator());
-                  },
-                  errorBuilder: (context, error, stack) => const Center(
-                    child: Icon(
-                      Icons.broken_image,
-                      size: 64,
-                      color: Colors.grey,
-                    ),
-                  ),
-                )
-              : Image.file(
-                  File(note.imageUrl),
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stack) => const Center(
-                    child: Icon(
-                      Icons.broken_image,
-                      size: 64,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
+        const SizedBox(height: 8),
+        Text(
+          'Page ${index + 1} of ${note.pageUrls.length}',
+          style: Theme.of(context).textTheme.bodySmall,
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildReportSection(ThemeData theme, {required bool isPortrait}) {
+  Widget _buildReportSection(ThemeData theme) {
+    if (_currentReport == null) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -564,7 +569,6 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
             ),
           ),
         ),
-
         Expanded(
           child: ReportView(
             reportData: _currentReport!.structuredData,

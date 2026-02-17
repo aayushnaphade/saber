@@ -9,13 +9,16 @@ class CanvasPreview extends StatelessWidget implements PreferredSizeWidget {
   CanvasPreview({
     super.key,
     this.pageIndex = 0,
+    this.width,
     required this.height,
     required this.coreInfo,
     this.highQuality = false,
     this.scale,
+    this.alignment = Alignment.topCenter,
   });
 
   final int pageIndex;
+  final double? width;
   final double? height;
   final EditorCoreInfo coreInfo;
 
@@ -26,15 +29,21 @@ class CanvasPreview extends StatelessWidget implements PreferredSizeWidget {
   /// If provided, this overrides the default scale logic.
   final double? scale;
 
+  final Alignment alignment;
+
   late final pageSize =
       coreInfo.pages.getOrNull(pageIndex)?.size ?? EditorPage.defaultSize;
+
   @override
-  late final preferredSize = Size(pageSize.width, height ?? pageSize.height);
+  Size get preferredSize =>
+      Size(width ?? pageSize.width, height ?? pageSize.height);
 
   @override
   Widget build(BuildContext context) {
+    final computedScale = scale ?? (width ?? pageSize.width) / pageSize.width;
+
     debugPrint(
-      'XXX_DEBUG: CanvasPreview build - pageIndex: $pageIndex, height: $height, highQuality: $highQuality, preferredSize: $preferredSize, scale: ${highQuality ? 5.0 : double.minPositive}',
+      'XXX_DEBUG: CanvasPreview build - pageIndex: $pageIndex, width: $width, height: $height, highQuality: $highQuality, preferredSize: $preferredSize, scale: $computedScale',
     );
     return InnerCanvas(
       pageIndex: pageIndex,
@@ -46,7 +55,7 @@ class CanvasPreview extends StatelessWidget implements PreferredSizeWidget {
       currentStrokeDetectedShape: null,
       currentSelection: null,
       currentToolIsSelect: false,
-      currentScale: scale ?? (highQuality ? 5.0 : double.minPositive),
+      currentScale: computedScale,
     );
   }
 }

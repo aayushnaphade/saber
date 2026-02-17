@@ -1,6 +1,7 @@
 import 'package:defer_pointer/defer_pointer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:logging/logging.dart';
 import 'package:one_dollar_unistroke_recognizer/one_dollar_unistroke_recognizer.dart';
 import 'package:saber/components/canvas/_canvas_background_painter.dart';
 import 'package:saber/components/canvas/_canvas_painter.dart';
@@ -14,6 +15,8 @@ import 'package:saber/data/tools/select.dart';
 import 'package:saber/i18n/strings.g.dart';
 
 class InnerCanvas extends StatefulWidget {
+  static final log = Logger('InnerCanvas');
+
   const InnerCanvas({
     super.key,
     required this.pageIndex,
@@ -64,7 +67,8 @@ class _InnerCanvasState extends State<InnerCanvas> {
   Widget build(BuildContext context) {
     final colorScheme = ColorScheme.of(context);
     final Brightness brightness = Theme.brightnessOf(context);
-    final invert = stows.editorAutoInvert.value && brightness == .dark;
+    final invert =
+        stows.editorAutoInvert.value && brightness == Brightness.dark;
     final Color backgroundColor =
         widget.coreInfo.backgroundColor ?? InnerCanvas.defaultBackgroundColor;
 
@@ -73,6 +77,10 @@ class _InnerCanvasState extends State<InnerCanvas> {
     }
 
     final page = widget.coreInfo.pages[widget.pageIndex];
+
+    InnerCanvas.log.info(
+      'DEBUG: InnerCanvas build - pageIndex: ${widget.pageIndex}, width: ${widget.width}, height: ${widget.height}, pageSize: ${page.size}',
+    );
 
     final quillEditor = widget.coreInfo.pages.isNotEmpty
         ? QuillEditor(
@@ -91,8 +99,8 @@ class _InnerCanvasState extends State<InnerCanvas> {
                   ? t.editor.quill.typeSomething
                   : null,
               showCursor: true,
-              keyboardAppearance: invert ? .dark : .light,
-              padding: .only(
+              keyboardAppearance: invert ? Brightness.dark : Brightness.light,
+              padding: EdgeInsets.only(
                 top: widget.coreInfo.lineHeight * 1.2,
                 left: widget.coreInfo.lineHeight * 0.5,
                 right: widget.coreInfo.lineHeight * 0.5,
@@ -104,87 +112,89 @@ class _InnerCanvasState extends State<InnerCanvas> {
           )
         : null;
 
-    return RepaintBoundary(
-      child: CustomPaint(
-        painter: CanvasBackgroundPainter(
-          invert: invert,
-          backgroundColor: () {
-            if (page.backgroundImage != null) {
-              return Colors.white;
-            } else {
-              return backgroundColor;
-            }
-          }(),
-          backgroundPattern: () {
-            if (page.backgroundImage != null) {
-              return CanvasBackgroundPattern.none;
-            } else {
-              return widget.coreInfo.backgroundPattern;
-            }
-          }(),
-          lineHeight: widget.coreInfo.lineHeight,
-          lineThickness: widget.coreInfo.lineThickness,
-          primaryColor: colorScheme.primary,
-          secondaryColor: colorScheme.secondary,
-        ),
-        foregroundPainter: CanvasPainter(
-          repaint: widget.redrawPageListenable,
-          invert: invert,
-          strokes: page.strokes,
-          laserStrokes: page.laserStrokes,
-          currentStroke: widget.currentStroke,
-          currentSelection: widget.currentSelection,
-          primaryColor: colorScheme.primary,
-          page: page,
-          showPageIndicator:
-              !widget.isPreview &&
-              (!widget.isPrint || stows.printPageIndicators.value),
-          pageIndex: widget.pageIndex,
-          totalPages: widget.coreInfo.pages.length,
-          currentScale: widget.currentScale,
-        ),
-        isComplex: true,
-        willChange: true,
+    final logicalWidth = widget.width / widget.currentScale;
+    final logicalHeight = widget.height / widget.currentScale;
+
+    InnerCanvas.log.info(
+      'DEBUG: InnerCanvas build details - width: ${widget.width}, height: ${widget.height}, scale: ${widget.currentScale}, logicalWidth: $logicalWidth, logicalHeight: $logicalHeight, pageSize: ${page.size}',
+    );
+
+    return SizedBox(
+      width: widget.width,
+      height: widget.height,
+      child: FittedBox(
+        fit: BoxFit.contain,
+        alignment: Alignment.topCenter,
         child: SizedBox(
-          width: widget.width,
-          height: widget.height,
-          child: DeferredPointerHandler(
-            child: Stack(
-              children: [
-                if (page.backgroundImage != null)
-                  CanvasImage(
-                    filePath: widget.coreInfo.filePath,
-                    image: page.backgroundImage!,
-                    pageSize: Size(widget.width, widget.height),
-                    setAsBackground: null,
-                    isBackground: true,
-                    readOnly: true,
+          width: logicalWidth,
+          height: logicalHeight,
+          child: CustomPaint(
+            painter: CanvasBackgroundPainter(
+              invert: invert,
+              backgroundColor: page.backgroundImage != null
+                  ? Colors.white
+                  : backgroundColor,
+              backgroundPattern: page.backgroundImage != null
+                  ? CanvasBackgroundPattern.none
+                  : widget.coreInfo.backgroundPattern,
+              lineHeight: widget.coreInfo.lineHeight,
+              lineThickness: widget.coreInfo.lineThickness,
+              primaryColor: colorScheme.primary,
+              secondaryColor: colorScheme.secondary,
+            ),
+            foregroundPainter: CanvasPainter(
+              repaint: widget.redrawPageListenable,
+              invert: invert,
+              strokes: page.strokes,
+              laserStrokes: page.laserStrokes,
+              currentStroke: widget.currentStroke,
+              currentSelection: widget.currentSelection,
+              primaryColor: colorScheme.primary,
+              page: page,
+              showPageIndicator:
+                  !widget.isPreview &&
+                  (!widget.isPrint || stows.printPageIndicators.value),
+              pageIndex: widget.pageIndex,
+              totalPages: widget.coreInfo.pages.length,
+              currentScale: widget.currentScale,
+            ),
+            isComplex: true,
+            willChange: true,
+            child: DeferredPointerHandler(
+              child: Stack(
+                children: [
+                  if (page.backgroundImage != null)
+                    CanvasImage(
+                      filePath: widget.coreInfo.filePath,
+                      image: page.backgroundImage!,
+                      pageSize: page.size,
+                      setAsBackground: null,
+                      isBackground: true,
+                      readOnly: true,
+                    ),
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      ignoring: widget.coreInfo.readOnly || !widget.textEditing,
+                      child: quillEditor,
+                    ),
                   ),
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  width: widget.width,
-                  height: widget.height,
-                  child: IgnorePointer(
-                    ignoring: widget.coreInfo.readOnly || !widget.textEditing,
-                    child: quillEditor,
-                  ),
-                ),
-                for (int i = 0; i < page.images.length; i++)
-                  CanvasImage(
-                    filePath: widget.coreInfo.filePath,
-                    image: page.images[i],
-                    pageSize: Size(widget.width, widget.height),
-                    setAsBackground: widget.setAsBackground,
-                    readOnly:
-                        widget.coreInfo.readOnly || !widget.currentToolIsSelect,
-                    selected:
-                        widget.currentSelection?.images.contains(
-                          page.images[i],
-                        ) ??
-                        false,
-                  ),
-              ],
+                  for (int i = 0; i < page.images.length; i++)
+                    CanvasImage(
+                      filePath: widget.coreInfo.filePath,
+                      image: page.images[i],
+                      pageSize: page.size,
+                      setAsBackground: widget.setAsBackground,
+                      readOnly:
+                          widget.coreInfo.readOnly ||
+                          !widget.currentToolIsSelect,
+                      selected:
+                          widget.currentSelection?.images.contains(
+                            page.images[i],
+                          ) ??
+                          false,
+                    ),
+                ],
+              ),
             ),
           ),
         ),

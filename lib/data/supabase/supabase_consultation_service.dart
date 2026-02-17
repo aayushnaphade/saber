@@ -258,30 +258,93 @@ class SupabaseConsultationService {
 
           log.info('Found ${files.length} files in $sessionPath');
 
-          // Find the preview file (.sbn2.p or .sbn.p)
-          final previewFile = files.cast<FileObject?>().firstWhere(
-            (f) => f != null && (f.name.endsWith('.p')),
-            orElse: () => null,
-          );
-
-          if (previewFile != null) {
+          if (files.isNotEmpty) {
             try {
-              // Use createSignedUrl instead of getPublicUrl for private buckets
-              final signedUrl = await supabase.storage
-                  .from('medical_notes')
-                  .createSignedUrl('$sessionPath/${previewFile.name}', 60 * 60);
+              // Find all preview files (.p)
+              final previewFiles = files
+                  .where((f) => f.name.endsWith('.p'))
+                  .toList();
 
-              notes.add(
-                PreviousSessionNote(
-                  imageUrl: signedUrl,
-                  sessionNumber: sessionNum,
-                  createdAt: previewFile.updatedAt != null
-                      ? DateTime.parse(previewFile.updatedAt!).toLocal()
-                      : DateTime.now(),
-                  fileName: previewFile.name,
-                ),
-              );
-              log.info('Added note for session $sessionNum');
+              // Sort numerically: patient_id_session_notes_session_1_notes.sbn2_page1.p
+              previewFiles.sort((a, b) {
+                final aMatch = RegExp(r'_page(\d+)\.p').firstMatch(a.name);
+                final bMatch = RegExp(r'_page(\d+)\.p').firstMatch(b.name);
+                if (aMatch != null && bMatch != null) {
+                  return int.parse(
+                    aMatch.group(1)!,
+                  ).compareTo(int.parse(bMatch.group(1)!));
+                }
+                return a.name.compareTo(b.name);
+              });
+
+              // Fallback: if no .p files found, look for raw notes
+              if (previewFiles.isEmpty) {
+                final rawFile = files.cast<FileObject?>().firstWhere(
+                  (f) =>
+                      f != null &&
+                      (f.name.endsWith('.sbn2') || f.name.endsWith('.sbn')),
+                  orElse: () => null,
+                );
+                if (rawFile != null) {
+                  previewFiles.add(rawFile);
+                }
+              }
+
+              if (previewFiles.isNotEmpty) {
+                // Get signed URLs for all pages
+                final rawPageUrls = await Future.wait(
+                  previewFiles.map(
+                    (f) => supabase.storage
+                        .from('medical_notes')
+                        .createSignedUrl('$sessionPath/${f.name}', 60 * 60),
+                  ),
+                );
+
+                // Explicitly cast to List<String> to prevent dynamic issues
+                final pageUrls = rawPageUrls.cast<String>().toList();
+
+                log.info(
+                  'Creating PreviousSessionNote for session $sessionNum with pages: $pageUrls',
+                );
+
+                // Try to find page count from .meta file
+                int pageCount = previewFiles.length;
+                final metaFile = files.cast<FileObject?>().firstWhere(
+                  (f) => f != null && f.name.endsWith('.meta'),
+                  orElse: () => null,
+                );
+                if (metaFile != null) {
+                  try {
+                    final metaData = await supabase.storage
+                        .from('medical_notes')
+                        .download('$sessionPath/${metaFile.name}');
+                    final metaJson =
+                        jsonDecode(utf8.decode(metaData))
+                            as Map<String, dynamic>;
+                    pageCount =
+                        metaJson['pageCount'] as int? ?? previewFiles.length;
+                  } catch (e) {
+                    log.warning('Error reading .meta file: $e');
+                  }
+                }
+
+                notes.add(
+                  PreviousSessionNote(
+                    pageUrls: pageUrls,
+                    sessionNumber: sessionNum,
+                    createdAt: previewFiles.first.updatedAt != null
+                        ? DateTime.parse(
+                            previewFiles.first.updatedAt!,
+                          ).toLocal()
+                        : DateTime.now(),
+                    fileName: previewFiles.first.name,
+                    pageCount: pageCount,
+                  ),
+                );
+                log.info(
+                  'Added multi-page note for session $sessionNum (${pageUrls.length} pages)',
+                );
+              }
             } catch (e) {
               log.severe('Error parsing note for $folderName: $e');
             }
@@ -310,6 +373,7 @@ class SupabaseConsultationService {
       final cloudPrefix = '$effectiveDoctorId/$patientId/session_notes';
       final sessionPath = '$cloudPrefix/session_$sessionNumber';
 
+      // List all files in the session folder
       final files = await supabase.storage
           .from('medical_notes')
           .list(path: sessionPath);
@@ -319,43 +383,83 @@ class SupabaseConsultationService {
         return null;
       }
 
-      // Find the preview file (.sbn2.p or .sbn.p)
-      FileObject? fileToUse = files.cast<FileObject?>().firstWhere(
-        (f) => f != null && (f.name.endsWith('.p')),
-        orElse: () => null,
-      );
+      // Find all preview files (.p)
+      final previewFiles = files.where((f) => f.name.endsWith('.p')).toList();
 
-      // FALLBACK: If no preview, check for raw .sbn2 or .sbn
-      if (fileToUse == null) {
-        fileToUse = files.cast<FileObject?>().firstWhere(
+      // Sort numerically: patient_id_session_notes_session_1_notes.sbn2_page1.p
+      previewFiles.sort((a, b) {
+        final aMatch = RegExp(r'_page(\d+)\.p').firstMatch(a.name);
+        final bMatch = RegExp(r'_page(\d+)\.p').firstMatch(b.name);
+        if (aMatch != null && bMatch != null) {
+          return int.parse(
+            aMatch.group(1)!,
+          ).compareTo(int.parse(bMatch.group(1)!));
+        }
+        return a.name.compareTo(b.name);
+      });
+
+      // FALLBACK: If no preview files, check for raw .sbn2 or .sbn
+      if (previewFiles.isEmpty) {
+        final rawFile = files.cast<FileObject?>().firstWhere(
           (f) =>
               f != null &&
               (f.name.endsWith('.sbn2') || f.name.endsWith('.sbn')),
           orElse: () => null,
         );
-        if (fileToUse != null) {
+        if (rawFile != null) {
           log.info(
-            'Found raw note file (no preview) for session $sessionNumber: ${fileToUse.name}',
+            'Found raw note file (no preview) for session $sessionNumber: ${rawFile.name}',
           );
+          previewFiles.add(rawFile);
         }
       }
 
-      if (fileToUse != null) {
-        // Use createSignedUrl instead of getPublicUrl for private buckets
-        final signedUrl = await supabase.storage
-            .from('medical_notes')
-            .createSignedUrl('$sessionPath/${fileToUse.name}', 60 * 60);
+      if (previewFiles.isNotEmpty) {
+        // Get signed URLs for all pages
+        final rawPageUrls = await Future.wait(
+          previewFiles.map(
+            (f) => supabase.storage
+                .from('medical_notes')
+                .createSignedUrl('$sessionPath/${f.name}', 60 * 60),
+          ),
+        );
+
+        // Explicitly cast to List<String>
+        final pageUrls = rawPageUrls.cast<String>().toList();
+
+        log.info(
+          'Creating PreviousSessionNote for session $sessionNumber with pages: $pageUrls',
+        );
+
+        // Try to find page count from .meta file
+        int pageCount = previewFiles.length;
+        final metaFile = files.cast<FileObject?>().firstWhere(
+          (f) => f != null && f.name.endsWith('.meta'),
+          orElse: () => null,
+        );
+        if (metaFile != null) {
+          try {
+            final metaData = await supabase.storage
+                .from('medical_notes')
+                .download('$sessionPath/${metaFile.name}');
+            final metaJson =
+                jsonDecode(utf8.decode(metaData)) as Map<String, dynamic>;
+            pageCount = metaJson['pageCount'] as int? ?? previewFiles.length;
+          } catch (e) {
+            log.warning('Error reading .meta file: $e');
+          }
+        }
 
         return PreviousSessionNote(
-          imageUrl: signedUrl,
+          pageUrls: pageUrls,
           sessionNumber: sessionNumber,
-          createdAt: fileToUse.updatedAt != null
-              ? DateTime.parse(fileToUse.updatedAt!).toLocal()
+          createdAt: previewFiles.first.updatedAt != null
+              ? DateTime.parse(previewFiles.first.updatedAt!).toLocal()
               : DateTime.now(),
-          fileName: fileToUse.name,
+          fileName: previewFiles.first.name,
+          pageCount: pageCount,
         );
       }
-
       return null;
     } catch (e) {
       log.severe('Error fetching session note for session $sessionNumber: $e');

@@ -132,40 +132,63 @@ class _PreviousNotesOverlayCardState extends State<PreviousNotesOverlayCard> {
                     minScale: 1.0,
                     maxScale: 4.0,
                     child: Center(
-                      child: Image.network(
-                        currentNote.imageUrl,
-                        fit: BoxFit.contain,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                  : null,
-                              strokeWidth: 2,
-                              color: Colors.purple,
+                      child: currentNote.imageUrl != null
+                          ? Image.network(
+                              currentNote.imageUrl!,
+                              fit: BoxFit.contain,
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Center(
+                                      child: CircularProgressIndicator(
+                                        value:
+                                            loadingProgress
+                                                    .expectedTotalBytes !=
+                                                null
+                                            ? loadingProgress
+                                                      .cumulativeBytesLoaded /
+                                                  loadingProgress
+                                                      .expectedTotalBytes!
+                                            : null,
+                                        strokeWidth: 2,
+                                        color: Colors.purple,
+                                      ),
+                                    );
+                                  },
+                              errorBuilder: (context, error, stackTrace) =>
+                                  _buildErrorPlaceholder(theme),
+                            )
+                          : _buildErrorPlaceholder(
+                              theme,
+                              'No preview available',
                             ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) => Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.broken_image_outlined,
-                              size: 48,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Failed to load note',
-                              style: theme.textTheme.bodySmall,
-                            ),
-                          ],
+                    ),
+                  ),
+
+                  // Page Count Indicator
+                  if (currentNote.pageUrls.length > 1)
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${currentNote.pageUrls.length} pages',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                  ),
 
                   // Navigation Controls Overlay (Side buttons)
                   if (_currentIndex < widget.notes.length - 1)
@@ -231,6 +254,20 @@ class _PreviousNotesOverlayCardState extends State<PreviousNotesOverlayCard> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildErrorPlaceholder(
+    ThemeData theme, [
+    String message = 'Failed to load note',
+  ]) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
+        const SizedBox(height: 8),
+        Text(message, style: theme.textTheme.bodySmall),
+      ],
     );
   }
 }

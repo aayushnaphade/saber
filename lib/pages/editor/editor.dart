@@ -205,8 +205,7 @@ class EditorState extends State<Editor> {
   Offset? _vitalsOverlayPosition;
 
   // Report View State
-  final _isReportViewVisible = false;
-  Map<String, dynamic>? _generatedReportData;
+  // Removed unused fields
 
   String? _doctorName;
   String? _patientId;
@@ -1212,15 +1211,13 @@ class EditorState extends State<Editor> {
   }
 
   Future<void> saveToFile({bool awaitUpload = false}) async {
-    log.info('💾 [DEBUG] saveToFile() called for: ${coreInfo.filePath}');
+    log.info(
+      '💾 [DEBUG] saveToFile() called for: ${coreInfo.filePath}. ReadOnly: ${coreInfo.readOnly}, Terminating: $_isTerminating',
+    );
     // Theme data is captured in didChangeDependencies() to avoid unsafe context access during dispose
 
-    if (coreInfo.readOnly || _isTerminating) {
-      log.info(
-        '⏭️ [DEBUG] Skipping save: readOnly=${coreInfo.readOnly}, isTerminating=$_isTerminating',
-      );
-      return;
-    }
+    // REMOVED early return to allow thumbnail generation even if readOnly/terminating
+    // The content saving logic below is guarded by !coreInfo.readOnly check.
 
     switch (savingState.value) {
       case .saved:
@@ -1324,8 +1321,6 @@ class EditorState extends State<Editor> {
           pageHeights.add(h);
         }
 
-        // Variables moved inside per-page loop
-
         // Generate individual page thumbnails for swipe navigation
         for (
           int pageIndex = 0;
@@ -1338,45 +1333,37 @@ class EditorState extends State<Editor> {
 
           final pageThumbnailSize = ui.Size(720, 720 * pageHeight / pageWidth);
 
-          // Use a sane default theme if we can't capture one
-          final themeData =
-              _capturedThemeData ??
-              ThemeData.light().copyWith(
-                colorScheme: const ColorScheme.light(
-                  primary: EditorExporter.primaryColor,
-                  secondary: EditorExporter.secondaryColor,
-                ),
-              );
-
+          final scale = 720 / pageWidth;
           final pageThumbnail = await screenshotter.captureFromWidget(
-            MediaQuery(
-              data: const MediaQueryData(size: Size(720, 1280)),
-              child: MaterialApp(
-                debugShowCheckedModeBanner: false,
-                theme: themeData,
-                home: Builder(
-                  builder: (ctx) {
-                    return Material(
-                      color: Colors.white,
-                      child: SizedBox(
-                        width: pageWidth,
-                        height: pageHeight,
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          alignment: Alignment.topCenter,
-                          child: pageBuilderForScreenshot(
-                            ctx,
-                            pageIndex: pageIndex,
-                            previewHeight: pageHeight,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+            Directionality(
+              textDirection: ui.TextDirection.ltr,
+              child: MediaQuery(
+                data: MediaQueryData(
+                  size: pageThumbnailSize,
+                  devicePixelRatio: 1.0,
+                ),
+                child: MaterialApp(
+                  debugShowCheckedModeBanner: false,
+                  theme: ThemeData.light().copyWith(
+                    colorScheme: const ColorScheme.light(
+                      primary: EditorExporter.primaryColor,
+                      secondary: EditorExporter.secondaryColor,
+                    ),
+                  ),
+                  home: Material(
+                    color: Colors.white,
+                    child: pageBuilderForScreenshot(
+                      pageIndex: pageIndex,
+                      width: pageThumbnailSize.width,
+                      previewHeight: pageThumbnailSize.height,
+                      scale: scale,
+                    ),
+                  ),
                 ),
               ),
             ),
             delay: const Duration(milliseconds: 100),
+            pixelRatio: 1.0,
             targetSize: pageThumbnailSize,
           );
 
@@ -1879,52 +1866,34 @@ class EditorState extends State<Editor> {
             child: MediaQuery(
               data: MediaQueryData(
                 size: targetSize,
-                devicePixelRatio: 1.5,
+                devicePixelRatio: 1.0,
                 padding: EdgeInsets.zero,
                 viewPadding: EdgeInsets.zero,
                 viewInsets: EdgeInsets.zero,
               ),
-              child: Theme(
-                data: ThemeData(
-                  brightness: Brightness.light,
+              child: MaterialApp(
+                debugShowCheckedModeBanner: false,
+                theme: ThemeData.light().copyWith(
                   colorScheme: const ColorScheme.light(
                     primary: EditorExporter.primaryColor,
                     secondary: EditorExporter.secondaryColor,
                   ),
                 ),
-                child: Material(
-                  child: HeroMode(
-                    enabled: false,
-                    child: DefaultTextStyle(
-                      style: const TextStyle(color: Colors.black),
-                      child: Localizations.override(
-                        context: context,
-                        child: Scaffold(
-                          backgroundColor: Colors.white,
-                          body: Center(
-                            child: SizedBox(
-                              width: targetSize.width,
-                              height: targetSize.height,
-                              child: FittedBox(
-                                child: pageBuilderForScreenshot(
-                                  context,
-                                  pageIndex: i,
-                                  previewHeight: previewHeight,
-                                  scale: pixelRatio,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                home: Material(
+                  color: Colors.white,
+                  child: pageBuilderForScreenshot(
+                    pageIndex: i,
+                    width: targetSize.width,
+                    previewHeight: targetSize.height,
+                    scale: pixelRatio,
                   ),
                 ),
               ),
             ),
           ),
           delay: const Duration(milliseconds: 500),
-          pixelRatio: 1.5,
+          pixelRatio: 1.0,
+          targetSize: targetSize,
         );
 
         log.info(
@@ -3148,9 +3117,9 @@ class EditorState extends State<Editor> {
     );
   }
 
-  Widget pageBuilderForScreenshot(
-    BuildContext context, {
+  Widget pageBuilderForScreenshot({
     required int pageIndex,
+    double? width,
     double? previewHeight,
     double? scale,
   }) {
@@ -3161,6 +3130,7 @@ class EditorState extends State<Editor> {
     );
     return CanvasPreview(
       pageIndex: pageIndex,
+      width: width,
       height: previewHeight,
       coreInfo: coreInfo,
       highQuality: true,
@@ -4312,7 +4282,7 @@ class EditorState extends State<Editor> {
                       height: targetSize.height,
                       child: FittedBox(
                         alignment: Alignment.topCenter,
-                        child: pageBuilderForScreenshot(ctx, pageIndex: i),
+                        child: pageBuilderForScreenshot(pageIndex: i),
                       ),
                     ),
                   ),

@@ -63,6 +63,9 @@ class EditorPage extends ChangeNotifier implements HasSize {
 
   /// The height of the canvas cropped to the content.
   double previewHeight({required int lineHeight}) {
+    debugPrint(
+      'XXX_DEBUG: previewHeight ENTRY - size: $size, lineHeight: $lineHeight, quillEmpty: ${quill.controller.document.isEmpty()}',
+    );
     // avoid dividing by zero (this should never happen)
     assert(size.height != 0);
     assert(size.width != 0);
@@ -84,12 +87,31 @@ class EditorPage extends ChangeNotifier implements HasSize {
       maxY = max(maxY, image.dstRect.bottom);
     }
     if (!quill.controller.document.isEmpty()) {
-      // this does not account for text that wraps to the next line
-      final int linesOfText = quill.controller.document
-          .toPlainText()
-          .split('\n')
-          .length;
-      maxY = max(maxY, linesOfText * lineHeight * 1.5); // ×1.5 fudge factor
+      final text = quill.controller.document.toPlainText();
+
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(
+            fontSize: lineHeight.toDouble(),
+            height: 1.15, // Standard leading estimate
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+
+      // InnerCanvas padding is roughly 0.5 * lineHeight on each side
+      final horizontalPadding = lineHeight.toDouble();
+      textPainter.layout(maxWidth: size.width - horizontalPadding);
+
+      // InnerCanvas padding: top (1.2) + bottom (0.5) = 1.7 * lineHeight
+      final verticalPadding = lineHeight * 1.7;
+
+      // Apply 2.0x safety factor to text height directly to account for rich text formatting.
+      // This ensures we don't clip content that takes up more vertical space than plain text.
+      final safeTextHeight = (textPainter.height * 2.0) + verticalPadding;
+
+      maxY = max(maxY, safeTextHeight);
     }
 
     /// The uncropped height of the page.

@@ -345,9 +345,10 @@ class App extends StatefulWidget {
               final sessionNumber = int.parse(
                 state.pathParameters['sessionNumber']!,
               );
-              final extra = state.extra as Map<String, dynamic>;
-              final allSessions = extra['allSessions'] as List<SessionInfo>;
-              final viewOnlyNotes = extra['viewOnlyNotes'] as bool? ?? false;
+              final extra = state.extra as Map<String, dynamic>?;
+              final allSessions =
+                  extra?['allSessions'] as List<SessionInfo>? ?? [];
+              final viewOnlyNotes = extra?['viewOnlyNotes'] as bool? ?? false;
 
               return SessionViewerPage(
                 patientId: patientId,
