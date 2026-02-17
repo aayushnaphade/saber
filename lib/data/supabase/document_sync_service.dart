@@ -232,14 +232,18 @@ class DocumentSyncService {
         final resolutions = await onConflicts(missingFiles);
 
         for (final entry in resolutions.entries) {
-          final relativePath = entry.key;
+          final relativePath =
+              entry.key; // e.g. session_notes/session_5/session_1_notes.sbn2
           final shouldRestore = entry.value;
           final cloudPath = fileMap[relativePath]!;
-          final localPath = '/patients/$patientId/$relativePath';
 
+          // DEFAULT: Use the relative path as is
+          final targetLocalPath = getCorrectedLocalPath(relativePath, patientId);
           if (shouldRestore) {
-            log.info('Restoring missing file: $relativePath');
-            await downloadDocument(cloudPath, localPath);
+            log.info(
+              'Restoring missing file: $relativePath -> $targetLocalPath',
+            );
+            await downloadDocument(cloudPath, targetLocalPath);
           } else {
             log.info('Deleting orphaned cloud file: $relativePath');
             await deleteCloudDocument(cloudPath);
@@ -469,5 +473,70 @@ class DocumentSyncService {
       log.warning('Failed to upload queued file: $localPath', error);
       // Queue for retry later
     });
+  }
+
+  /// Helper to correct local path if session mismatch is detected
+  /// Exposed for testing
+  static String getCorrectedLocalPath(String relativePath, String patientId) {
+    // DEFAULT: Use the relative path as is
+    var targetLocalPath = '/patients/$patientId/$relativePath';
+
+    // FIX: Check for session mismatch (Ghost Session Bug)
+    // If we have "session_X/session_Y_notes", we must save to "session_Y/session_Y_notes"
+    if (relativePath.contains('session_notes/session_')) {
+      try {
+        final parts = relativePath.split('/');
+        if (parts.length >= 3) {
+          // parts[0] = session_notes
+          // parts[1] = session_X (folder)
+          // parts[2] = session_Y_notes.sbn2 (file)
+
+          final folderName = parts[1];
+          final fileName = parts[2];
+
+          if (folderName.startsWith('session_') &&
+              fileName.startsWith('session_')) {
+            // Extract session numbers
+            final folderNum = int.tryParse(
+              folderName.replaceAll('session_', ''),
+            );
+
+            // Regex to find session number in filename: session_(\d+)_notes
+            final fileMatch = RegExp(
+              r'session_(\d+)_notes',
+            ).firstMatch(fileName);
+
+            if (folderNum != null && fileMatch != null) {
+              final fileNum = int.parse(fileMatch.group(1)!);
+
+              if (folderNum != fileNum) {
+                // MISMATCH DETECTED!
+                log.warning('⚠️ DETECTED SESSION MISMATCH during sync!');
+                log.warning(
+                  '   Cloud Folder: $folderName (Session $folderNum)',
+                );
+                log.warning('   Actual File: $fileName (Session $fileNum)');
+
+                // Correct the target path
+                // We want: session_notes/session_Y/session_Y_notes.sbn2
+                final correctFolder = 'session_$fileNum';
+                final correctRelativePath = relativePath.replaceFirst(
+                  folderName,
+                  correctFolder,
+                );
+                targetLocalPath = '/patients/$patientId/$correctRelativePath';
+
+                log.info(
+                  '   ✅ Correcting download path to: $correctRelativePath',
+                );
+              }
+            }
+          }
+        }
+      } catch (e) {
+        log.warning('Error checking for session mismatch: $e');
+      }
+    }
+    return targetLocalPath;
   }
 }
