@@ -32,73 +32,32 @@ class ReportGenerator {
 
   static const _defaultSystemPrompt = '''
 **Role:**
-You are an expert AI Medical Scribe specializing in Psychiatry. Your task is to convert unstructured session notes (which may contain abbreviations, symbols, and mixed English/Hindi terminology) into a structured Clinical Assessment Report in JSON format.
+You are an expert AI Medical Scribe specializing in Psychiatry. Your task is to extract and structure clinical data from handwritten session notes into a Clinical Assessment Report JSON.
+
+**Multimodal Instructions:**
+- **Spatial Anchoring**: Clinical notes are typically written chronologically from top to bottom. If multiple pages are provided, process them in the sequence provided (Page 1, Page 2, etc.).
+- **Handwriting Recognition**: Aggressively parse handwritten symbols and shorthands. Some text may be blurred or slanted; use the surrounding clinical context to infer the most likely medical meaning. If a word is truly illegible, mark it as "[illegible]" within the relative field.
 
 **Input Context:**
-- The input will be text derived from handwritten clinical notes.
-- Notes often use standard medical abbreviations (e.g., "c/o" for complains of, "h/o" for history of).
-- Notes may use symbols (e.g., "↑" for increased, "↓" for decreased, "+" for positive, "∆" for diagnosis).
-- Notes may contain colloquial terms (e.g., "Ghabrahat", "Bechaini"). Preserve these terms as they describe patient phenomenology.
+- Notes use standard abbreviations (e.g., "c/o" for complaints of, "h/o" for history of, "Rx/Adv" for medications).
+- Symbols are common (e.g., "↑" for increased, "↓" for decreased, "+" for positive, "∆" for diagnosis, "⊘" for absent).
+- Language: Mixed English and transliterated Hindi (e.g., "Ghabrahat" for anxiety, "Mun udaas" for low mood).
 
 **Output Requirements:**
-You must output a single valid JSON object containing exactly these six keys. Do not include markdown formatting (like ```json) inside the response, just the raw JSON.
+You must output a structured Clinical Assessment Report based on the provided schema.
 
-**JSON Schema Keys:**
-1.  `current_symptoms`: (String) The "c/o" or History of Present Illness. Include duration if mentioned.
-2.  `premorbid_personality`: (String) Information about the patient's nature before illness.
-3.  `past_history`: (String) Previous episodes, medical history, or past treatments.
-4.  `family_history`: (String) Descriptions of family mental health or the family tree/genogram details.
-5.  `mental_status_examination`: (Object) Break this down into sub-fields based on the notes (e.g., "appearance", "mood", "affect", "thought", "perception", "insight").
-6.  `provided_diagnosis`: (String) The diagnosis or impression (Imp/∆) written by the doctor.
-7.  `medications`: (Array of Objects) List of prescribed medicines found in the notes (Rx/Adv).
-    - IMPORTANT: If "Rx" symbol is missing, look for medications in "Plan", "Advice", or checks for "Continue same meds".
-    - Each object must have:
-    - `name` (String): Only the generic or brand name of the medicine (e.g., "Sertraline", "Clonazepam"). Do NOT include the dosage here.
-    - `dosage` (String): The strength or concentration (e.g., "50mg", "0.5mg", "10ml").
-    - `frequency` (String): Frequency (e.g., "BD", "1-0-1").
-    - `duration` (String): Duration if mentioned (e.g., "5 days", "1 month").
-    - IMPORTANT: Aggressively look for duration. Often written with abbreviations like "x 5 d", "for 1 wk", "x 3 mths", "5/365", "5/7". Map these to their full English equivalent (e.g., "5 days", "1 week").
-    - `remarks` (String): Any special instructions or administration notes (e.g., "after food", "empty stomach", "at night"). Look for text written below or next to the medication.
-    If no medications are found, return empty array `[]`.
+**Section-Specific Logic:**
+1.  `current_symptoms`: Extract the "c/o" or History of Present Illness. Include durations (e.g., "2 wks").
+2.  `mental_status_examination`: map findings to "appearance", "mood", "affect", "thought", "perception", "insight". 
+3.  `medications`: 
+    - Look for "Rx", "Adv", or lists at the bottom.
+    - Expand frequencies: "BD" -> "twice daily", "TDS" -> "thrice daily", "HS" -> "at bedtime", "SOS" -> "as needed".
+    - Durations: "x 5 d" -> "5 days", "1/52" -> "1 week", "1/12" -> "1 month".
 
 **Critical Rules:**
-1.  **Missing Information:** If a specific section is not found in the notes, the value must be the string "Not mentioned". Do not hallucinate or infer missing data.
-2.  **Abbreviations:** Expand standard clinical abbreviations for clarity (e.g., change "wks" or "wk" to "weeks", "pt" to "patient", "d" or "days" to "days" in duration) BUT keep the patient's subjective description (quotes) exact.
-3.  **Symbols:** Convert symbols to text (e.g., "Sleep ↓" becomes "Sleep decreased/reduced").
-4.  **Language:** If words like "Ghabrahat" or "Man udaas" are used, transliterate them exactly as written, followed by the English approximation in parentheses if obvious (e.g., "Ghabrahat (Anxiety)").
-
-**Example Input:**
-"C/o: Ghabrahat, ↓ sleep, Sad ↑ for 2 mths. Ppt fact: Death of friend. Past Hist: Similar complaint 3 yrs back following work stress. MSE: Consc, co-op. Mood-anx. Aff-restricted. Rx: T. Sertraline 50mg HS, T. Clonazepam 0.5mg SOS fro 5 days (ensure good sleep)."
-
-**Example Output:**
-{
-  "current_symptoms": "Reports Ghabrahat, decreased sleep, and increased sadness for 2 months. Precipitating factor: Death of a friend.",
-  "premorbid_personality": "Not mentioned",
-  "past_history": "Similar complaint 3 years back, following stress at work. Remitted without treatment.",
-  "family_history": "Not mentioned",
-  "mental_status_examination": {
-    "general_behavior": "Conscious, cooperative",
-    "mood": "Anxious",
-    "affect": "Restricted"
-  },
-  "provided_diagnosis": "Not mentioned",
-  "medications": [
-    {
-      "name": "T. Sertraline",
-      "dosage": "50mg",
-      "frequency": "HS",
-      "duration": "Not mentioned",
-      "remarks": "Not mentioned"
-    },
-    {
-      "name": "T. Clonazepam",
-      "dosage": "0.5mg",
-      "frequency": "SOS",
-      "duration": "5 days",
-      "remarks": "ensure good sleep"
-    }
-  ]
-}
+1.  **Strict Accuracy**: Do not hallucinate. If a section is missing, return "Not mentioned".
+2.  **Terminology**: Transliterate Hindi terms exactly (e.g., "Ghabrahat") and add the English meaning in parentheses.
+3.  **Expansion**: Convert symbols to text (e.g., "Sleep ↓" becomes "Sleep decreased").
 ''';
 
   static Future<Map<String, dynamic>> generateReport(
@@ -138,25 +97,14 @@ You must output a single valid JSON object containing exactly these six keys. Do
 
       const systemPrompt = _defaultSystemPrompt;
 
-      // Create parts for all pages
-      final parts = <GoogleCloudAiplatformV1Part>[
-        GoogleCloudAiplatformV1Part(
-          text:
-              'Analyze these clinical notes (spanning ${imageBytesList.length} pages) and generate the report.',
-        ),
-      ];
+      // 1. Create image parts first (Gemini Best Practice)
+      final parts = <GoogleCloudAiplatformV1Part>[];
 
       for (var i = 0; i < imageBytesList.length; i++) {
         final imageSize = imageBytesList[i].length;
-        log.info(
-          'Adding page ${i + 1} to request, image size: $imageSize bytes',
-        );
+        if (imageSize == 0) continue;
 
-        if (imageSize == 0) {
-          log.warning('Page ${i + 1} has empty image bytes!');
-          continue; // Skip empty images
-        }
-
+        // Label page for spatial/contextual reasoning
         parts.add(GoogleCloudAiplatformV1Part(text: 'Page ${i + 1}:'));
         parts.add(
           GoogleCloudAiplatformV1Part(
@@ -167,6 +115,14 @@ You must output a single valid JSON object containing exactly these six keys. Do
           ),
         );
       }
+
+      // 2. Add instruction part LAST
+      parts.add(
+        GoogleCloudAiplatformV1Part(
+          text:
+              'Analyze these clinical notes (spanning ${imageBytesList.length} pages) and generate the report based on the provided system instructions and schema.',
+        ),
+      );
 
       // Ensure we have at least one valid image
       if (parts.length <= 1) {
@@ -181,9 +137,9 @@ You must output a single valid JSON object containing exactly these six keys. Do
         ),
         contents: [GoogleCloudAiplatformV1Content(role: 'user', parts: parts)],
         generationConfig: GoogleCloudAiplatformV1GenerationConfig(
-          temperature: 0.4,
+          temperature: 0.2, // Lower temperature for factual extraction
           maxOutputTokens: 8192,
-          topP: 0.8,
+          topP: 0.95, // Recommended for OCR/Handwriting
           topK: 40,
         ),
         safetySettings: [
