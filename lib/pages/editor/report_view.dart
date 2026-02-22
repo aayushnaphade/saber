@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -67,9 +69,12 @@ class _ReportViewState extends State<ReportView> {
     }
   }
 
+  List<String> _medicationDictionary = [];
+
   @override
   void initState() {
     super.initState();
+    _loadMedicationDictionary();
     debugPrint(
       '[ReportView] initState. Image count: ${widget.imageBytesList?.length}',
     );
@@ -134,6 +139,22 @@ class _ReportViewState extends State<ReportView> {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _loadMedicationDictionary() async {
+    try {
+      final jsonStr = await rootBundle.loadString(
+        'assets/data/psychiatric_medications.json',
+      );
+      final List<dynamic> jsonList = jsonDecode(jsonStr);
+      if (mounted) {
+        setState(() {
+          _medicationDictionary = jsonList.cast<String>();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading medication dictionary: $e');
+    }
   }
 
   @override
@@ -821,9 +842,56 @@ class _ReportViewState extends State<ReportView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Medication Name'),
+              RawAutocomplete<String>(
+                textEditingController: nameController,
+                focusNode: FocusNode(),
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  if (textEditingValue.text.isEmpty) {
+                    return const Iterable<String>.empty();
+                  }
+                  return _medicationDictionary.where((String option) {
+                    return option.toLowerCase().contains(
+                      textEditingValue.text.toLowerCase(),
+                    );
+                  });
+                },
+                fieldViewBuilder:
+                    (context, controller, focus, onFieldSubmitted) {
+                      return TextField(
+                        controller: controller,
+                        focusNode: focus,
+                        decoration: const InputDecoration(
+                          labelText: 'Medication Name',
+                        ),
+                      );
+                    },
+                optionsViewBuilder: (context, onSelected, options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 4.0,
+                      borderRadius: BorderRadius.circular(8),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxHeight: 200,
+                          maxWidth: 250,
+                        ),
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          shrinkWrap: true,
+                          itemCount: options.length,
+                          itemBuilder: (context, index) {
+                            final option = options.elementAt(index);
+                            return ListTile(
+                              title: Text(option),
+                              onTap: () => onSelected(option),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
               TextField(
                 controller: dosageController,
@@ -890,9 +958,56 @@ class _ReportViewState extends State<ReportView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Medication Name'),
+              RawAutocomplete<String>(
+                textEditingController: nameController,
+                focusNode: FocusNode(),
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  if (textEditingValue.text.isEmpty) {
+                    return const Iterable<String>.empty();
+                  }
+                  return _medicationDictionary.where((String option) {
+                    return option.toLowerCase().contains(
+                      textEditingValue.text.toLowerCase(),
+                    );
+                  });
+                },
+                fieldViewBuilder:
+                    (context, controller, focus, onFieldSubmitted) {
+                      return TextField(
+                        controller: controller,
+                        focusNode: focus,
+                        decoration: const InputDecoration(
+                          labelText: 'Medication Name',
+                        ),
+                      );
+                    },
+                optionsViewBuilder: (context, onSelected, options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 4.0,
+                      borderRadius: BorderRadius.circular(8),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxHeight: 200,
+                          maxWidth: 250,
+                        ),
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          shrinkWrap: true,
+                          itemCount: options.length,
+                          itemBuilder: (context, index) {
+                            final option = options.elementAt(index);
+                            return ListTile(
+                              title: Text(option),
+                              onTap: () => onSelected(option),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
               TextField(
                 controller: dosageController,

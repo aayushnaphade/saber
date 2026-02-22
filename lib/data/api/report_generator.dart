@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:googleapis/aiplatform/v1.dart';
 import 'package:googleapis_auth/auth_io.dart';
@@ -48,7 +49,7 @@ You must output a structured Clinical Assessment Report based on the provided sc
 
 **Section-Specific Logic:**
 1.  `current_symptoms`: Extract the "c/o" or History of Present Illness. Include durations (e.g., "2 wks").
-2.  `mental_status_examination`: map findings to "appearance", "mood", "affect", "thought", "perception", "insight". 
+2.  `mental_status_examination`: map findings to "appearance", "behavior", "speech", "mood", "affect", "thought_process", "thought_content", "perception", "cognition", "insight", "judgment". 
 3.  `medications`: 
     - Look for "Rx", "Adv", or lists at the bottom.
     - Expand frequencies: "BD" -> "twice daily", "TDS" -> "thrice daily", "HS" -> "at bedtime", "SOS" -> "as needed".
@@ -58,6 +59,39 @@ You must output a structured Clinical Assessment Report based on the provided sc
 1.  **Strict Accuracy**: Do not hallucinate. If a section is missing, return "Not mentioned".
 2.  **Terminology**: Transliterate Hindi terms exactly (e.g., "Ghabrahat") and add the English meaning in parentheses.
 3.  **Expansion**: Convert symbols to text (e.g., "Sleep ↓" becomes "Sleep decreased").
+
+**Example Output:**
+```json
+{
+  "current_symptoms": "Reports Ghabrahat, decreased sleep, and increased sadness for 2 months. Precipitating factor: Death of a friend.",
+  "premorbid_personality": "Not mentioned",
+  "past_history": "Similar complaint 3 years back, following stress at work. Remitted without treatment.",
+  "family_history": "Not mentioned",
+  "mental_status_examination": {
+    "appearance": "Conscious",
+    "behavior": "cooperative",
+    "speech": "Not mentioned",
+    "mood": "Anxious",
+    "affect": "Restricted",
+    "thought_process": "Not mentioned",
+    "thought_content": "Not mentioned",
+    "perception": "Not mentioned",
+    "cognition": "Not mentioned",
+    "insight": "Not mentioned",
+    "judgment": "Not mentioned"
+  },
+  "provided_diagnosis": "Not mentioned",
+  "medications": [
+    {
+      "name": "T. Sertraline",
+      "dosage": "50mg",
+      "frequency": "HS",
+      "duration": "Not mentioned",
+      "remarks": "Not mentioned"
+    }
+  ]
+}
+```
 ''';
 
   static Future<Map<String, dynamic>> generateReport(
@@ -95,9 +129,17 @@ You must output a structured Clinical Assessment Report based on the provided sc
 
       log.info('Sending request to Vertex AI ($parent)...');
 
-      const systemPrompt = _defaultSystemPrompt;
-
-      // 1. Create image parts first (Gemini Best Practice)
+      String systemPrompt = _defaultSystemPrompt;
+      try {
+        final medsJson = await rootBundle.loadString(
+          'assets/data/psychiatric_medications.json',
+        );
+        final medsList = (jsonDecode(medsJson) as List).cast<String>();
+        systemPrompt +=
+            '\n4.  **Medication Spelling**: When extracting medications, strictly match the spelling against the following known psychiatric medications: ${medsList.join(', ')}. Correct any misspellings found in the handwritten notes to match this list. If it isn\'t on the list, extract it exactly as written.';
+      } catch (e) {
+        log.warning('Could not load medication dictionary for prompt: $e');
+      }
       final parts = <GoogleCloudAiplatformV1Part>[];
 
       for (var i = 0; i < imageBytesList.length; i++) {

@@ -235,6 +235,7 @@ flutter:
     - assets/icon/icon.png
     - assets/android/playstore-icon.png
     - assets/images/
+    - assets/data/
     - assets/google_fonts/Atkinson_Hyperlegible_Next/OFL.txt
     - assets/google_fonts/Dekko/OFL.txt
     - assets/google_fonts/Fira_Mono/OFL.txt
