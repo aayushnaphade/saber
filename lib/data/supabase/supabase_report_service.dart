@@ -24,7 +24,7 @@ class SupabaseReportService {
 
     final insertPayload = {
       'patient_id': patientId,
-      'doctor_id': user.id,
+      'clinic_id': user.id,
       'session_date': DateTime.now().toIso8601String().split('T')[0],
       'source_document_path': sourceDocumentPath,
       'structured_data': structuredData,
@@ -63,7 +63,7 @@ class SupabaseReportService {
         return ClinicalReport(
           id: const Uuid().v4(),
           patientId: patientId,
-          doctorId: user.id,
+          clinicId: user.id,
           createdAt: DateTime.now(),
           sessionDate: DateTime.now(),
           sourceDocumentPath: sourceDocumentPath,

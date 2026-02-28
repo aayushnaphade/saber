@@ -289,7 +289,7 @@ class _DashboardPageState extends State<DashboardPage> {
             return ClinicalReport(
               id: p.id,
               patientId: p.patientId,
-              doctorId: supabase.auth.currentUser?.id ?? 'offline',
+              clinicId: 'offline',
               createdAt: p.createdAt,
               sessionDate: p.createdAt,
               patientName: isFailed

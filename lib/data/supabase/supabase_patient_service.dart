@@ -262,7 +262,7 @@ class SupabasePatientService {
         gender: gender,
         status: PatientStatus.waiting,
         lastVisit: null,
-        doctorId: currentUserId,
+        clinicId: currentUserId,
         phoneNumber: phoneNumber,
         email: email,
         address: address,

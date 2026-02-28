@@ -254,7 +254,7 @@ class MockDashboardData {
 class ClinicalReport {
   final String id;
   final String patientId;
-  final String doctorId;
+  final String clinicId;
   final DateTime createdAt;
   final DateTime sessionDate;
   final String? patientName;
@@ -266,7 +266,7 @@ class ClinicalReport {
   ClinicalReport({
     required this.id,
     required this.patientId,
-    required this.doctorId,
+    required this.clinicId,
     required this.createdAt,
     required this.sessionDate,
     this.patientName,
@@ -290,7 +290,7 @@ class ClinicalReport {
     return ClinicalReport(
       id: json['id'] as String,
       patientId: json['patient_id'] as String,
-      doctorId: json['doctor_id'] as String,
+      clinicId: json['clinic_id'] as String,
       createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
       sessionDate: DateTime.parse(json['session_date'] as String).toLocal(),
       patientName: name,
@@ -315,7 +315,7 @@ class ClinicalReport {
     return {
       'id': id,
       'patient_id': patientId,
-      'doctor_id': doctorId,
+      'clinic_id': clinicId,
       'created_at': createdAt.toUtc().toIso8601String(),
       'session_date': sessionDate.toIso8601String().split('T')[0],
       'source_document_path': sourceDocumentPath,

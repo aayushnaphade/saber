@@ -180,7 +180,8 @@ class _SessionViewerPageState extends State<SessionViewerPage> {
           note = await SupabaseConsultationService.getSessionNote(
             widget.patientId,
             _currentSessionNumber,
-            doctorId: report?.doctorId, // Pass the doctorId from the report
+            doctorId: report
+                ?.clinicId, // Pass the clinicId as the parameter still expects doctorId
           );
           if (note != null) {
             log.info(

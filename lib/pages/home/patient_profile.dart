@@ -2013,11 +2013,11 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     try {
       await DocumentSyncService.syncDownIfMissing(
         localPath: '$basePath${Editor.extension}',
-        doctorId: report?.doctorId,
+        doctorId: report?.clinicId,
       );
       await DocumentSyncService.syncDownIfMissing(
         localPath: '$basePath.sbn',
-        doctorId: report?.doctorId,
+        doctorId: report?.clinicId,
       );
     } catch (e) {
       _log.warning('Note sync failed, proceeding to editor: $e');
@@ -2369,7 +2369,7 @@ class _DemographicsDialogState extends State<_DemographicsDialog> {
                         gender: selectedGender,
                         status: widget.patient.status,
                         lastVisit: widget.patient.lastVisit,
-                        doctorId: widget.patient.doctorId,
+                        clinicId: widget.patient.clinicId,
                         phoneNumber: phoneController.text.trim().isEmpty
                             ? null
                             : phoneController.text.trim(),

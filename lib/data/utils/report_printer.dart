@@ -425,7 +425,7 @@ class ReportPrinter {
       age: 45,
       gender: 'Male',
       status: PatientStatus.active,
-      doctorId: 'demo-doctor',
+      clinicId: 'demo-clinic',
       phoneNumber: '+91 98765 43210',
     );
 

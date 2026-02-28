@@ -425,7 +425,7 @@ class EditorState extends State<Editor> {
                 createdAt: DateTime.now(),
                 fullName: _patientName ?? 'Unknown Patient',
                 status: PatientStatus.active,
-                doctorId: supabase.auth.currentUser?.id ?? '',
+                clinicId: 'offline',
                 // Minimal required fields
               );
             }

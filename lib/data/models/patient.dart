@@ -7,7 +7,7 @@ class Patient {
   final String? gender;
   final PatientStatus status;
   final DateTime? lastVisit;
-  final String doctorId;
+  final String clinicId;
 
   // Additional fields
   final String? phoneNumber;
@@ -32,7 +32,7 @@ class Patient {
     this.gender,
     required this.status,
     this.lastVisit,
-    required this.doctorId,
+    required this.clinicId,
     this.phoneNumber,
     this.email,
     this.medicalHistory,
@@ -60,7 +60,7 @@ class Patient {
       lastVisit: json['last_visit'] != null
           ? DateTime.parse(json['last_visit'].toString())
           : null,
-      doctorId: json['doctor_id']?.toString() ?? '',
+      clinicId: json['clinic_id']?.toString() ?? '',
       phoneNumber: (json['phone_number'] ?? json['contact_number'])?.toString(),
       email: json['email']?.toString(),
       medicalHistory: json['medical_history'] as Map<String, dynamic>?,
@@ -97,7 +97,7 @@ class Patient {
       'gender': gender,
       'status': status.value,
       'last_visit': lastVisit?.toUtc().toIso8601String(),
-      'doctor_id': doctorId,
+      'clinic_id': clinicId,
       'phone_number': phoneNumber,
       'email': email,
       'medical_history': medicalHistory,
@@ -120,7 +120,7 @@ class Patient {
       'gender': gender,
       'status': status.value,
       'last_visit': lastVisit?.toUtc().toIso8601String(),
-      'doctor_id': doctorId,
+      'clinic_id': clinicId,
       'phone_number': phoneNumber,
       'email': email,
       'medical_history': medicalHistory,
@@ -151,7 +151,7 @@ class Patient {
     String? gender,
     PatientStatus? status,
     DateTime? lastVisit,
-    String? doctorId,
+    String? clinicId,
     String? phoneNumber,
     String? email,
     Map<String, dynamic>? medicalHistory,
@@ -172,7 +172,7 @@ class Patient {
       gender: gender ?? this.gender,
       status: status ?? this.status,
       lastVisit: lastVisit ?? this.lastVisit,
-      doctorId: doctorId ?? this.doctorId,
+      clinicId: clinicId ?? this.clinicId,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       email: email ?? this.email,
       medicalHistory: medicalHistory ?? this.medicalHistory,
