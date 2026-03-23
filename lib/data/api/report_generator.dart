@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
@@ -204,8 +205,36 @@ You must output a structured Clinical Assessment Report based on the provided sc
         ],
       );
 
-      final response = await api.projects.locations.publishers.models
-          .generateContent(request, parent);
+      GoogleCloudAiplatformV1GenerateContentResponse? response;
+      int maxRetries = 3;
+      int attempt = 0;
+
+      while (true) {
+        try {
+          response = await api.projects.locations.publishers.models
+              .generateContent(request, parent);
+          break; // Success
+        } catch (e) {
+          final isQuotaError = e.toString().contains('429') ||
+              e.toString().contains('503') ||
+              e.toString().contains('Resource has been exhausted');
+          
+          if (isQuotaError) {
+            attempt++;
+            if (attempt > maxRetries) {
+              log.severe('Vertex AI Quota exceeded and max retries reached.', e);
+              throw Exception(
+                  'Vertex AI is currently overloaded (Quota Exceeded). Please try again in a few moments.');
+            }
+            final delayMs = (1000 * (1 << attempt)) + Random().nextInt(1000);
+            log.warning(
+                'Vertex AI Error (Quota/Unavailable). Retrying in ${delayMs}ms (Attempt $attempt of $maxRetries)...');
+            await Future.delayed(Duration(milliseconds: delayMs));
+          } else {
+            rethrow;
+          }
+        }
+      }
 
       log.info('Full Vertex AI Response: ${jsonEncode(response.toJson())}');
 
