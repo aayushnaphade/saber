@@ -2,9 +2,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Singleton Supabase client for the application
 class SupabaseClientConfig {
-  static const supabaseUrl = 'https://hdrzwpsxljhcknmwstyq.supabase.co';
-  static const supabaseAnonKey =
-      'sb_publishable_R0EbhLSm11S0H_Dxj8xbQQ_LMxckpyv';
+  /// To run against staging:
+  /// flutter run --dart-define=SUPABASE_URL=https://tjhvmxmfpvudeudchdgz.supabase.co --dart-define=SUPABASE_ANON_KEY=sb_publishable_E28-M6EfnvRiCdzVXQ46nQ_WimWGbxG
+  static const supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://hdrzwpsxljhcknmwstyq.supabase.co',
+  );
+  static const supabaseAnonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'sb_publishable_R0EbhLSm11S0H_Dxj8xbQQ_LMxckpyv',
+  );
 
   static SupabaseClient? _instance;
 
